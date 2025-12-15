@@ -53,7 +53,7 @@ export class AuthService {
    * Authenticate a user and create a session
    */
   async login(params: LoginParams): Promise<LoginResult> {
-    return performLogin(this.em.fork(), params);
+    return await performLogin(this.em.fork(), params);
   }
 
   /**
@@ -64,7 +64,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<boolean> {
-    return performLogout(this.em.fork(), sessionId, ipAddress, userAgent);
+    return await performLogout(this.em.fork(), sessionId, ipAddress, userAgent);
   }
 
   /**
@@ -76,7 +76,7 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<number> {
-    return performLogoutAll(
+    return await performLogoutAll(
       this.em.fork(),
       userId,
       currentSessionId,
@@ -93,7 +93,12 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<PasswordResetRequestResult> {
-    return performRequestReset(this.em.fork(), email, ipAddress, userAgent);
+    return await performRequestReset(
+      this.em.fork(),
+      email,
+      ipAddress,
+      userAgent,
+    );
   }
 
   /**
@@ -105,7 +110,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<PasswordResetResult> {
-    return performResetPassword(
+    return await performResetPassword(
       this.em.fork(),
       token,
       newPassword,
@@ -124,7 +129,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<PasswordResetResult> {
-    return performChangePassword(
+    return await performChangePassword(
       this.em.fork(),
       userId,
       currentPassword,
@@ -138,7 +143,7 @@ export class AuthService {
    * Get a user's active sessions
    */
   async getUserSessions(userId: string): Promise<Session[]> {
-    return fetchUserSessions(this.em.fork(), userId);
+    return await fetchUserSessions(this.em.fork(), userId);
   }
 
   /**
@@ -150,7 +155,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<boolean> {
-    return performRevokeSession(
+    return await performRevokeSession(
       this.em.fork(),
       userId,
       sessionId,
@@ -163,7 +168,7 @@ export class AuthService {
    * Send MFA verification code to user's email
    */
   async sendMfaCode(userId: string): Promise<MfaSendCodeResult> {
-    return performSendMfaCode(this.em.fork(), userId);
+    return await performSendMfaCode(this.em.fork(), userId);
   }
 
   /**
@@ -176,7 +181,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<MfaVerifyResult> {
-    return performVerifyMfaCode(
+    return await performVerifyMfaCode(
       this.em.fork(),
       pendingMfaUserId,
       code,
@@ -196,7 +201,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<MfaVerifyResult> {
-    return performVerifyMfaRecoveryCode(
+    return await performVerifyMfaRecoveryCode(
       this.em.fork(),
       pendingMfaUserId,
       recoveryCode,
@@ -214,7 +219,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<MfaEnableResult> {
-    return performEnableMfa(this.em.fork(), userId, ipAddress, userAgent);
+    return await performEnableMfa(this.em.fork(), userId, ipAddress, userAgent);
   }
 
   /**
@@ -225,14 +230,19 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<MfaDisableResult> {
-    return performDisableMfa(this.em.fork(), userId, ipAddress, userAgent);
+    return await performDisableMfa(
+      this.em.fork(),
+      userId,
+      ipAddress,
+      userAgent,
+    );
   }
 
   /**
    * Get remaining recovery codes count for a user
    */
   async getRecoveryCodeCount(userId: string): Promise<number> {
-    return fetchRecoveryCodeCount(this.em.fork(), userId);
+    return await fetchRecoveryCodeCount(this.em.fork(), userId);
   }
 
   /**
@@ -243,7 +253,7 @@ export class AuthService {
     ipAddress: string,
     userAgent: string,
   ): Promise<MfaEnableResult> {
-    return performRegenerateRecoveryCodes(
+    return await performRegenerateRecoveryCodes(
       this.em.fork(),
       userId,
       ipAddress,
