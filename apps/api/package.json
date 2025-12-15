@@ -20,6 +20,7 @@
     "schema:update": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm schema:update --run"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.948.0",
     "@mikro-orm/core": "^6.6.2",
     "@mikro-orm/postgresql": "^6.6.2",
     "@shared/core": "workspace:*",
