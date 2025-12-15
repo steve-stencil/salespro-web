@@ -10,6 +10,7 @@ globs:
 - Prefer functional, small modules. Avoid long classes.
 - Always write a short JSDoc for exported functions and types.
 - Do not hardcode env secrets; read from process.env with typed helpers.
+- **ALWAYS use axios** for HTTP requests - never use native `fetch()`. Configure axios instances with proper interceptors.
 
 # Code Quality
 

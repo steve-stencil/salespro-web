@@ -1,0 +1,24 @@
+---
+description: Fetch Leap style guides from Confluence when needed
+globs:
+alwaysApply: false
+---
+
+# Leap Style Guides
+
+When working on UI/UX, coding patterns, testing, or architecture decisions, fetch the relevant Leap documentation from Confluence using the Atlassian MCP tools.
+
+## Confluence Access
+
+- **Cloud ID**: `b78be30c-0578-4bba-bd2e-e1d6e551437b`
+- **Tool**: `mcp_Atlassian_getConfluencePage` or `mcp_Atlassian_search`
+
+## When to Fetch
+
+- **UI/UX work**: Search for "Style Guide", "Design Tokens", "Brand Voice"
+- **React patterns**: Search for "Leap-360 Coding Standards"
+- **Testing**: Search for "React Unit Test Best Practices"
+- **Feature flags**: Search for "LaunchDarkly Standards"
+- **Security**: Search for "Secure Coding Policy"
+
+See `docs/LEAP_STYLE_GUIDES.md` for full page reference with IDs and URLs.

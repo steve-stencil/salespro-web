@@ -8,7 +8,7 @@ globs:
 
 - Use React Router for pages in `src/routes/*`.
 - Use TanStack Query for server state. Never fetch in useEffect directly.
-- Centralize API calls in `src/api.ts`. Always throw on non-2xx.
+- Centralize API calls using axios in `src/lib/api-client.ts`. Always throw on non-2xx.
 - Use proper loading and error states in components.
 - Implement proper form validation with user feedback.
 - Use React.memo() for expensive components that receive stable props.
@@ -25,13 +25,15 @@ globs:
 
 # API Integration
 
+- **ALWAYS use axios** for HTTP requests - never use native `fetch()`.
 - Use React 19 with Vite; prefer `@tanstack/react-query` for data fetching.
+- Centralize axios instance configuration in `src/lib/api-client.ts` with base URL, interceptors, and error handling.
 - Read API base from `VITE_API_BASE`; keep default in `README.md` synced with code.
-- If routes, paths, or error envelope change, update `apps/web/src/api.ts` and the `README.md` examples.
+- If routes, paths, or error envelope change, update `apps/web/src/lib/api-client.ts` and the `README.md` examples.
 - Document any new env vars or flags.
-- Implement proper error handling for API failures.
+- Implement proper error handling for API failures using axios interceptors.
 - Use proper TypeScript types for API responses.
-- Implement request/response interceptors for common functionality.
+- Implement request/response interceptors for auth tokens, error handling, and logging.
 - Cache API responses appropriately with TanStack Query.
 
 # Performance & Optimization
