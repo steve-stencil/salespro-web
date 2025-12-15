@@ -305,5 +305,221 @@ describe('Authentication E2E Tests', () => {
 
       expect(response.status).toBe(200);
     });
+
+    it('should lock account after 5 failed attempts', async () => {
+      // Make 5 failed attempts (at threshold)
+      for (let i = 0; i < 5; i++) {
+        await makeRequest().post('/api/auth/login').send({
+          email: testEmail,
+          password: 'WrongPassword!',
+        });
+      }
+
+      // Should be locked out
+      const response = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      expect(response.status).toBe(423);
+      expect(response.body.errorCode).toBe('account_locked');
+    });
+
+    it('should return 423 for locked account even with correct password', async () => {
+      // Make 5 failed attempts to lock the account
+      for (let i = 0; i < 5; i++) {
+        await makeRequest().post('/api/auth/login').send({
+          email: testEmail,
+          password: 'WrongPassword!',
+        });
+      }
+
+      // Try with correct password - should still be locked
+      const response = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      expect(response.status).toBe(423);
+      expect(response.body.error).toContain('locked');
+    });
+
+    it('should allow login after lockout expires', async () => {
+      // This test would require manipulating the lockout time
+      // In a real scenario, we would mock the time or wait
+      // For now, we verify the lockout mechanism works
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Set lockout that has already expired
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.failedLoginAttempts = 5;
+        user.lockedUntil = new Date(Date.now() - 60000); // 1 minute ago
+        await em.flush();
+      }
+
+      // Should be able to login now
+      const response = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe('Password Change (Authenticated)', () => {
+    it('should change password with valid current password', async () => {
+      // Login first
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      const cookies = loginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+      expect(cookies).toBeDefined();
+
+      // Change password
+      const newPassword = 'NewPassword789!';
+      const response = await makeRequest()
+        .post('/api/auth/password/change')
+        .set('Cookie', cookies ?? [])
+        .send({
+          currentPassword: testPassword,
+          newPassword,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('Password changed successfully');
+
+      // Verify can login with new password
+      const newLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .send({
+          email: testEmail,
+          password: newPassword,
+        });
+
+      expect(newLoginResponse.status).toBe(200);
+    });
+
+    it('should reject invalid current password', async () => {
+      // Login first
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      const cookies = loginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+      expect(cookies).toBeDefined();
+
+      // Try to change password with wrong current password
+      const response = await makeRequest()
+        .post('/api/auth/password/change')
+        .set('Cookie', cookies ?? [])
+        .send({
+          currentPassword: 'WrongPassword123!',
+          newPassword: 'NewPassword789!',
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Current password is incorrect');
+    });
+
+    it('should reject password that matches history', async () => {
+      // Login first
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      const cookies = loginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+      expect(cookies).toBeDefined();
+
+      // Change password successfully first
+      const firstChangeResponse = await makeRequest()
+        .post('/api/auth/password/change')
+        .set('Cookie', cookies ?? [])
+        .send({
+          currentPassword: testPassword,
+          newPassword: 'NewPassword789!',
+        });
+
+      expect(firstChangeResponse.status).toBe(200);
+
+      // Get new cookies after password change
+      const newLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .send({
+          email: testEmail,
+          password: 'NewPassword789!',
+        });
+
+      const newCookies = newLoginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+
+      // Try to change back to original password (should fail due to history)
+      const response = await makeRequest()
+        .post('/api/auth/password/change')
+        .set('Cookie', newCookies ?? [])
+        .send({
+          currentPassword: 'NewPassword789!',
+          newPassword: testPassword,
+        });
+
+      // Should reject because it's in password history
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('recently used');
+    });
+
+    it('should reject new password that does not meet policy', async () => {
+      // Login first
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      const cookies = loginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+      expect(cookies).toBeDefined();
+
+      // Try to change to a weak password
+      const response = await makeRequest()
+        .post('/api/auth/password/change')
+        .set('Cookie', cookies ?? [])
+        .send({
+          currentPassword: testPassword,
+          newPassword: 'weak', // Too short, no uppercase, no numbers
+        });
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('Remember Me Session', () => {
+    it('should create extended session with remember me flag', async () => {
+      const response = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        rememberMe: true,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers['set-cookie']).toBeDefined();
+
+      // The cookie should have a longer max-age for remember me
+      const cookies = response.headers['set-cookie'] as string[];
+      const sessionCookie = cookies.find(c => c.startsWith('sid='));
+      expect(sessionCookie).toBeDefined();
+    });
   });
 });

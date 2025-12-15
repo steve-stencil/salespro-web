@@ -216,5 +216,73 @@ describe('Auth Routes Integration Tests', () => {
       // Would be 401 (not authenticated) before validation, but schema validates first
       expect([400, 401]).toContain(response.status);
     });
+
+    it('should return 400 for missing current password', async () => {
+      const response = await makeRequest()
+        .post('/api/auth/password/change')
+        .send({
+          newPassword: 'NewPassword456!',
+        });
+
+      expect([400, 401]).toContain(response.status);
+    });
+
+    it('should return 400 for missing new password', async () => {
+      const response = await makeRequest()
+        .post('/api/auth/password/change')
+        .send({
+          currentPassword: 'OldPassword123!',
+        });
+
+      expect([400, 401]).toContain(response.status);
+    });
+  });
+
+  describe('MFA Routes (Unauthenticated)', () => {
+    it('should return 401 for /api/auth/mfa/enable when not authenticated', async () => {
+      const response = await makeRequest().post('/api/auth/mfa/enable');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Not authenticated');
+    });
+
+    it('should return 401 for /api/auth/mfa/disable when not authenticated', async () => {
+      const response = await makeRequest().post('/api/auth/mfa/disable');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Not authenticated');
+    });
+
+    it('should return 401 for /api/auth/mfa/status when not authenticated', async () => {
+      const response = await makeRequest().get('/api/auth/mfa/status');
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Not authenticated');
+    });
+
+    it('should return 401 for /api/auth/mfa/regenerate-recovery-codes when not authenticated', async () => {
+      const response = await makeRequest().post(
+        '/api/auth/mfa/regenerate-recovery-codes',
+      );
+
+      expect(response.status).toBe(401);
+      expect(response.body.error).toBe('Not authenticated');
+    });
+
+    it('should return 400 for /api/auth/mfa/verify without session', async () => {
+      const response = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .send({ code: '123456' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should return 400 for /api/auth/mfa/verify-recovery without session', async () => {
+      const response = await makeRequest()
+        .post('/api/auth/mfa/verify-recovery')
+        .send({ recoveryCode: 'ABCD-1234' });
+
+      expect(response.status).toBe(400);
+    });
   });
 });

@@ -39,9 +39,29 @@ All scripts can be run via pnpm workspace filtering or inside this directory:
 - `pnpm --filter web preview` – preview the production build
 - `pnpm --filter web lint` – lint the project
 - `pnpm --filter web typecheck` – run TypeScript type checks
-- `pnpm --filter web test` – run tests
+- `pnpm --filter web test` – run unit tests
+- `pnpm --filter web test:e2e` – run E2E tests with Playwright
+- `pnpm --filter web test:e2e:ui` – run E2E tests with Playwright UI
+- `pnpm --filter web test:e2e:headed` – run E2E tests in headed browser mode
 
 The same scripts exist in this workspace and can be run with `pnpm <script>` after `cd apps/web`.
+
+### E2E Testing with Playwright
+
+The app includes browser-based E2E tests using Playwright. Tests are located in the `e2e/` directory.
+
+```bash
+# Run all E2E tests (headless)
+pnpm --filter web test:e2e
+
+# Run with Playwright UI for debugging
+pnpm --filter web test:e2e:ui
+
+# Run in headed mode (visible browser)
+pnpm --filter web test:e2e:headed
+```
+
+**Note:** E2E tests require both the web app and API to be running. The Playwright config will automatically start the dev server when running tests locally.
 
 ### Shared packages
 
