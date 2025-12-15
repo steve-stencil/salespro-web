@@ -36,3 +36,24 @@ export {
 
 // Event logging
 export { logLoginEvent } from './events';
+
+// MFA operations
+export {
+  sendMfaCode,
+  verifyMfaCode,
+  verifyMfaRecoveryCode,
+  enableMfa,
+  disableMfa,
+  getRecoveryCodeCount,
+  regenerateRecoveryCodes,
+  hasPendingMfa,
+  clearPendingMfa,
+  MfaErrorCode,
+  MFA_CONFIG,
+} from './mfa';
+export type {
+  MfaSendCodeResult,
+  MfaVerifyResult,
+  MfaEnableResult,
+  MfaDisableResult,
+} from './mfa';

@@ -7,6 +7,13 @@ import {
   requestPasswordReset as performRequestReset,
   resetPassword as performResetPassword,
   changePassword as performChangePassword,
+  sendMfaCode as performSendMfaCode,
+  verifyMfaCode as performVerifyMfaCode,
+  verifyMfaRecoveryCode as performVerifyMfaRecoveryCode,
+  enableMfa as performEnableMfa,
+  disableMfa as performDisableMfa,
+  getRecoveryCodeCount as fetchRecoveryCodeCount,
+  regenerateRecoveryCodes as performRegenerateRecoveryCodes,
 } from './auth';
 
 import type { Session } from '../entities';
@@ -15,16 +22,24 @@ import type {
   LoginResult,
   PasswordResetRequestResult,
   PasswordResetResult,
+  MfaSendCodeResult,
+  MfaVerifyResult,
+  MfaEnableResult,
+  MfaDisableResult,
 } from './auth';
 import type { EntityManager } from '@mikro-orm/core';
 
 // Re-export types for external use
-export { LoginErrorCode } from './auth';
+export { LoginErrorCode, MfaErrorCode } from './auth';
 export type {
   LoginParams,
   LoginResult,
   PasswordResetRequestResult,
   PasswordResetResult,
+  MfaSendCodeResult,
+  MfaVerifyResult,
+  MfaEnableResult,
+  MfaDisableResult,
 } from './auth';
 
 /**
@@ -139,6 +154,98 @@ export class AuthService {
       this.em.fork(),
       userId,
       sessionId,
+      ipAddress,
+      userAgent,
+    );
+  }
+
+  /**
+   * Send MFA verification code to user's email
+   */
+  async sendMfaCode(userId: string): Promise<MfaSendCodeResult> {
+    return performSendMfaCode(this.em.fork(), userId);
+  }
+
+  /**
+   * Verify MFA code and complete login
+   */
+  async verifyMfaCode(
+    pendingMfaUserId: string,
+    code: string,
+    sessionId: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<MfaVerifyResult> {
+    return performVerifyMfaCode(
+      this.em.fork(),
+      pendingMfaUserId,
+      code,
+      sessionId,
+      ipAddress,
+      userAgent,
+    );
+  }
+
+  /**
+   * Verify MFA using a recovery code
+   */
+  async verifyMfaRecoveryCode(
+    pendingMfaUserId: string,
+    recoveryCode: string,
+    sessionId: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<MfaVerifyResult> {
+    return performVerifyMfaRecoveryCode(
+      this.em.fork(),
+      pendingMfaUserId,
+      recoveryCode,
+      sessionId,
+      ipAddress,
+      userAgent,
+    );
+  }
+
+  /**
+   * Enable MFA for a user
+   */
+  async enableMfa(
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<MfaEnableResult> {
+    return performEnableMfa(this.em.fork(), userId, ipAddress, userAgent);
+  }
+
+  /**
+   * Disable MFA for a user
+   */
+  async disableMfa(
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<MfaDisableResult> {
+    return performDisableMfa(this.em.fork(), userId, ipAddress, userAgent);
+  }
+
+  /**
+   * Get remaining recovery codes count for a user
+   */
+  async getRecoveryCodeCount(userId: string): Promise<number> {
+    return fetchRecoveryCodeCount(this.em.fork(), userId);
+  }
+
+  /**
+   * Regenerate recovery codes for a user
+   */
+  async regenerateRecoveryCodes(
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<MfaEnableResult> {
+    return performRegenerateRecoveryCodes(
+      this.em.fork(),
+      userId,
       ipAddress,
       userAgent,
     );

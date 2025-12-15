@@ -4,13 +4,9 @@
  */
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -28,6 +24,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 
+import { LeapLogo } from '../components/LeapLogo';
 import { ApiClientError } from '../lib/api-client';
 import { authApi } from '../services/auth';
 
@@ -174,17 +171,15 @@ export function ResetPasswordPage(): React.ReactElement {
               textAlign: 'center',
             }}
           >
-            <Avatar
+            <Box
               sx={{
-                width: 64,
-                height: 64,
-                bgcolor: 'error.main',
-                mx: 'auto',
+                display: 'flex',
+                justifyContent: 'center',
                 mb: 3,
               }}
             >
-              <ErrorOutlineIcon sx={{ fontSize: 36 }} />
-            </Avatar>
+              <LeapLogo size="medium" color="primary" />
+            </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
               Invalid Reset Link
@@ -232,17 +227,15 @@ export function ResetPasswordPage(): React.ReactElement {
               textAlign: 'center',
             }}
           >
-            <Avatar
+            <Box
               sx={{
-                width: 64,
-                height: 64,
-                bgcolor: 'success.main',
-                mx: 'auto',
+                display: 'flex',
+                justifyContent: 'center',
                 mb: 3,
               }}
             >
-              <CheckCircleOutlineIcon sx={{ fontSize: 36 }} />
-            </Avatar>
+              <LeapLogo size="medium" color="primary" />
+            </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
               Password Reset Successful
@@ -289,17 +282,15 @@ export function ResetPasswordPage(): React.ReactElement {
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Avatar
+            <Box
               sx={{
-                width: 56,
-                height: 56,
-                bgcolor: 'secondary.main',
-                mx: 'auto',
-                mb: 2,
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 3,
               }}
             >
-              <VpnKeyIcon sx={{ fontSize: 28 }} />
-            </Avatar>
+              <LeapLogo size="medium" color="primary" />
+            </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
               Set New Password

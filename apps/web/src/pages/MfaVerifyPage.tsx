@@ -3,9 +3,7 @@
  * Displays a 6-digit code input after login when MFA is required.
  */
 
-import LockIcon from '@mui/icons-material/Lock';
 import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -17,6 +15,7 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState } from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 
+import { LeapLogo } from '../components/LeapLogo';
 import { useAuth } from '../hooks/useAuth';
 import { ApiClientError } from '../lib/api-client';
 
@@ -208,17 +207,15 @@ export function MfaVerifyPage(): React.ReactElement {
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Avatar
+            <Box
               sx={{
-                width: 56,
-                height: 56,
-                bgcolor: 'secondary.main',
-                mx: 'auto',
-                mb: 2,
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 3,
               }}
             >
-              <LockIcon sx={{ fontSize: 28 }} />
-            </Avatar>
+              <LeapLogo size="medium" color="primary" />
+            </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
               Two-Factor Authentication

@@ -4,10 +4,7 @@
  */
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import LockResetIcon from '@mui/icons-material/LockReset';
 import Alert from '@mui/material/Alert';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -19,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 
+import { LeapLogo } from '../components/LeapLogo';
 import { ApiClientError } from '../lib/api-client';
 import { authApi } from '../services/auth';
 
@@ -124,17 +122,15 @@ export function ForgotPasswordPage(): React.ReactElement {
               textAlign: 'center',
             }}
           >
-            <Avatar
+            <Box
               sx={{
-                width: 64,
-                height: 64,
-                bgcolor: 'success.main',
-                mx: 'auto',
+                display: 'flex',
+                justifyContent: 'center',
                 mb: 3,
               }}
             >
-              <CheckCircleOutlineIcon sx={{ fontSize: 36 }} />
-            </Avatar>
+              <LeapLogo size="medium" color="primary" />
+            </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
               Check Your Email
@@ -195,17 +191,15 @@ export function ForgotPasswordPage(): React.ReactElement {
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Avatar
+            <Box
               sx={{
-                width: 56,
-                height: 56,
-                bgcolor: 'secondary.main',
-                mx: 'auto',
-                mb: 2,
+                display: 'flex',
+                justifyContent: 'center',
+                mb: 3,
               }}
             >
-              <LockResetIcon sx={{ fontSize: 28 }} />
-            </Avatar>
+              <LeapLogo size="medium" color="primary" />
+            </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
               Forgot Your Password?

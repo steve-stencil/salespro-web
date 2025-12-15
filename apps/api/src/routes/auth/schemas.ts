@@ -35,3 +35,13 @@ export const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8),
 });
+
+/** MFA code verification schema */
+export const mfaVerifySchema = z.object({
+  code: z.string().length(6, 'MFA code must be 6 digits'),
+});
+
+/** MFA recovery code verification schema */
+export const mfaRecoverySchema = z.object({
+  recoveryCode: z.string().min(8, 'Invalid recovery code format'),
+});
