@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/nodemon.json",
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": ["**/__tests__/**", "**/*.test.ts", "**/*.spec.ts"],
+  "exec": "tsx src/index.ts",
+  "delay": 1000,
+  "legacyWatch": false,
+  "verbose": false
+}
