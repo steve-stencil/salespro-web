@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 import { Router } from 'express';
 
 import { getORM } from '../../lib/db';
@@ -9,6 +11,33 @@ import { getClientIp, getUserAgent } from './utils';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
+
+/**
+ * Get or create a session ID for login
+ * If session exists, regenerate it for security
+ * If no session, generate a new UUID
+ */
+async function getOrCreateSessionId(req: Request): Promise<string> {
+  // Session may be undefined when saveUninitialized: false
+  const session = req.session;
+
+  // If session exists, regenerate for security (prevents session fixation)
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (session?.regenerate) {
+    return new Promise((resolve, reject) => {
+      session.regenerate((err: Error | null) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(req.sessionID);
+        }
+      });
+    });
+  }
+
+  // No session yet, generate a new UUID (database expects UUID format)
+  return crypto.randomUUID();
+}
 
 /**
  * POST /auth/login
@@ -29,6 +58,10 @@ router.post('/login', async (req: Request, res: Response) => {
     const orm = getORM();
     const authService = new AuthService(orm.em);
 
+    // Get or create session ID for login
+    // If session exists, regenerate for security (prevents session fixation)
+    const sessionId = await getOrCreateSessionId(req);
+
     const deviceId = req.headers['x-device-id'];
     const result = await authService.login({
       email,
@@ -38,7 +71,7 @@ router.post('/login', async (req: Request, res: Response) => {
       ipAddress: getClientIp(req),
       userAgent: getUserAgent(req),
       deviceId: typeof deviceId === 'string' ? deviceId : undefined,
-      sessionId: req.sessionID,
+      sessionId,
     });
 
     if (!result.success) {
@@ -51,8 +84,11 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    if (result.requiresMfa && result.user) {
-      req.session.pendingMfaUserId = result.user.id;
+    if (result.requiresMfa) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (req.session && result.user) {
+        req.session.pendingMfaUserId = result.user.id;
+      }
       res.status(200).json({
         requiresMfa: true,
         message: 'MFA verification required',
@@ -60,10 +96,23 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    if (result.user) {
+    // Store user info in session if available
+    // Note: Session data is also stored in our Session entity via AuthService
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (result.user && req.session) {
       req.session.userId = result.user.id;
       req.session.companyId = result.user.company.id;
     }
+
+    // Set session cookie manually since we created the session directly in DB
+    // This ensures the browser has the session ID for subsequent requests
+    res.cookie('sid', sessionId, {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
 
     res.status(200).json({
       message: 'Login successful',
@@ -118,7 +167,29 @@ router.post('/logout', async (req: Request, res: Response) => {
  */
 router.get('/me', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    // First try express-session (may be undefined when saveUninitialized: false)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    let userId = req.session?.userId;
+
+    // If no session, try to look up session from our custom cookie
+    if (!userId) {
+      const sessionId = (req.cookies as Record<string, string>)['sid'];
+      if (sessionId) {
+        const orm = getORM();
+        const em = orm.em.fork();
+        const { Session } = await import('../../entities');
+
+        const session = await em.findOne(
+          Session,
+          { sid: sessionId },
+          { populate: ['user'] },
+        );
+
+        if (session?.user && !session.isExpired) {
+          userId = session.user.id;
+        }
+      }
+    }
 
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });

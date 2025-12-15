@@ -55,12 +55,41 @@ This command:
 3. Creates the demo company and admin user
 4. Prints a summary with login credentials
 
+### Custom Admin Credentials
+
+You can provide custom email and password instead of using the defaults:
+
+**Using CLI arguments:**
+
+```bash
+pnpm db:seed --email myemail@example.com --password MySecurePass123!
+```
+
+**Using environment variables:**
+
+```bash
+SEED_ADMIN_EMAIL=myemail@example.com SEED_ADMIN_PASSWORD=MySecurePass123! pnpm db:seed
+```
+
+**Priority order:** CLI args > Environment variables > Defaults
+
+| Method  | Email Variable     | Password Variable     |
+| ------- | ------------------ | --------------------- |
+| CLI     | `--email`          | `--password`          |
+| Env Var | `SEED_ADMIN_EMAIL` | `SEED_ADMIN_PASSWORD` |
+
 ### Force Reseed
 
 If seed data already exists, you can force a reseed:
 
 ```bash
 pnpm db:seed:force
+```
+
+With custom credentials:
+
+```bash
+pnpm db:seed:force --email newemail@example.com --password NewPass123!
 ```
 
 This will:
@@ -148,10 +177,24 @@ pnpm dev
 
 ## Customizing Seed Data
 
-To customize the seed data, edit `apps/api/scripts/seed.ts`:
+### Admin Credentials (Recommended)
+
+Use CLI arguments or environment variables to customize admin credentials without editing code:
+
+```bash
+# CLI arguments
+pnpm db:seed --email admin@yourcompany.com --password YourSecurePassword123!
+
+# Environment variables
+SEED_ADMIN_EMAIL=admin@yourcompany.com SEED_ADMIN_PASSWORD=YourSecurePassword123! pnpm db:seed
+```
+
+### Company Settings (Advanced)
+
+To customize company settings beyond credentials, edit `apps/api/scripts/seed.ts` and modify the `getSeedConfig()` function:
 
 ```typescript
-const SEED_CONFIG = {
+return {
   company: {
     name: 'Your Company Name',
     maxSeats: 10,
@@ -160,13 +203,13 @@ const SEED_CONFIG = {
     // ...
   },
   user: {
-    email: 'admin@yourcompany.com',
-    password: 'YourSecurePassword123!',
+    email, // From CLI/env/default
+    password, // From CLI/env/default
     nameFirst: 'Admin',
     nameLast: 'User',
     // ...
   },
-} as const;
+};
 ```
 
 ## Troubleshooting
