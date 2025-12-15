@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { Session } from '../../entities';
 import { getORM } from '../../lib/db';
 import { AuthService } from '../../services';
 
@@ -10,12 +11,42 @@ import type { Request, Response, Router as RouterType } from 'express';
 const router: RouterType = Router();
 
 /**
+ * Helper to get userId from session or cookie fallback
+ */
+async function getUserIdFromRequest(req: Request): Promise<string | null> {
+  // First try express-session (may be undefined when saveUninitialized: false)
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  let userId = req.session?.userId;
+
+  // If no session, try to look up session from our custom cookie
+  if (!userId) {
+    const sessionId = (req.cookies as Record<string, string>)['sid'];
+    if (sessionId) {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const session = await em.findOne(
+        Session,
+        { sid: sessionId },
+        { populate: ['user'] },
+      );
+
+      if (session?.user && !session.isExpired) {
+        userId = session.user.id;
+      }
+    }
+  }
+
+  return userId ?? null;
+}
+
+/**
  * GET /auth/sessions
  * Get user's active sessions
  */
 router.get('/sessions', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
@@ -50,7 +81,7 @@ router.get('/sessions', async (req: Request, res: Response) => {
  */
 router.delete('/sessions/:sid', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
@@ -91,7 +122,7 @@ router.delete('/sessions/:sid', async (req: Request, res: Response) => {
  */
 router.delete('/sessions/all', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });

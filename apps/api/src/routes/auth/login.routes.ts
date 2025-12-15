@@ -137,21 +137,27 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.post('/logout', async (req: Request, res: Response) => {
   try {
-    const sessionId = req.sessionID;
+    // Get session ID from cookie (prefer this) or express-session
+    const cookieSessionId = (req.cookies as Record<string, string>)['sid'];
+    const sessionId = cookieSessionId ?? req.sessionID;
 
-    // Only call authService.logout if user is authenticated
-    if (req.session.userId) {
+    // Try to logout even if req.session.userId is not set
+    // (session data might be stored in DB but not loaded into express-session)
+    if (sessionId) {
       const orm = getORM();
       const authService = new AuthService(orm.em);
       await authService.logout(sessionId, getClientIp(req), getUserAgent(req));
     }
 
-    // Destroy session
-    req.session.destroy(err => {
-      if (err) {
-        req.log.error({ err }, 'Session destroy error');
-      }
-    });
+    // Destroy express-session if it exists
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (req.session?.destroy) {
+      req.session.destroy(err => {
+        if (err) {
+          req.log.error({ err }, 'Session destroy error');
+        }
+      });
+    }
 
     res.clearCookie('sid');
     res.status(200).json({ message: 'Logged out successfully' });

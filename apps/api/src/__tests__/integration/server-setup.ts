@@ -1,6 +1,6 @@
 import { beforeAll, afterAll } from 'vitest';
 
-import { initORM, closeORM } from '../../lib/db';
+import { initORM, closeORM, getORM } from '../../lib/db';
 import { createServer } from '../../server';
 
 import type { Server } from 'http';
@@ -21,6 +21,11 @@ beforeAll(async () => {
   try {
     // Connect to the test PostgreSQL instance
     await initORM();
+
+    // Create database schema for tests
+    const orm = getORM();
+    const generator = orm.getSchemaGenerator();
+    await generator.refreshDatabase();
 
     // Start the actual server
     server = await createServer();

@@ -1,84 +1,303 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import App from '../../App';
+import { AuthContext } from '../../context/AuthContext';
+import { LoginPage } from '../../pages/LoginPage';
 
-import { render, screen } from './helpers';
+import type { AuthContextType } from '../../types/auth';
+
+// Mock the API client to avoid actual network requests
+vi.mock('../../lib/api-client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+  },
+  ApiClientError: class ApiClientError extends Error {
+    apiError: { details?: unknown };
+    constructor(message: string, apiError: { details?: unknown } = {}) {
+      super(message);
+      this.apiError = apiError;
+    }
+  },
+}));
+
+// Test wrapper with all required providers
+function createTestWrapper(authValue: AuthContextType) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return function TestWrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={authValue}>
+          <MemoryRouter initialEntries={['/login']}>{children}</MemoryRouter>
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    );
+  };
+}
+
+// Default mock auth context values
+function createMockAuthContext(
+  overrides?: Partial<AuthContextType>,
+): AuthContextType {
+  return {
+    user: null,
+    isLoading: false,
+    isAuthenticated: false,
+    requiresMfa: false,
+    login: vi.fn().mockResolvedValue({}),
+    logout: vi.fn().mockResolvedValue(undefined),
+    refreshUser: vi.fn().mockResolvedValue(undefined),
+    verifyMfa: vi.fn().mockResolvedValue(undefined),
+    clearMfaState: vi.fn(),
+    ...overrides,
+  };
+}
 
 describe('App Integration Tests', () => {
-  it('should render the main app component', () => {
-    render(<App />);
-
-    // Check for Vite + React title
-    expect(screen.getByText('Vite + React')).toBeInTheDocument();
-
-    // Check for logos
-    expect(screen.getByAltText('Vite logo')).toBeInTheDocument();
-    expect(screen.getByAltText('React logo')).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it('should display the counter button', () => {
-    render(<App />);
+  describe('Login Page', () => {
+    it('should render the login page with form elements', async () => {
+      const mockAuth = createMockAuthContext();
+      const Wrapper = createTestWrapper(mockAuth);
 
-    const button = screen.getByRole('button', { name: /count is 0/i });
-    expect(button).toBeInTheDocument();
-  });
+      render(
+        <Wrapper>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Wrapper>,
+      );
 
-  it('should increment counter when button is clicked', async () => {
-    const user = userEvent.setup();
-    render(<App />);
+      // Wait for the page to render
+      await waitFor(() => {
+        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+      });
 
-    const button = screen.getByRole('button', { name: /count is 0/i });
+      // Check for form elements
+      expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /sign in/i }),
+      ).toBeInTheDocument();
+    });
 
-    // Click the button
-    await user.click(button);
+    it('should display validation errors for empty form submission', async () => {
+      const user = userEvent.setup();
+      const mockAuth = createMockAuthContext();
+      const Wrapper = createTestWrapper(mockAuth);
 
-    // Counter should increment
-    expect(
-      screen.getByRole('button', { name: /count is 1/i }),
-    ).toBeInTheDocument();
-  });
+      render(
+        <Wrapper>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Wrapper>,
+      );
 
-  it('should increment counter multiple times', async () => {
-    const user = userEvent.setup();
-    render(<App />);
+      await waitFor(() => {
+        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+      });
 
-    const button = screen.getByRole('button', { name: /count is 0/i });
+      // Click sign in without filling form
+      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      await user.click(submitButton);
 
-    // Click multiple times
-    await user.click(button);
-    await user.click(button);
-    await user.click(button);
+      // Validation errors should appear
+      await waitFor(() => {
+        expect(screen.getByText('Email is required')).toBeInTheDocument();
+        expect(screen.getByText('Password is required')).toBeInTheDocument();
+      });
+    });
 
-    // Counter should be 3
-    expect(
-      screen.getByRole('button', { name: /count is 3/i }),
-    ).toBeInTheDocument();
-  });
+    it('should validate email format', async () => {
+      const user = userEvent.setup();
+      const mockAuth = createMockAuthContext();
+      const Wrapper = createTestWrapper(mockAuth);
 
-  it('should display the edit instruction', () => {
-    render(<App />);
+      render(
+        <Wrapper>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Wrapper>,
+      );
 
-    expect(screen.getByText(/edit/i)).toBeInTheDocument();
-    expect(screen.getByText(/src\/App\.tsx/i)).toBeInTheDocument();
-    expect(screen.getByText(/save to test HMR/i)).toBeInTheDocument();
-  });
+      await waitFor(() => {
+        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+      });
 
-  it('should display the read the docs text', () => {
-    render(<App />);
+      // Enter invalid email
+      const emailInput = screen.getByLabelText(/email address/i);
+      await user.type(emailInput, 'invalid-email');
 
-    expect(
-      screen.getByText(/click on the vite and react logos to learn more/i),
-    ).toBeInTheDocument();
-  });
+      // Enter valid password - use the specific input field
+      const passwordInput = screen.getByLabelText('Password');
+      await user.type(passwordInput, 'password123');
 
-  it('should have clickable logo links', () => {
-    render(<App />);
+      // Submit form
+      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      await user.click(submitButton);
 
-    const viteLink = screen.getByRole('link', { name: /vite logo/i });
-    const reactLink = screen.getByRole('link', { name: /react logo/i });
+      // Email validation error should appear
+      await waitFor(() => {
+        expect(
+          screen.getByText('Please enter a valid email address'),
+        ).toBeInTheDocument();
+      });
+    });
 
-    expect(viteLink).toHaveAttribute('href', 'https://vite.dev');
-    expect(reactLink).toHaveAttribute('href', 'https://react.dev');
+    it('should call login function with form data', async () => {
+      const user = userEvent.setup();
+      const loginMock = vi.fn().mockResolvedValue({});
+      const mockAuth = createMockAuthContext({ login: loginMock });
+      const Wrapper = createTestWrapper(mockAuth);
+
+      render(
+        <Wrapper>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Wrapper>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+      });
+
+      // Fill in form - use specific labels
+      const emailInput = screen.getByLabelText(/email address/i);
+      const passwordInput = screen.getByLabelText('Password');
+
+      await user.type(emailInput, 'test@example.com');
+      await user.type(passwordInput, 'password123');
+
+      // Submit form
+      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      await user.click(submitButton);
+
+      // Login should be called with correct values
+      await waitFor(() => {
+        expect(loginMock).toHaveBeenCalledWith(
+          'test@example.com',
+          'password123',
+          false,
+        );
+      });
+    });
+
+    it('should show loading state during login', async () => {
+      const user = userEvent.setup();
+      // Create a login function that doesn't resolve immediately
+      const loginMock = vi.fn().mockImplementation(
+        () =>
+          new Promise(resolve => {
+            setTimeout(() => resolve({}), 100);
+          }),
+      );
+      const mockAuth = createMockAuthContext({ login: loginMock });
+      const Wrapper = createTestWrapper(mockAuth);
+
+      render(
+        <Wrapper>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Wrapper>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+      });
+
+      // Fill in form - use specific labels
+      const emailInput = screen.getByLabelText(/email address/i);
+      const passwordInput = screen.getByLabelText('Password');
+
+      await user.type(emailInput, 'test@example.com');
+      await user.type(passwordInput, 'password123');
+
+      // Submit form
+      const submitButton = screen.getByRole('button', { name: /sign in/i });
+      await user.click(submitButton);
+
+      // Should show signing in state
+      await waitFor(() => {
+        expect(screen.getByText(/signing in/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should have forgot password link', async () => {
+      const mockAuth = createMockAuthContext();
+      const Wrapper = createTestWrapper(mockAuth);
+
+      render(
+        <Wrapper>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Wrapper>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+      });
+
+      // Check for forgot password link
+      const forgotPasswordLink = screen.getByRole('link', {
+        name: /forgot password/i,
+      });
+      expect(forgotPasswordLink).toBeInTheDocument();
+      expect(forgotPasswordLink).toHaveAttribute('href', '/forgot-password');
+    });
+
+    it('should toggle password visibility', async () => {
+      const user = userEvent.setup();
+      const mockAuth = createMockAuthContext();
+      const Wrapper = createTestWrapper(mockAuth);
+
+      render(
+        <Wrapper>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Wrapper>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome Back')).toBeInTheDocument();
+      });
+
+      // Use specific label to get the password input field
+      const passwordInput = screen.getByLabelText('Password');
+      expect(passwordInput).toHaveAttribute('type', 'password');
+
+      // Click toggle button
+      const toggleButton = screen.getByRole('button', {
+        name: /show password/i,
+      });
+      await user.click(toggleButton);
+
+      // Password should now be visible
+      expect(passwordInput).toHaveAttribute('type', 'text');
+
+      // Click again to hide
+      const hideButton = screen.getByRole('button', { name: /hide password/i });
+      await user.click(hideButton);
+
+      expect(passwordInput).toHaveAttribute('type', 'password');
+    });
   });
 });
