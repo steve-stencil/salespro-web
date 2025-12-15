@@ -84,11 +84,49 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    if (result.requiresMfa) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (req.session && result.user) {
-        req.session.pendingMfaUserId = result.user.id;
+    if (result.requiresMfa && result.user) {
+      // Create a temporary MFA session in the database
+      // This session will be upgraded to a full session after MFA verification
+      const { Session } = await import('../../entities');
+      const em = orm.em.fork();
+
+      // Check if session already exists (shouldn't, but just in case)
+      let session = await em.findOne(Session, { sid: sessionId });
+      if (!session) {
+        const now = new Date();
+        const mfaSessionExpiry = 10 * 60 * 1000; // 10 minutes for MFA verification
+
+        session = new Session();
+        session.sid = sessionId;
+        session.expiresAt = new Date(now.getTime() + mfaSessionExpiry);
+        session.absoluteExpiresAt = new Date(now.getTime() + mfaSessionExpiry);
+        session.user = result.user;
+        session.company = result.user.company;
+        session.source = source; // source is already SessionSource enum from Zod
+        session.ipAddress = getClientIp(req);
+        session.userAgent = getUserAgent(req);
+        session.mfaVerified = false;
+        session.createdAt = now;
+        session.lastActivityAt = now;
+        em.persist(session);
       }
+
+      // Store pendingMfaUserId in session data
+      session.data = {
+        ...session.data,
+        pendingMfaUserId: result.user.id,
+      };
+      await em.flush();
+
+      // Set session cookie for MFA flow
+      res.cookie('sid', sessionId, {
+        httpOnly: true,
+        secure: process.env['NODE_ENV'] === 'production',
+        sameSite: 'lax',
+        maxAge: 10 * 60 * 1000, // 10 minutes for MFA verification
+        path: '/',
+      });
+
       res.status(200).json({
         requiresMfa: true,
         message: 'MFA verification required',

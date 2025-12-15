@@ -56,6 +56,8 @@ export interface MfaSendCodeResult {
   errorCode?: MfaErrorCode;
   /** Code expiry time in minutes */
   expiresIn?: number;
+  /** MFA code (only returned in development mode) */
+  code?: string;
 }
 
 /**
@@ -169,15 +171,36 @@ export async function sendMfaCode(
       MFA_CONFIG.CODE_EXPIRY_MINUTES,
     );
 
-    return {
+    const result: MfaSendCodeResult = {
       success: true,
       expiresIn: MFA_CONFIG.CODE_EXPIRY_MINUTES,
     };
+
+    // Return code in development mode for testing
+    if (process.env['NODE_ENV'] === 'development') {
+      result.code = code;
+    }
+
+    return result;
   } catch (error) {
-    // Remove the stored code if email fails
+    const message = error instanceof Error ? error.message : 'Unknown error';
+
+    // In development mode, return the code even if email fails
+    // This allows testing MFA without a configured email service
+    if (process.env['NODE_ENV'] === 'development') {
+      console.warn('MFA email failed in development, code still available:', {
+        error: message,
+      });
+      return {
+        success: true,
+        expiresIn: MFA_CONFIG.CODE_EXPIRY_MINUTES,
+        code,
+      };
+    }
+
+    // In production, remove the stored code if email fails
     pendingMfaCodes.delete(userId);
 
-    const message = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
       error: `Failed to send MFA code: ${message}`,

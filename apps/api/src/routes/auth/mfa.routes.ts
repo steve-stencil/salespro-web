@@ -20,13 +20,71 @@ import type { Request, Response, Router as RouterType } from 'express';
 const router: RouterType = Router();
 
 /**
+ * Session data from database
+ */
+interface SessionFromCookie {
+  sessionId: string;
+  userId: string | undefined;
+  pendingMfaUserId: string | undefined;
+}
+
+/**
+ * Get session from database using cookie
+ * This is more reliable than express-session which may have a different session ID
+ */
+async function getSessionFromCookie(
+  req: Request,
+): Promise<SessionFromCookie | null> {
+  const sessionId = (req.cookies as Record<string, string>)['sid'];
+  if (!sessionId) {
+    return null;
+  }
+
+  const orm = getORM();
+  const em = orm.em.fork();
+  const { Session } = await import('../../entities');
+  const session = await em.findOne(Session, { sid: sessionId });
+
+  if (!session || session.isExpired) {
+    return null;
+  }
+
+  const data = session.data;
+  const pendingMfaUserId = data['pendingMfaUserId'];
+  return {
+    sessionId,
+    userId: session.user?.id,
+    pendingMfaUserId:
+      typeof pendingMfaUserId === 'string' ? pendingMfaUserId : undefined,
+  };
+}
+
+/**
+ * Get pending MFA user ID from database session
+ */
+async function getPendingMfaUserId(req: Request): Promise<string | undefined> {
+  const sessionData = await getSessionFromCookie(req);
+  return sessionData?.pendingMfaUserId;
+}
+
+/**
+ * Get authenticated user ID from database session
+ */
+async function getAuthenticatedUserId(
+  req: Request,
+): Promise<string | undefined> {
+  const sessionData = await getSessionFromCookie(req);
+  return sessionData?.userId;
+}
+
+/**
  * POST /auth/mfa/send
  * Send MFA verification code to user's email
  * Requires pendingMfaUserId in session (set after login when MFA required)
  */
 router.post('/mfa/send', async (req: Request, res: Response) => {
   try {
-    const pendingMfaUserId = req.session.pendingMfaUserId;
+    const pendingMfaUserId = await getPendingMfaUserId(req);
     if (!pendingMfaUserId) {
       res.status(400).json({
         error: 'No pending MFA verification',
@@ -49,6 +107,7 @@ router.post('/mfa/send', async (req: Request, res: Response) => {
     res.status(200).json({
       message: 'Verification code sent',
       expiresIn: result.expiresIn,
+      code: result.code, // Only present in development mode
     });
   } catch (err) {
     req.log.error({ err }, 'MFA send code error');
@@ -71,7 +130,8 @@ router.post('/mfa/verify', async (req: Request, res: Response) => {
       return;
     }
 
-    const pendingMfaUserId = req.session.pendingMfaUserId;
+    const sessionId = (req.cookies as Record<string, string>)['sid'];
+    const pendingMfaUserId = await getPendingMfaUserId(req);
     if (!pendingMfaUserId) {
       res.status(400).json({
         error: 'No pending MFA verification',
@@ -86,7 +146,7 @@ router.post('/mfa/verify', async (req: Request, res: Response) => {
       orm.em.fork(),
       pendingMfaUserId,
       code,
-      req.sessionID,
+      sessionId ?? req.sessionID,
       getClientIp(req),
       getUserAgent(req),
     );
@@ -100,11 +160,18 @@ router.post('/mfa/verify', async (req: Request, res: Response) => {
       return;
     }
 
-    // Clear pending MFA and set authenticated user in session
-    delete req.session.pendingMfaUserId;
-    if (result.user) {
-      req.session.userId = result.user.id;
-      req.session.companyId = result.user.company.id;
+    // Clear pending MFA from database session and mark as verified
+    if (sessionId) {
+      const em = orm.em.fork();
+      const { Session } = await import('../../entities');
+      const session = await em.findOne(Session, { sid: sessionId });
+      if (session) {
+        const data = { ...session.data };
+        delete data['pendingMfaUserId'];
+        session.data = data;
+        session.mfaVerified = true;
+        await em.flush();
+      }
     }
 
     res.status(200).json({
@@ -139,7 +206,8 @@ router.post('/mfa/verify-recovery', async (req: Request, res: Response) => {
       return;
     }
 
-    const pendingMfaUserId = req.session.pendingMfaUserId;
+    const sessionId = (req.cookies as Record<string, string>)['sid'];
+    const pendingMfaUserId = await getPendingMfaUserId(req);
     if (!pendingMfaUserId) {
       res.status(400).json({
         error: 'No pending MFA verification',
@@ -154,7 +222,7 @@ router.post('/mfa/verify-recovery', async (req: Request, res: Response) => {
       orm.em.fork(),
       pendingMfaUserId,
       recoveryCode,
-      req.sessionID,
+      sessionId ?? req.sessionID,
       getClientIp(req),
       getUserAgent(req),
     );
@@ -167,11 +235,18 @@ router.post('/mfa/verify-recovery', async (req: Request, res: Response) => {
       return;
     }
 
-    // Clear pending MFA and set authenticated user in session
-    delete req.session.pendingMfaUserId;
-    if (result.user) {
-      req.session.userId = result.user.id;
-      req.session.companyId = result.user.company.id;
+    // Clear pending MFA from database session and mark as verified
+    if (sessionId) {
+      const em = orm.em.fork();
+      const { Session } = await import('../../entities');
+      const session = await em.findOne(Session, { sid: sessionId });
+      if (session) {
+        const data = { ...session.data };
+        delete data['pendingMfaUserId'];
+        session.data = data;
+        session.mfaVerified = true;
+        await em.flush();
+      }
     }
 
     res.status(200).json({
@@ -197,7 +272,7 @@ router.post('/mfa/verify-recovery', async (req: Request, res: Response) => {
  */
 router.post('/mfa/enable', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    const userId = await getAuthenticatedUserId(req);
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
       return;
@@ -235,7 +310,7 @@ router.post('/mfa/enable', async (req: Request, res: Response) => {
  */
 router.post('/mfa/disable', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    const userId = await getAuthenticatedUserId(req);
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
       return;
@@ -272,7 +347,7 @@ router.post('/mfa/disable', async (req: Request, res: Response) => {
  */
 router.get('/mfa/status', async (req: Request, res: Response) => {
   try {
-    const userId = req.session.userId;
+    const userId = await getAuthenticatedUserId(req);
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
       return;
@@ -312,7 +387,7 @@ router.post(
   '/mfa/regenerate-recovery-codes',
   async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId;
+      const userId = await getAuthenticatedUserId(req);
       if (!userId) {
         res.status(401).json({ error: 'Not authenticated' });
         return;

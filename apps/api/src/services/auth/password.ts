@@ -12,11 +12,15 @@ import {
   generateSecureToken,
   hashToken,
 } from '../../lib/crypto';
+import { emailService } from '../../lib/email';
 
 import { logLoginEvent } from './events';
 
 import type { PasswordResetRequestResult, PasswordResetResult } from './types';
 import type { EntityManager } from '@mikro-orm/core';
+
+/** Token expiration time in minutes */
+const TOKEN_EXPIRATION_MINUTES = 60;
 
 /**
  * Request a password reset and generate token
@@ -39,7 +43,9 @@ export async function requestPasswordReset(
   const resetToken = new PasswordResetToken();
   resetToken.tokenHash = hashToken(token);
   resetToken.user = user;
-  resetToken.expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  resetToken.expiresAt = new Date(
+    Date.now() + TOKEN_EXPIRATION_MINUTES * 60 * 1000,
+  );
 
   em.persist(resetToken);
 
@@ -51,6 +57,21 @@ export async function requestPasswordReset(
 
   await em.flush();
 
+  // Send password reset email if email service is configured
+  if (emailService.isConfigured()) {
+    try {
+      await emailService.sendPasswordResetEmail(
+        user.email,
+        token,
+        TOKEN_EXPIRATION_MINUTES,
+      );
+    } catch (error) {
+      // Log error but don't fail the request to prevent email enumeration
+      console.error('Failed to send password reset email:', error);
+    }
+  }
+
+  // In development, also return the token for testing purposes
   if (process.env['NODE_ENV'] === 'development') {
     return { success: true, token };
   }
