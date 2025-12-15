@@ -17,7 +17,9 @@
     "migration:create": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm migration:create",
     "migration:up": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm migration:up",
     "migration:down": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm migration:down",
-    "schema:update": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm schema:update --run"
+    "schema:update": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm schema:update --run",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed:force": "tsx scripts/seed.ts --force"
   },
   "dependencies": {
     "@mikro-orm/core": "^6.6.2",
