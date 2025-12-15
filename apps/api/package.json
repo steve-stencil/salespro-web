@@ -19,7 +19,9 @@
     "migration:down": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm migration:down",
     "schema:update": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm schema:update --run",
     "db:seed": "tsx scripts/seed.ts",
-    "db:seed:force": "tsx scripts/seed.ts --force"
+    "db:seed:force": "tsx scripts/seed.ts --force",
+    "db:seed-roles": "tsx scripts/seed-roles.ts",
+    "db:seed-roles:force": "tsx scripts/seed-roles.ts --force"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.948.0",

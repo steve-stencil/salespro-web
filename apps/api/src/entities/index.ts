@@ -8,6 +8,11 @@ export { Company } from './Company.entity';
 export { User } from './User.entity';
 export { Session } from './Session.entity';
 
+// RBAC entities
+export { Role } from './Role.entity';
+export { UserRole } from './UserRole.entity';
+export { Office } from './Office.entity';
+
 // OAuth entities
 export { OAuthClient } from './OAuthClient.entity';
 export { OAuthToken } from './OAuthToken.entity';

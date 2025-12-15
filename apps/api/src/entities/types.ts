@@ -72,6 +72,14 @@ export enum OAuthClientType {
   PUBLIC = 'public',
 }
 
+/** Role type for RBAC system */
+export enum RoleType {
+  /** Built-in system roles (cannot be deleted) */
+  SYSTEM = 'system',
+  /** Company-created custom roles */
+  COMPANY = 'company',
+}
+
 /** Company-configurable password policy */
 export interface PasswordPolicy {
   /** Minimum password length */

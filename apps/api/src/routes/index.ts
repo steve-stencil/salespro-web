@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import authRoutes from './auth';
 import oauthRoutes from './oauth';
+import roleRoutes from './roles';
 
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
@@ -18,5 +19,8 @@ r.use('/auth', authRoutes);
 
 // OAuth routes
 r.use('/oauth', oauthRoutes);
+
+// Role & Permission routes
+r.use('/roles', roleRoutes);
 
 export default r;

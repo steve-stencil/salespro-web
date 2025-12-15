@@ -8,3 +8,6 @@ export type {
   PasswordResetRequestResult,
   PasswordResetResult,
 } from './AuthService';
+
+export { PermissionService } from './PermissionService';
+export type { RoleAssignmentResult } from './PermissionService';
