@@ -1,5 +1,7 @@
 import request from 'supertest';
 
+import { getORM } from '../../lib/db';
+
 import { getTestServer } from './server-setup';
 
 export const getTestApp = () => {
@@ -13,16 +15,15 @@ export const makeRequest = () => {
 };
 
 export const waitForDatabase = async (maxAttempts = 10): Promise<void> => {
-  const mongoose = await import('mongoose');
-
   for (let i = 0; i < maxAttempts; i++) {
-    if (
-      mongoose.default.connection.readyState ===
-      mongoose.ConnectionStates.connected
-    ) {
+    try {
+      const orm = getORM();
+      // Test connection by running a simple query
+      await orm.em.getConnection().execute('SELECT 1');
       return;
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
-    await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   throw new Error('Database connection timeout');

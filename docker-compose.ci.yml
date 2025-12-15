@@ -2,20 +2,22 @@
 # Optimized for GitHub Actions CI environment
 
 services:
-  # Test MongoDB for CI
-  mongo-test:
-    image: mongo:7
+  # Test PostgreSQL for CI
+  postgres-test:
+    image: postgres:16-alpine
     restart: "no"
     ports:
-      - "27018:27017"
+      - "5433:5432"
     environment:
-      - MONGO_INITDB_DATABASE=mern_test
+      POSTGRES_DB: salespro_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d salespro_test"]
       interval: 5s
       timeout: 3s
       retries: 5
       start_period: 10s
     # No volumes in CI - use in-memory storage for speed
     tmpfs:
-      - /data/db
+      - /var/lib/postgresql/data

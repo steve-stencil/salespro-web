@@ -1,56 +1,57 @@
-import mongoose from 'mongoose';
-import { beforeAll, afterAll, beforeEach } from 'vitest';
+import { beforeAll, afterAll } from 'vitest';
 
+import { initORM, closeORM } from '../../lib/db';
 import { createServer } from '../../server';
 
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 
-let server: Server;
+let server: Server | undefined;
 let baseUrl: string;
+let setupError: Error | undefined;
 
 export function getTestServer() {
-  return { server, baseUrl };
+  if (setupError) {
+    throw setupError;
+  }
+  return { server: server!, baseUrl };
 }
 
 beforeAll(async () => {
-  // Connect to the test MongoDB instance
-  await mongoose.connect(process.env['MONGODB_URI']!);
+  try {
+    // Connect to the test PostgreSQL instance
+    await initORM();
 
-  // Start the actual server
-  server = await createServer();
+    // Start the actual server
+    server = await createServer();
 
-  const address = server.address() as AddressInfo;
-  baseUrl = `http://localhost:${address.port}`;
+    const address = server.address() as AddressInfo;
+    baseUrl = `http://localhost:${address.port}`;
 
-  console.log(`Test server running on ${baseUrl}`);
+    console.log(`Test server running on ${baseUrl}`);
+  } catch (error) {
+    // Store the error so tests can be skipped
+    setupError = error instanceof Error ? error : new Error(String(error));
+    console.error(
+      'Failed to setup integration test server:',
+      setupError.message,
+    );
+    console.error(
+      'Make sure PostgreSQL is running (docker-compose -f docker-compose.test.yml up)',
+    );
+  }
 });
 
 afterAll(async () => {
   // Clean up server and database connection
-  await new Promise<void>((resolve, reject) => {
-    server.close(err => {
-      if (err) reject(err);
-      else resolve();
+  if (server) {
+    await new Promise<void>((resolve, reject) => {
+      server!.close(err => {
+        if (err) reject(err);
+        else resolve();
+      });
     });
-  });
-
-  if (
-    mongoose.connection.readyState !== mongoose.ConnectionStates.disconnected
-  ) {
-    await mongoose.connection.close();
   }
-});
 
-beforeEach(async () => {
-  // Clear all collections before each test
-  if (
-    mongoose.connection.readyState === mongoose.ConnectionStates.connected &&
-    mongoose.connection.db
-  ) {
-    const collections = await mongoose.connection.db.collections();
-    for (const collection of collections) {
-      await collection.deleteMany({});
-    }
-  }
+  await closeORM();
 });

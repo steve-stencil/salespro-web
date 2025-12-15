@@ -2,18 +2,20 @@
 # Usage: docker-compose -f docker-compose.test.yml up
 
 services:
-  # Test MongoDB
-  mongo-test:
-    image: mongo:7
+  # Test PostgreSQL
+  postgres-test:
+    image: postgres:16-alpine
     restart: "no"
     volumes:
-      - mongo_test_data:/data/db
+      - postgres_test_data:/var/lib/postgresql/data
     ports:
-      - "27018:27017"
+      - "5433:5432"
     environment:
-      - MONGO_INITDB_DATABASE=mern_test
+      POSTGRES_DB: salespro_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d salespro_test"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -27,13 +29,13 @@ services:
     environment:
       - NODE_ENV=test
       - PORT=4001
-      - MONGODB_URI=mongodb://mongo-test:27017/mern_test
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-test:5432/salespro_test
     depends_on:
-      mongo-test:
+      postgres-test:
         condition: service_healthy
     ports:
       - "4001:4001"
     command: ["pnpm", "test:integration"]
 
 volumes:
-  mongo_test_data:
+  postgres_test_data:

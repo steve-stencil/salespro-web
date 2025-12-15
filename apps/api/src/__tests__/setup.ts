@@ -2,34 +2,11 @@ import { vi } from 'vitest';
 
 // Mock environment variables
 process.env['NODE_ENV'] = 'test';
-process.env['MONGODB_URI'] = 'mongodb://localhost:27017/test';
+process.env['DATABASE_URL'] =
+  'postgresql://postgres:postgres@localhost:5433/salespro_test';
 process.env['PORT'] = '3001';
-
-// Mock mongoose connection
-vi.mock('mongoose', () => ({
-  default: {
-    connect: vi.fn(),
-    connection: {
-      readyState: 0,
-    },
-    ConnectionStates: {
-      disconnected: 0,
-      connected: 1,
-      connecting: 2,
-      disconnecting: 3,
-    },
-  },
-  connect: vi.fn(),
-  connection: {
-    readyState: 0,
-  },
-  ConnectionStates: {
-    disconnected: 0,
-    connected: 1,
-    connecting: 2,
-    disconnecting: 3,
-  },
-}));
+process.env['SESSION_SECRET'] =
+  'test-session-secret-at-least-32-characters-long';
 
 // Mock pino logger
 vi.mock('pino', () => ({

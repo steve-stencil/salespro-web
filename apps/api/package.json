@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon",
+    "dev": "tsx watch src/index.ts",
     "build": "tsup src/index.ts --out-dir dist --format esm",
     "start": "node dist/index.js",
     "lint": "eslint .",
@@ -13,27 +13,47 @@
     "test:coverage": "vitest run --coverage",
     "test:integration": "./scripts/test-integration.sh",
     "test:integration:watch": "./scripts/test-integration-watch.sh",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "migration:create": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm migration:create",
+    "migration:up": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm migration:up",
+    "migration:down": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm migration:down",
+    "schema:update": "node --import tsx ./node_modules/.bin/../@mikro-orm/cli/esm schema:update --run"
   },
   "dependencies": {
+    "@mikro-orm/core": "^6.6.2",
+    "@mikro-orm/postgresql": "^6.6.2",
     "@shared/core": "workspace:*",
+    "argon2": "^0.44.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0",
+    "express": "^5.2.1",
+    "express-session": "^1.18.2",
     "helmet": "^8.1.0",
-    "mongoose": "^8.19.0",
-    "pino": "^10.0.0",
+    "oauth2-server": "^3.1.1",
+    "pino": "^10.1.0",
     "pino-http": "^11.0.0",
-    "zod": "^4.1.11"
+    "uuid": "^13.0.0",
+    "zod": "^4.1.13"
+  },
+  "mikro-orm": {
+    "configPaths": [
+      "./mikro-orm.config.ts"
+    ]
   },
   "devDependencies": {
-    "@types/express": "^5.0.3",
-    "@types/supertest": "^6.0.2",
-    "nodemon": "^3.1.11",
+    "@mikro-orm/cli": "^6.6.2",
+    "@mikro-orm/migrations": "^6.6.2",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.18.2",
+    "@types/oauth2-server": "^3.0.18",
+    "@types/supertest": "^6.0.3",
+    "@types/uuid": "^11.0.0",
     "supertest": "^7.1.4",
-    "tsup": "^8.5.0",
-    "tsx": "^4.20.6",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.15"
   }
 }

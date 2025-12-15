@@ -6,10 +6,14 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./src/__tests__/integration/server-setup.ts'],
     include: ['src/__tests__/integration/**/*.test.ts'],
+    // Run test files sequentially to share server instance
+    fileParallelism: false,
     env: {
-      MONGODB_URI: 'mongodb://localhost:27018/mern_test',
+      DATABASE_URL:
+        'postgresql://postgres:postgres@localhost:5433/salespro_test',
       NODE_ENV: 'test',
       PORT: '4001',
+      SESSION_SECRET: 'test-session-secret-at-least-32-characters-long',
     },
     coverage: {
       provider: 'v8',

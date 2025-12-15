@@ -2,29 +2,39 @@
 # Usage: docker-compose -f docker-compose.dev.yml up
 
 services:
-  # Development MongoDB
-  mongo:
-    image: mongo:7
+  # Development PostgreSQL
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
     volumes:
-      - mongo_dev_data:/data/db
+      - postgres_dev_data:/var/lib/postgresql/data
     ports:
-      - "27017:27017"
+      - "5432:5432"
     environment:
-      - MONGO_INITDB_DATABASE=mern_dev
+      POSTGRES_DB: salespro_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d salespro_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
-  # Test MongoDB (for integration tests)
-  mongo-test:
-    image: mongo:7
+  # Test PostgreSQL (for integration tests)
+  postgres-test:
+    image: postgres:16-alpine
     restart: "no"
     volumes:
-      - mongo_test_data:/data/db
+      - postgres_test_data:/var/lib/postgresql/data
     ports:
-      - "27018:27017"
+      - "5433:5432"
     environment:
-      - MONGO_INITDB_DATABASE=mern_test
+      POSTGRES_DB: salespro_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping').ok"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d salespro_test"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -38,9 +48,10 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=4000
-      - MONGODB_URI=mongodb://mongo:27017/mern_dev
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/salespro_dev
     depends_on:
-      - mongo
+      postgres:
+        condition: service_healthy
     ports:
       - "4000:4000"
     volumes:
@@ -66,5 +77,5 @@ services:
     command: ["pnpm", "dev"]
 
 volumes:
-  mongo_dev_data:
-  mongo_test_data:
+  postgres_dev_data:
+  postgres_test_data:
