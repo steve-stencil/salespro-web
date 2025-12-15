@@ -9,14 +9,14 @@ Use the Atlassian MCP tools to fetch the latest documentation:
 ```javascript
 // Fetch a specific page
 mcp_Atlassian_getConfluencePage({
-  cloudId: "b78be30c-0578-4bba-bd2e-e1d6e551437b",
-  pageId: "<page_id>"
-})
+  cloudId: 'b78be30c-0578-4bba-bd2e-e1d6e551437b',
+  pageId: '<page_id>',
+});
 
 // Search for topics
 mcp_Atlassian_search({
-  query: "React component patterns"
-})
+  query: 'React component patterns',
+});
 ```
 
 ---
@@ -157,15 +157,15 @@ mcp_Atlassian_search({
 
 ## Quick Reference Table
 
-| Category | Page | Page ID |
-|----------|------|---------|
-| UI/UX | Style Guide & UX Best Practices | `74153985` |
-| UI/UX | Design Tokens | `37486593` |
-| UI/UX | Common Terms & Brand Voice | `104693761` |
-| Coding | Leap-360 Coding Standards | `789643406` |
-| Coding | Bill's Default Global Rules | `1711669249` |
-| Coding | Secure Coding Policy | `953352238` |
-| Testing | React Unit Test Best Practices | `476708898` |
-| Testing | Bruno API Test Automation | `833257504` |
-| DevOps | LaunchDarkly Standards | `1128988690` |
-| DevOps | Terraform Usage & Standards | `1742929928` |
+| Category | Page                            | Page ID      |
+| -------- | ------------------------------- | ------------ |
+| UI/UX    | Style Guide & UX Best Practices | `74153985`   |
+| UI/UX    | Design Tokens                   | `37486593`   |
+| UI/UX    | Common Terms & Brand Voice      | `104693761`  |
+| Coding   | Leap-360 Coding Standards       | `789643406`  |
+| Coding   | Bill's Default Global Rules     | `1711669249` |
+| Coding   | Secure Coding Policy            | `953352238`  |
+| Testing  | React Unit Test Best Practices  | `476708898`  |
+| Testing  | Bruno API Test Automation       | `833257504`  |
+| DevOps   | LaunchDarkly Standards          | `1128988690` |
+| DevOps   | Terraform Usage & Standards     | `1742929928` |

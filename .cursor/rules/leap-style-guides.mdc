@@ -8,6 +8,15 @@ alwaysApply: false
 
 When working on UI/UX, coding patterns, testing, or architecture decisions, fetch the relevant Leap documentation from Confluence using the Atlassian MCP tools.
 
+## Local Theme Reference
+
+When implementing UI, first check `apps/web/src/theme/theme.ts` for Leap brand tokens.
+The theme contains the official Leap colors, typography, and component overrides from Confluence.
+
+- **Primary (Leap Green)**: `#26D07C` (light) / `#63D98B` (dark)
+- **Secondary (Blue)**: `#4779FF` (light) / `#6C94FF` (dark)
+- **Typography**: Poppins for headlines/buttons, Arial for body text
+
 ## Confluence Access
 
 - **Cloud ID**: `b78be30c-0578-4bba-bd2e-e1d6e551437b`

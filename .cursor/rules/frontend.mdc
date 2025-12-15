@@ -15,10 +15,36 @@ globs:
 - Avoid prop drilling; use context or state management when needed.
 - Implement proper accessibility (a11y) with ARIA labels and keyboard navigation.
 
+# Styling with MUI & Leap Brand
+
+- **ALWAYS use MUI components** for all UI elements - avoid custom CSS files.
+- **ALWAYS follow Leap Design Tokens** from Confluence (see `docs/LEAP_STYLE_GUIDES.md`).
+- Use the `sx` prop for component-specific styling - never create `.css` files.
+- **NEVER hardcode colors** - use theme palette values (`primary.main`, `error.main`, etc.).
+- Use MUI icons from `@mui/icons-material` instead of inline SVGs.
+- Prefer MUI's `Box`, `Stack`, `Container` for layout over custom divs.
+- Use `useTheme()` hook when needing theme values in component logic.
+- Typography must follow Leap tokens: Poppins for headlines/buttons, Arial for body.
+- The theme is defined in `src/theme/theme.ts` with light and dark mode support.
+
+## Leap Brand Colors (Reference)
+
+- Primary (Leap Green): `#26D07C` (light) / `#63D98B` (dark)
+- Secondary (Blue): `#4779FF` (light) / `#6C94FF` (dark)
+- Error: `#F1001F` (light) / `#F53951` (dark)
+- Text Primary: `#2E2E2E` (light) / `#FFFFFF` (dark)
+
+## Forbidden Patterns
+
+- Creating new `.css` files
+- Hardcoding hex colors in components
+- Using inline SVG icons (use `@mui/icons-material`)
+- Using gradients for primary buttons (use solid Leap Green)
+
 # Components
 
 - Keep pages thin; extract components when they exceed ~100 lines.
-- Use TypeScript for all component props with proper interfaces.
+- Use TypeScript for all component props with proper types (prefer `type` over `interface`).
 - Implement proper error boundaries for component error handling.
 - Use consistent naming conventions for components and files.
 - Extract reusable UI components into a shared components library.
@@ -49,3 +75,4 @@ globs:
 - **Frontend Development**: See `docs/DEVELOPMENT.md` for detailed React patterns, component structure, custom hooks, and API client examples.
 - **Architecture**: See `docs/ARCHITECTURE.md` for frontend design patterns, performance optimization, and security considerations.
 - **Security**: See `docs/SECURITY.md` for frontend security best practices and XSS prevention.
+- **Leap Style Guides**: See `docs/LEAP_STYLE_GUIDES.md` for Confluence page references with brand colors and typography tokens.

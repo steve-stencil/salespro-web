@@ -1,0 +1,345 @@
+/**
+ * MFA verification page component.
+ * Displays a 6-digit code input after login when MFA is required.
+ */
+
+import LockIcon from '@mui/icons-material/Lock';
+import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import Container from '@mui/material/Container';
+import Link from '@mui/material/Link';
+import Paper from '@mui/material/Paper';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import { useEffect, useRef, useState } from 'react';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+
+import { useAuth } from '../hooks/useAuth';
+import { ApiClientError } from '../lib/api-client';
+
+import type { ClipboardEvent, FormEvent, KeyboardEvent } from 'react';
+
+const CODE_LENGTH = 6;
+
+export function MfaVerifyPage(): React.ReactElement {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { verifyMfa, isAuthenticated, requiresMfa, clearMfaState } = useAuth();
+
+  const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Get the intended destination from navigation state
+  const from =
+    (location.state as { from?: string } | null)?.from ?? '/dashboard';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      void navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
+
+  // Redirect if MFA is not required (user navigated directly to this page)
+  useEffect(() => {
+    if (!requiresMfa && !isAuthenticated) {
+      void navigate('/login', { replace: true });
+    }
+  }, [requiresMfa, isAuthenticated, navigate]);
+
+  // Focus first input on mount
+  useEffect(() => {
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  /**
+   * Handles input change for a single digit.
+   */
+  function handleInputChange(index: number, value: string): void {
+    // Only allow digits
+    const digit = value.replace(/\D/g, '').slice(-1);
+
+    const newCode = [...code];
+    newCode[index] = digit;
+    setCode(newCode);
+    setError(null);
+
+    // Move to next input if digit entered
+    if (digit && index < CODE_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // Auto-submit when all digits are entered
+    if (digit && index === CODE_LENGTH - 1) {
+      const fullCode = newCode.join('');
+      if (fullCode.length === CODE_LENGTH) {
+        void handleSubmit(undefined, fullCode);
+      }
+    }
+  }
+
+  /**
+   * Handles keyboard navigation between inputs.
+   */
+  function handleKeyDown(
+    index: number,
+    e: KeyboardEvent<HTMLInputElement>,
+  ): void {
+    if (e.key === 'Backspace') {
+      if (!code[index] && index > 0) {
+        // Move to previous input if current is empty
+        inputRefs.current[index - 1]?.focus();
+        const newCode = [...code];
+        newCode[index - 1] = '';
+        setCode(newCode);
+      } else {
+        // Clear current input
+        const newCode = [...code];
+        newCode[index] = '';
+        setCode(newCode);
+      }
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < CODE_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  }
+
+  /**
+   * Handles paste event to fill all inputs.
+   */
+  function handlePaste(e: ClipboardEvent<HTMLInputElement>): void {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '');
+    const digits = pastedData.slice(0, CODE_LENGTH).split('');
+
+    const newCode = [...code];
+    digits.forEach((digit, index) => {
+      newCode[index] = digit;
+    });
+    setCode(newCode);
+
+    // Focus the next empty input or last input
+    const nextEmptyIndex = newCode.findIndex(d => !d);
+    const focusIndex = nextEmptyIndex === -1 ? CODE_LENGTH - 1 : nextEmptyIndex;
+    inputRefs.current[focusIndex]?.focus();
+
+    // Auto-submit if all digits are pasted
+    if (digits.length === CODE_LENGTH) {
+      void handleSubmit(undefined, digits.join(''));
+    }
+  }
+
+  /**
+   * Handles form submission.
+   */
+  async function handleSubmit(
+    e?: FormEvent<HTMLFormElement>,
+    submittedCode?: string,
+  ): Promise<void> {
+    e?.preventDefault();
+
+    const codeToVerify = submittedCode ?? code.join('');
+
+    if (codeToVerify.length !== CODE_LENGTH) {
+      setError('Please enter all 6 digits');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await verifyMfa(codeToVerify);
+      // Success - redirect handled by useEffect
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+      } else {
+        setError('Unable to verify code. Please try again.');
+      }
+      // Clear the code and focus first input
+      setCode(Array(CODE_LENGTH).fill(''));
+      inputRefs.current[0]?.focus();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  /**
+   * Form submit handler wrapper for void return.
+   */
+  function onFormSubmit(e: FormEvent<HTMLFormElement>): void {
+    void handleSubmit(e);
+  }
+
+  /**
+   * Handles going back to login.
+   */
+  function handleBackToLogin(): void {
+    clearMfaState();
+    void navigate('/login');
+  }
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        p: 2,
+        bgcolor: 'primary.main',
+      }}
+    >
+      <Container maxWidth="sm">
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            maxWidth: 400,
+            mx: 'auto',
+          }}
+        >
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Avatar
+              sx={{
+                width: 56,
+                height: 56,
+                bgcolor: 'secondary.main',
+                mx: 'auto',
+                mb: 2,
+              }}
+            >
+              <LockIcon sx={{ fontSize: 28 }} />
+            </Avatar>
+
+            <Typography variant="h2" component="h1" gutterBottom>
+              Two-Factor Authentication
+            </Typography>
+
+            <Typography variant="body1" color="text.secondary">
+              Enter the 6-digit code from your authenticator app
+            </Typography>
+          </Box>
+
+          <Box
+            component="form"
+            onSubmit={onFormSubmit}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
+          >
+            {error && (
+              <Alert severity="error" role="alert" aria-live="polite">
+                {error}
+              </Alert>
+            )}
+
+            <Box
+              role="group"
+              aria-label="Verification code"
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: 1,
+              }}
+            >
+              {code.map((digit, index) => (
+                <TextField
+                  key={index}
+                  inputRef={(el: HTMLInputElement | null) => {
+                    inputRefs.current[index] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={digit}
+                  onChange={e => handleInputChange(index, e.target.value)}
+                  onKeyDown={(e: KeyboardEvent<HTMLInputElement>) =>
+                    handleKeyDown(index, e)
+                  }
+                  onPaste={index === 0 ? handlePaste : undefined}
+                  disabled={isSubmitting}
+                  slotProps={{
+                    input: {
+                      'aria-label': `Digit ${index + 1}`,
+                      sx: {
+                        width: 48,
+                        height: 56,
+                        textAlign: 'center',
+                        fontSize: '1.5rem',
+                        fontWeight: 700,
+                        '& input': {
+                          textAlign: 'center',
+                          padding: '8px',
+                        },
+                      },
+                    },
+                    htmlInput: {
+                      maxLength: 1,
+                    },
+                  }}
+                />
+              ))}
+            </Box>
+
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              size="large"
+              fullWidth
+              disabled={isSubmitting || code.join('').length !== CODE_LENGTH}
+            >
+              {isSubmitting ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={20} color="inherit" />
+                  Verifying...
+                </Box>
+              ) : (
+                'Verify'
+              )}
+            </Button>
+          </Box>
+
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 2,
+              mt: 3,
+            }}
+          >
+            <Button
+              variant="text"
+              color="secondary"
+              size="small"
+              onClick={handleBackToLogin}
+            >
+              Back to Login
+            </Button>
+
+            <Typography variant="body2" color="text.disabled">
+              |
+            </Typography>
+
+            <Link
+              component={RouterLink}
+              to="/forgot-password"
+              variant="body2"
+              color="secondary"
+            >
+              Need Help?
+            </Link>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
+  );
+}

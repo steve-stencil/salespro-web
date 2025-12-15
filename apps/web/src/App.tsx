@@ -1,35 +1,44 @@
-import { useState } from 'react';
+/**
+ * Main application component.
+ * Wraps the router with necessary providers including MUI theme.
+ */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from 'react-router-dom';
 
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
-import './App.css';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { AuthProvider } from './context/AuthContext';
+import { router } from './router';
+import { ColorModeProvider } from './theme';
 
-function App() {
-  const [count, setCount] = useState(0);
+/**
+ * TanStack Query client configuration.
+ * Configured for auth-related queries with sensible defaults.
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
+/**
+ * Root application component with providers.
+ * Provider order: ErrorBoundary -> ColorMode -> QueryClient -> Auth -> Router
+ */
+function App(): React.ReactElement {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount(count => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <ErrorBoundary>
+      <ColorModeProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <RouterProvider router={router} />
+          </AuthProvider>
+        </QueryClientProvider>
+      </ColorModeProvider>
+    </ErrorBoundary>
   );
 }
 

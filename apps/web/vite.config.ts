@@ -1,9 +1,16 @@
+import { resolve } from 'path';
+
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@shared': resolve(__dirname, '../../packages/shared/src'),
+    },
+  },
   server: {
     watch: {
       // Debounce file change events to prevent rapid restarts during mass edits

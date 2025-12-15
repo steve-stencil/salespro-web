@@ -1,131 +1,177 @@
-// Enhanced API client with comprehensive error handling
+/**
+ * Enhanced API client using axios with comprehensive error handling.
+ * Uses session-based authentication with HTTP-only cookies.
+ */
 import {
   getErrorMessage,
   isRetryableError,
   ErrorCode,
 } from '@shared/types/errors';
+import axios from 'axios';
 
 import type { ApiError } from '@shared/types/errors';
+import type { AxiosError, AxiosResponse } from 'axios';
 
 const API_BASE =
   import.meta.env['VITE_API_BASE'] ?? 'http://localhost:4000/api';
 
+/**
+ * Custom error class for API errors with structured error data.
+ */
 export class ApiClientError extends Error {
   constructor(
     public readonly apiError: ApiError,
     public readonly status: number,
-    public readonly response?: Response,
+    public readonly response?: AxiosResponse,
   ) {
     super(getErrorMessage(apiError));
     this.name = 'ApiClientError';
   }
 }
 
-export class ApiClient {
-  private async request<T>(
-    endpoint: string,
-    options?: RequestInit,
-  ): Promise<T> {
-    const url = `${API_BASE}${endpoint}`;
+/**
+ * Axios instance configured for the API.
+ * - withCredentials: true for session cookie handling
+ * - JSON content type by default
+ */
+const axiosInstance = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true, // Required for session cookies
+});
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options?.headers,
-        },
-        ...options,
-      });
+/**
+ * Response interceptor to transform errors into ApiClientError.
+ */
+axiosInstance.interceptors.response.use(
+  response => response,
+  (error: AxiosError) => {
+    const errorPath = error.config?.url;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+    if (error.response) {
+      const errorData = error.response.data as Record<string, unknown> | null;
 
-        if (
-          errorData &&
-          typeof errorData === 'object' &&
-          'error' in errorData
-        ) {
-          const errorResponse = errorData as { error: ApiError };
-          throw new ApiClientError(
-            errorResponse.error,
-            response.status,
-            response,
-          );
-        }
-
-        // Fallback for non-JSON error responses
+      // Check for structured API error response
+      if (errorData !== null && 'error' in errorData) {
+        const apiError = errorData['error'] as ApiError;
         throw new ApiClientError(
-          {
-            code: ErrorCode.INTERNAL_ERROR,
-            message: `HTTP ${response.status}: ${response.statusText}`,
-            timestamp: new Date().toISOString(),
-            path: endpoint,
-          },
-          response.status,
-          response,
+          apiError,
+          error.response.status,
+          error.response,
         );
       }
 
-      return response.json();
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        throw error;
+      // Handle auth-specific error responses (different structure)
+      if (errorData !== null && 'errorCode' in errorData) {
+        const authError: ApiError = {
+          code: ErrorCode.UNAUTHORIZED,
+          message: (errorData['error'] as string) || 'Authentication failed',
+          timestamp: new Date().toISOString(),
+          details: errorData,
+        };
+        if (errorPath) {
+          authError.path = errorPath;
+        }
+        throw new ApiClientError(
+          authError,
+          error.response.status,
+          error.response,
+        );
       }
 
-      // Network or other errors
+      // Fallback for non-JSON or unexpected error responses
+      const fallbackError: ApiError = {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: `HTTP ${error.response.status}: ${error.response.statusText}`,
+        timestamp: new Date().toISOString(),
+      };
+      if (errorPath) {
+        fallbackError.path = errorPath;
+      }
       throw new ApiClientError(
-        {
-          code: ErrorCode.CONNECTION_ERROR,
-          message: 'Network error. Please check your internet connection.',
-          timestamp: new Date().toISOString(),
-          path: endpoint,
-        },
-        0,
+        fallbackError,
+        error.response.status,
+        error.response,
       );
     }
-  }
 
-  // Generic CRUD operations
+    // Network or other errors (no response)
+    const networkError: ApiError = {
+      code: ErrorCode.CONNECTION_ERROR,
+      message: 'Network error. Please check your internet connection.',
+      timestamp: new Date().toISOString(),
+    };
+    if (errorPath) {
+      networkError.path = errorPath;
+    }
+    throw new ApiClientError(networkError, 0);
+  },
+);
+
+/**
+ * API client class providing typed HTTP methods.
+ */
+export class ApiClient {
+  /**
+   * Performs a GET request.
+   */
   async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    const response = await axiosInstance.get<T>(endpoint);
+    return response.data;
   }
 
+  /**
+   * Performs a POST request with optional body data.
+   */
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : null,
-    });
+    const response = await axiosInstance.post<T>(endpoint, data);
+    return response.data;
   }
 
+  /**
+   * Performs a PUT request with optional body data.
+   */
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : null,
-    });
+    const response = await axiosInstance.put<T>(endpoint, data);
+    return response.data;
   }
 
+  /**
+   * Performs a PATCH request with optional body data.
+   */
   async patch<T>(endpoint: string, data?: unknown): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PATCH',
-      body: data ? JSON.stringify(data) : null,
-    });
+    const response = await axiosInstance.patch<T>(endpoint, data);
+    return response.data;
   }
 
+  /**
+   * Performs a DELETE request.
+   */
   async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    const response = await axiosInstance.delete<T>(endpoint);
+    return response.data;
   }
 
-  // Health check endpoints
+  /**
+   * Health check endpoint.
+   */
   async healthCheck(): Promise<{ status: string }> {
     return this.get<{ status: string }>('/healthz');
   }
 
+  /**
+   * Readiness check endpoint.
+   */
   async readinessCheck(): Promise<{ status: string }> {
     return this.get<{ status: string }>('/readyz');
   }
 }
 
-// Helper function to handle API errors in React components
+/**
+ * Helper function to extract user-friendly error message from any error.
+ */
 export function handleApiError(error: unknown): string {
   if (error instanceof ApiClientError) {
     return error.message;
@@ -138,7 +184,9 @@ export function handleApiError(error: unknown): string {
   return 'An unexpected error occurred. Please try again.';
 }
 
-// Helper function to check if an error is retryable
+/**
+ * Helper function to check if an error is retryable.
+ */
 export function isRetryableApiError(error: unknown): boolean {
   if (error instanceof ApiClientError) {
     return isRetryableError(error.apiError);
@@ -147,7 +195,9 @@ export function isRetryableApiError(error: unknown): boolean {
   return false;
 }
 
-// Retry mechanism for retryable errors
+/**
+ * Retry mechanism with exponential backoff for retryable errors.
+ */
 export async function withRetry<T>(
   operation: () => Promise<T>,
   maxRetries = 3,
@@ -174,4 +224,8 @@ export async function withRetry<T>(
   throw lastError;
 }
 
+/** Singleton API client instance */
 export const apiClient = new ApiClient();
+
+/** Export the axios instance for direct use if needed */
+export { axiosInstance };
