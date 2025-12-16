@@ -8,7 +8,7 @@ import type {
   LoginRequest,
   LoginResponse,
   LogoutResponse,
-  User,
+  GetCurrentUserResponse,
   ForgotPasswordRequest,
   ForgotPasswordResponse,
   ResetPasswordRequest,
@@ -54,9 +54,10 @@ export const authApi = {
   /**
    * Retrieves the currently authenticated user's profile.
    * Uses the session cookie for authentication.
+   * Returns { requiresMfa: true } if MFA verification is pending.
    */
-  getCurrentUser: async (): Promise<User> => {
-    return apiClient.get<User>('/auth/me');
+  getCurrentUser: async (): Promise<GetCurrentUserResponse> => {
+    return apiClient.get<GetCurrentUserResponse>('/auth/me');
   },
 
   /**

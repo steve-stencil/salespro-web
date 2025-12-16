@@ -36,14 +36,26 @@ export function AuthProvider({
   /**
    * Check authentication status on mount.
    * Fetches current user from /auth/me endpoint.
+   * Handles pending MFA verification state.
    */
   const checkAuth = useCallback(async (): Promise<void> => {
     try {
-      const userData = await authApi.getCurrentUser();
-      setUser(userData);
+      const response = await authApi.getCurrentUser();
+
+      // Check if MFA verification is pending
+      if ('requiresMfa' in response) {
+        setUser(null);
+        setRequiresMfa(true);
+        return;
+      }
+
+      // Full user data received - user is authenticated
+      setUser(response);
+      setRequiresMfa(false);
     } catch {
       // Not authenticated or session expired
       setUser(null);
+      setRequiresMfa(false);
     } finally {
       setIsLoading(false);
     }

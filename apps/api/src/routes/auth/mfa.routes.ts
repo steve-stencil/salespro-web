@@ -20,6 +20,34 @@ import type { Request, Response, Router as RouterType } from 'express';
 const router: RouterType = Router();
 
 /**
+ * UUID v4 validation regex
+ */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Parse session ID from cookie value.
+ * Express-session signed cookies have format: s:UUID.signature
+ * This extracts just the UUID part.
+ */
+function parseSessionIdFromCookie(
+  cookieValue: string | undefined,
+): string | null {
+  if (!cookieValue) return null;
+
+  // If it's a signed cookie (starts with s:), extract the session ID
+  if (cookieValue.startsWith('s:')) {
+    const dotIndex = cookieValue.indexOf('.', 2);
+    const sessionId =
+      dotIndex > 2 ? cookieValue.slice(2, dotIndex) : cookieValue.slice(2);
+    return UUID_REGEX.test(sessionId) ? sessionId : null;
+  }
+
+  // If it's already a plain UUID
+  return UUID_REGEX.test(cookieValue) ? cookieValue : null;
+}
+
+/**
  * Session data from database
  */
 type SessionFromCookie = {
@@ -35,7 +63,8 @@ type SessionFromCookie = {
 async function getSessionFromCookie(
   req: Request,
 ): Promise<SessionFromCookie | null> {
-  const sessionId = (req.cookies as Record<string, string>)['sid'];
+  const rawCookie = (req.cookies as Record<string, string>)['sid'];
+  const sessionId = parseSessionIdFromCookie(rawCookie);
   if (!sessionId) {
     return null;
   }
@@ -130,7 +159,9 @@ router.post('/mfa/verify', async (req: Request, res: Response) => {
       return;
     }
 
-    const sessionId = (req.cookies as Record<string, string>)['sid'];
+    // Parse the signed cookie to get the actual session ID
+    const rawCookie = (req.cookies as Record<string, string>)['sid'];
+    const sessionId = parseSessionIdFromCookie(rawCookie);
     const pendingMfaUserId = await getPendingMfaUserId(req);
     if (!pendingMfaUserId) {
       res.status(400).json({
@@ -206,7 +237,9 @@ router.post('/mfa/verify-recovery', async (req: Request, res: Response) => {
       return;
     }
 
-    const sessionId = (req.cookies as Record<string, string>)['sid'];
+    // Parse the signed cookie to get the actual session ID
+    const rawCookie = (req.cookies as Record<string, string>)['sid'];
+    const sessionId = parseSessionIdFromCookie(rawCookie);
     const pendingMfaUserId = await getPendingMfaUserId(req);
     if (!pendingMfaUserId) {
       res.status(400).json({

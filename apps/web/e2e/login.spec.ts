@@ -270,7 +270,7 @@ test.describe('MFA Flow', () => {
   test.skip('should redirect to MFA page when MFA is required', async ({
     page,
   }) => {
-    // Note: This test requires a user with MFA enabled
+    // Note: This test requires a user with MFA enabled or company with MFA required
     await page.goto('/login');
 
     await page.getByLabel('Email Address').fill('mfa-user@example.com');
@@ -280,9 +280,12 @@ test.describe('MFA Flow', () => {
     // Should redirect to MFA verification page
     await expect(page).toHaveURL('/mfa-verify', { timeout: 10000 });
 
-    // Verify MFA page elements
+    // Verify email-based MFA page elements
     await expect(
-      page.getByRole('heading', { name: 'Two-Factor Authentication' }),
+      page.getByRole('heading', { name: /check your email/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/we've sent a 6-digit code to your email/i),
     ).toBeVisible();
     await expect(
       page.getByRole('group', { name: 'Verification code' }),

@@ -1,8 +1,10 @@
 /**
  * MFA verification page component.
  * Displays a 6-digit code input after login when MFA is required.
+ * The code is sent via email for security.
  */
 
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -17,11 +19,12 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 
 import { LeapLogo } from '../components/LeapLogo';
 import { useAuth } from '../hooks/useAuth';
-import { ApiClientError } from '../lib/api-client';
+import { apiClient, ApiClientError } from '../lib/api-client';
 
 import type { ClipboardEvent, FormEvent, KeyboardEvent } from 'react';
 
 const CODE_LENGTH = 6;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export function MfaVerifyPage(): React.ReactElement {
   const navigate = useNavigate();
@@ -30,7 +33,10 @@ export function MfaVerifyPage(): React.ReactElement {
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Get the intended destination from navigation state
@@ -56,6 +62,44 @@ export function MfaVerifyPage(): React.ReactElement {
     inputRefs.current[0]?.focus();
   }, []);
 
+  // Resend cooldown countdown
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  /**
+   * Handles resending the MFA code via email.
+   */
+  async function handleResendCode(): Promise<void> {
+    if (resendCooldown > 0 || isResending) return;
+
+    setIsResending(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      await apiClient.post('/auth/mfa/send');
+      setSuccessMessage('A new code has been sent to your email.');
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      // Clear existing code inputs
+      setCode(Array(CODE_LENGTH).fill(''));
+      inputRefs.current[0]?.focus();
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+      } else {
+        setError('Failed to resend code. Please try again.');
+      }
+    } finally {
+      setIsResending(false);
+    }
+  }
+
   /**
    * Handles input change for a single digit.
    */
@@ -67,6 +111,7 @@ export function MfaVerifyPage(): React.ReactElement {
     newCode[index] = digit;
     setCode(newCode);
     setError(null);
+    setSuccessMessage(null);
 
     // Move to next input if digit entered
     if (digit && index < CODE_LENGTH - 1) {
@@ -218,11 +263,26 @@ export function MfaVerifyPage(): React.ReactElement {
             </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
-              Two-Factor Authentication
+              Check Your Email
             </Typography>
 
-            <Typography variant="body1" color="text.secondary">
-              Enter the 6-digit code from your authenticator app
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1,
+                mb: 1,
+              }}
+            >
+              <EmailOutlinedIcon color="action" />
+              <Typography variant="body1" color="text.secondary">
+                We&apos;ve sent a 6-digit code to your email
+              </Typography>
+            </Box>
+
+            <Typography variant="body2" color="text.secondary">
+              Enter the code below to complete your login
             </Typography>
           </Box>
 
@@ -234,6 +294,12 @@ export function MfaVerifyPage(): React.ReactElement {
             {error && (
               <Alert severity="error" role="alert" aria-live="polite">
                 {error}
+              </Alert>
+            )}
+
+            {successMessage && (
+              <Alert severity="success" role="status" aria-live="polite">
+                {successMessage}
               </Alert>
             )}
 
@@ -304,13 +370,38 @@ export function MfaVerifyPage(): React.ReactElement {
             </Button>
           </Box>
 
+          {/* Resend Code Section */}
+          <Box sx={{ textAlign: 'center', mt: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Didn&apos;t receive the code?
+            </Typography>
+            <Button
+              variant="text"
+              color="primary"
+              size="small"
+              onClick={() => void handleResendCode()}
+              disabled={isResending || resendCooldown > 0}
+            >
+              {isResending ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={14} color="inherit" />
+                  Sending...
+                </Box>
+              ) : resendCooldown > 0 ? (
+                `Resend code in ${resendCooldown}s`
+              ) : (
+                'Resend Code'
+              )}
+            </Button>
+          </Box>
+
           <Box
             sx={{
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
               gap: 2,
-              mt: 3,
+              mt: 2,
             }}
           >
             <Button

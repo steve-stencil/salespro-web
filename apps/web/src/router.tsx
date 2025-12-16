@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { PERMISSIONS } from './hooks/usePermissions';
 import { AppLayout } from './layouts/AppLayout';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
+import { CompanySettingsPage } from './pages/CompanySettingsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
@@ -33,6 +34,7 @@ import { UsersPage } from './pages/UsersPage';
  * - /users - User management
  * - /roles - Role management
  * - /offices - Office management
+ * - /admin/settings - Company settings (admin)
  * - / - Redirects to /dashboard
  */
 export const router = createBrowserRouter([
@@ -91,6 +93,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.OFFICE_READ}>
             <OfficesPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/admin/settings',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.COMPANY_UPDATE}>
+            <CompanySettingsPage />
           </PermissionGuard>
         ),
       },

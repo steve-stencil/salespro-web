@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import authRoutes from './auth';
+import companyRoutes from './companies';
 import fileRoutes from './files';
 import internalUserRoutes from './internal-users';
 import inviteRoutes from './invites';
@@ -40,6 +41,9 @@ r.use('/invites', inviteRoutes);
 
 // Office management routes
 r.use('/offices', officeRoutes);
+
+// Company settings routes
+r.use('/companies', companyRoutes);
 
 // File management routes
 r.use('/files', fileRoutes);

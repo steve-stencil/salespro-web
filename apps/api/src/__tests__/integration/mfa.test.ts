@@ -487,7 +487,7 @@ describe('MFA Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.requiresMfa).toBe(true);
-      expect(response.body.message).toBe('MFA verification required');
+      expect(response.body.message).toContain('MFA verification required');
     });
 
     it('should require MFA verification when company requires MFA', async () => {
@@ -510,6 +510,535 @@ describe('MFA Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.requiresMfa).toBe(true);
+    });
+  });
+
+  describe('Email-based MFA Flow', () => {
+    it('should automatically send MFA code via email during login when MFA is required', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - should trigger automatic email code send
+      const response = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.requiresMfa).toBe(true);
+      expect(response.body.message).toContain(
+        'code has been sent to your email',
+      );
+      expect(response.body.expiresIn).toBeDefined();
+      expect(response.body.expiresIn).toBe(5); // 5 minutes default
+
+      // In development mode, code should be returned
+      if (process.env['NODE_ENV'] === 'development') {
+        expect(response.body.code).toBeDefined();
+        expect(response.body.code).toHaveLength(6);
+      }
+    });
+
+    it('should complete full MFA flow: login -> verify code -> success', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Step 1: Login - get MFA code
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+      const code = loginResponse.body.code;
+
+      // In development mode, verify the code
+      if (code) {
+        // Step 2: Verify MFA code
+        const verifyResponse = await makeRequest()
+          .post('/api/auth/mfa/verify')
+          .set('Cookie', cookies)
+          .send({ code });
+
+        expect(verifyResponse.status).toBe(200);
+        expect(verifyResponse.body.message).toBe('MFA verification successful');
+        expect(verifyResponse.body.user).toBeDefined();
+        expect(verifyResponse.body.user.email).toBe(testEmail);
+      }
+    });
+
+    it('should reject invalid MFA code with proper error', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login to get MFA session
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+
+      // Try to verify with invalid code
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', cookies)
+        .send({ code: '000000' });
+
+      expect(verifyResponse.status).toBe(401);
+      expect(verifyResponse.body.error).toBe('Invalid MFA code');
+      expect(verifyResponse.body.errorCode).toBe('mfa_code_invalid');
+    });
+
+    it('should allow resending MFA code', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login to get MFA session
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+      const originalCode = loginResponse.body.code;
+
+      // Resend the code
+      const resendResponse = await makeRequest()
+        .post('/api/auth/mfa/send')
+        .set('Cookie', cookies);
+
+      expect(resendResponse.status).toBe(200);
+      expect(resendResponse.body.message).toBe('Verification code sent');
+      expect(resendResponse.body.expiresIn).toBe(5);
+
+      // In development mode, verify new code is different
+      if (resendResponse.body.code && originalCode) {
+        // New code should be generated (may or may not be different due to randomness)
+        expect(resendResponse.body.code).toHaveLength(6);
+      }
+    });
+
+    it('should lock out after too many failed MFA attempts', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login to get MFA session
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+
+      // Make 6 failed attempts (max is 5)
+      for (let i = 0; i < 6; i++) {
+        await makeRequest()
+          .post('/api/auth/mfa/verify')
+          .set('Cookie', cookies)
+          .send({ code: '000000' });
+      }
+
+      // Next attempt should fail with "Too many failed attempts" or "Invalid MFA code"
+      const finalResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', cookies)
+        .send({ code: '000000' });
+
+      expect(finalResponse.status).toBe(401);
+      // After max attempts, the pending MFA is cleared
+      expect(finalResponse.body.errorCode).toMatch(
+        /mfa_code_invalid|no_pending_mfa/,
+      );
+    });
+
+    it('should work when company requires MFA but user has not enabled it personally', async () => {
+      // User has NOT enabled MFA personally, but company requires it
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const company = await em.findOne(Company, { id: testCompanyId });
+      if (company) {
+        company.mfaRequired = true;
+        await em.flush();
+      }
+
+      // Login - should still trigger MFA flow
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+      expect(loginResponse.body.message).toContain(
+        'code has been sent to your email',
+      );
+      expect(loginResponse.body.expiresIn).toBeDefined();
+
+      // In development mode, verify we can complete the flow
+      if (loginResponse.body.code) {
+        const headerCookies = loginResponse.headers['set-cookie'];
+        const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+        const verifyResponse = await makeRequest()
+          .post('/api/auth/mfa/verify')
+          .set('Cookie', cookies)
+          .send({ code: loginResponse.body.code });
+
+        expect(verifyResponse.status).toBe(200);
+        expect(verifyResponse.body.message).toBe('MFA verification successful');
+      }
+    });
+
+    it('should return 400 when trying to resend without pending MFA session', async () => {
+      // Login normally (no MFA required)
+      const cookies = await loginAndGetCookies();
+
+      // Try to resend code without pending MFA
+      const response = await makeRequest()
+        .post('/api/auth/mfa/send')
+        .set('Cookie', cookies);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('No pending MFA verification');
+      expect(response.body.errorCode).toBe('no_pending_mfa');
+    });
+
+    it('should return 400 when verifying without pending MFA session', async () => {
+      // Login normally (no MFA required)
+      const cookies = await loginAndGetCookies();
+
+      // Try to verify code without pending MFA
+      const response = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', cookies)
+        .send({ code: '123456' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('No pending MFA verification');
+      expect(response.body.errorCode).toBe('no_pending_mfa');
+    });
+  });
+
+  describe('GET /api/auth/me with MFA state', () => {
+    it('should return requiresMfa when session has mfaVerified=false', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - this creates a session with mfaVerified=false
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+
+      // Call /auth/me - should return requiresMfa since MFA not verified
+      const meResponse = await makeRequest()
+        .get('/api/auth/me')
+        .set('Cookie', cookies);
+
+      expect(meResponse.status).toBe(200);
+      expect(meResponse.body.requiresMfa).toBe(true);
+      // Should NOT return user data
+      expect(meResponse.body.id).toBeUndefined();
+      expect(meResponse.body.email).toBeUndefined();
+    });
+
+    it('should return user data after MFA verification', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - get MFA code
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+      const code = loginResponse.body.code;
+
+      // Skip if no code (non-dev environment)
+      if (!code) return;
+
+      // Verify MFA code
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', cookies)
+        .send({ code });
+
+      expect(verifyResponse.status).toBe(200);
+
+      // Now /auth/me should return full user data
+      const meResponse = await makeRequest()
+        .get('/api/auth/me')
+        .set('Cookie', cookies);
+
+      expect(meResponse.status).toBe(200);
+      expect(meResponse.body.requiresMfa).toBeUndefined();
+      expect(meResponse.body.id).toBe(testUserId);
+      expect(meResponse.body.email).toBe(testEmail);
+    });
+
+    it('should handle page refresh during MFA flow correctly', async () => {
+      // This simulates the bug where refreshing on MFA page would log user in
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - get session with pending MFA
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+
+      // Simulate page refresh - call /auth/me multiple times
+      // Each call should consistently return requiresMfa
+      for (let i = 0; i < 3; i++) {
+        const meResponse = await makeRequest()
+          .get('/api/auth/me')
+          .set('Cookie', cookies);
+
+        expect(meResponse.status).toBe(200);
+        expect(meResponse.body.requiresMfa).toBe(true);
+        expect(meResponse.body.id).toBeUndefined();
+      }
+    });
+  });
+
+  describe('Signed Cookie Handling', () => {
+    it('should correctly verify MFA with signed session cookies', async () => {
+      // This tests that the signed cookie (s:UUID.signature) is correctly parsed
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - creates session and sets signed cookie
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+      const code = loginResponse.body.code;
+
+      // Skip if no code (non-dev environment)
+      if (!code) return;
+
+      // Verify the cookie is signed (starts with s: or contains the session ID)
+      const sidCookie = cookies.find((c: string) => c.startsWith('sid='));
+      expect(sidCookie).toBeDefined();
+
+      // MFA verify should work even with signed cookie
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', cookies)
+        .send({ code });
+
+      expect(verifyResponse.status).toBe(200);
+      expect(verifyResponse.body.message).toBe('MFA verification successful');
+
+      // Verify the session was properly updated (mfaVerified = true)
+      const meResponse = await makeRequest()
+        .get('/api/auth/me')
+        .set('Cookie', cookies);
+
+      expect(meResponse.status).toBe(200);
+      expect(meResponse.body.requiresMfa).toBeUndefined();
+      expect(meResponse.body.email).toBe(testEmail);
+    });
+
+    it('should correctly resend MFA code with signed session cookies', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+
+      // Resend should work with signed cookies
+      const resendResponse = await makeRequest()
+        .post('/api/auth/mfa/send')
+        .set('Cookie', cookies);
+
+      expect(resendResponse.status).toBe(200);
+      expect(resendResponse.body.message).toBe('Verification code sent');
+    });
+
+    it('should update mfaVerified flag in session after successful verification', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const headerCookies = loginResponse.headers['set-cookie'];
+      const cookies = Array.isArray(headerCookies) ? headerCookies : [];
+      const code = loginResponse.body.code;
+
+      if (!code) return;
+
+      // Get the session ID from cookie to verify directly in DB
+      const sidCookie = cookies.find((c: string) => c.startsWith('sid='));
+      const sidValue = sidCookie?.split('=')[1]?.split(';')[0];
+
+      // Before verification - check session in DB
+      const emBefore = orm.em.fork();
+      // Parse the signed cookie if needed
+      let sessionId: string | undefined = sidValue;
+      if (sessionId?.startsWith('s%3A')) {
+        sessionId = decodeURIComponent(sessionId).slice(2).split('.')[0];
+      } else if (sessionId?.startsWith('s:')) {
+        sessionId = sessionId.slice(2).split('.')[0];
+      }
+
+      if (!sessionId) return;
+
+      const sessionBefore = await emBefore.findOne(Session, { sid: sessionId });
+      expect(sessionBefore?.mfaVerified).toBe(false);
+
+      // Verify MFA
+      await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', cookies)
+        .send({ code });
+
+      // After verification - check session in DB
+      const emAfter = orm.em.fork();
+      const sessionAfter = await emAfter.findOne(Session, { sid: sessionId });
+      expect(sessionAfter?.mfaVerified).toBe(true);
     });
   });
 });

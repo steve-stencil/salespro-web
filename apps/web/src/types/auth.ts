@@ -54,6 +54,12 @@ export type User = {
   };
 };
 
+/**
+ * Response from /auth/me endpoint.
+ * Can be either full user data or a flag indicating MFA is required.
+ */
+export type GetCurrentUserResponse = User | { requiresMfa: true };
+
 /** Validation error details from API */
 export type ValidationErrorDetails = {
   fieldErrors: Record<string, string[]>;

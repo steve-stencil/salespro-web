@@ -3,11 +3,13 @@
  * Provides navigation links to main sections of the app.
  * Navigation items are filtered based on user permissions.
  */
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import BusinessIcon from '@mui/icons-material/Business';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
 import SecurityIcon from '@mui/icons-material/Security';
+import SettingsIcon from '@mui/icons-material/Settings';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
@@ -19,6 +21,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Skeleton from '@mui/material/Skeleton';
 import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
 import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -65,6 +68,16 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+/** Admin navigation items - shown in a separate section */
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  {
+    label: 'Company Settings',
+    path: '/admin/settings',
+    icon: <SettingsIcon />,
+    permission: PERMISSIONS.COMPANY_UPDATE,
+  },
+];
+
 type SidebarProps = {
   mobileOpen: boolean;
   onMobileClose: () => void;
@@ -106,6 +119,16 @@ function DrawerContent(): React.ReactElement {
       // If no permission required, show the item
       if (!item.permission) return true;
       // Check if user has the required permission
+      return hasPermission(item.permission);
+    });
+  }, [hasPermission]);
+
+  /**
+   * Filter admin navigation items based on user permissions.
+   */
+  const visibleAdminItems = useMemo(() => {
+    return ADMIN_NAV_ITEMS.filter(item => {
+      if (!item.permission) return true;
       return hasPermission(item.permission);
     });
   }, [hasPermission]);
@@ -185,6 +208,79 @@ function DrawerContent(): React.ReactElement {
           })
         )}
       </List>
+
+      {/* Admin Section - Only shown if user has admin permissions */}
+      {!isLoading && visibleAdminItems.length > 0 && (
+        <>
+          <Divider />
+          <Box sx={{ px: 1, py: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                mb: 1,
+              }}
+            >
+              <AdminPanelSettingsIcon
+                sx={{ fontSize: 18, color: 'text.secondary' }}
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                fontWeight={600}
+                sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Admin
+              </Typography>
+            </Box>
+            <List disablePadding data-testid="admin-nav-list">
+              {visibleAdminItems.map(item => {
+                const isActive = location.pathname === item.path;
+
+                return (
+                  <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemButton
+                      onClick={() => handleNavClick(item.path)}
+                      selected={isActive}
+                      data-testid={`nav-item-${item.path.replace(/\//g, '-').slice(1)}`}
+                      sx={{
+                        borderRadius: 2,
+                        '&.Mui-selected': {
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '&:hover': {
+                            bgcolor: 'primary.dark',
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: 'primary.contrastText',
+                          },
+                        },
+                      }}
+                    >
+                      <ListItemIcon
+                        sx={{
+                          minWidth: 40,
+                          color: isActive ? 'inherit' : 'text.secondary',
+                        }}
+                      >
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontWeight: isActive ? 600 : 400,
+                        }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Box>
+        </>
+      )}
     </Box>
   );
 }

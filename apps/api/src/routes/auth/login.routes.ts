@@ -4,6 +4,7 @@ import { Router } from 'express';
 
 import { getORM } from '../../lib/db';
 import { AuthService, LoginErrorCode } from '../../services';
+import { sendMfaCode } from '../../services/auth/mfa';
 
 import { loginSchema } from './schemas';
 import { getClientIp, getUserAgent } from './utils';
@@ -137,12 +138,29 @@ router.post('/login', async (req: Request, res: Response) => {
         em.persist(session);
       }
 
-      // Store pendingMfaUserId in session data
+      // Store pendingMfaUserId in session data (MikroORM entity)
       session.data = {
         ...session.data,
         pendingMfaUserId: result.user.id,
       };
       await em.flush();
+
+      // Also store in express-session so it persists when middleware saves
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (req.session) {
+        req.session.pendingMfaUserId = result.user.id;
+      }
+
+      // Send MFA code via email
+      const mfaResult = await sendMfaCode(em, result.user.id);
+      if (!mfaResult.success) {
+        req.log.error(
+          { error: mfaResult.error, errorCode: mfaResult.errorCode },
+          'Failed to send MFA code',
+        );
+        // Continue even if email fails in development (code is stored)
+        // In production, this would be a problem
+      }
 
       // Set session cookie for MFA flow
       res.cookie('sid', sessionId, {
@@ -153,10 +171,25 @@ router.post('/login', async (req: Request, res: Response) => {
         path: '/',
       });
 
-      res.status(200).json({
+      // Return response with code expiry info
+      const response: {
+        requiresMfa: boolean;
+        message: string;
+        expiresIn?: number;
+        code?: string;
+      } = {
         requiresMfa: true,
-        message: 'MFA verification required',
-      });
+        message:
+          'MFA verification required. A code has been sent to your email.',
+        expiresIn: mfaResult.expiresIn,
+      };
+
+      // Include code in development mode for testing
+      if (mfaResult.code) {
+        response.code = mfaResult.code;
+      }
+
+      res.status(200).json(response);
       return;
     }
 
@@ -165,7 +198,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (result.user && req.session) {
       req.session.userId = result.user.id;
-      req.session.companyId = result.user.company.id;
+      req.session.companyId = result.user.company?.id;
     }
 
     // Set session cookie manually since we created the session directly in DB
@@ -240,6 +273,7 @@ router.get('/me', async (req: Request, res: Response) => {
     // First try express-session (may be undefined when saveUninitialized: false)
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     let userId = req.session?.userId;
+    let mfaVerified = true; // Assume verified unless we find otherwise
 
     // If no session, try to look up session from our custom cookie
     if (!userId) {
@@ -258,12 +292,20 @@ router.get('/me', async (req: Request, res: Response) => {
 
         if (session?.user && !session.isExpired) {
           userId = session.user.id;
+          mfaVerified = session.mfaVerified;
         }
       }
     }
 
     if (!userId) {
       res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+
+    // If MFA is required but not yet verified, return requiresMfa flag
+    // This allows the frontend to redirect to MFA verification page
+    if (!mfaVerified) {
+      res.status(200).json({ requiresMfa: true });
       return;
     }
 
