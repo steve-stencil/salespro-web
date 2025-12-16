@@ -3,6 +3,7 @@
  * Provides navigation links to main sections of the app.
  * Navigation items are filtered based on user permissions.
  */
+import BusinessIcon from '@mui/icons-material/Business';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
@@ -55,6 +56,12 @@ const NAV_ITEMS: NavItem[] = [
     path: '/roles',
     icon: <SecurityIcon />,
     permission: PERMISSIONS.ROLE_READ,
+  },
+  {
+    label: 'Offices',
+    path: '/offices',
+    icon: <BusinessIcon />,
+    permission: PERMISSIONS.OFFICE_READ,
   },
 ];
 

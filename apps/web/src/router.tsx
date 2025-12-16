@@ -12,6 +12,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { MfaVerifyPage } from './pages/MfaVerifyPage';
+import { OfficesPage } from './pages/OfficesPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
 import { UsersPage } from './pages/UsersPage';
@@ -29,6 +30,7 @@ import { UsersPage } from './pages/UsersPage';
  * - /dashboard - Main dashboard
  * - /users - User management
  * - /roles - Role management
+ * - /offices - Office management
  * - / - Redirects to /dashboard
  */
 export const router = createBrowserRouter([
@@ -78,6 +80,14 @@ export const router = createBrowserRouter([
           </PermissionGuard>
         ),
       },
+      {
+        path: '/offices',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.OFFICE_READ}>
+            <OfficesPage />
+          </PermissionGuard>
+        ),
+      },
     ],
   },
 
@@ -93,5 +103,3 @@ export const router = createBrowserRouter([
     element: <Navigate to="/dashboard" replace />,
   },
 ]);
-
-

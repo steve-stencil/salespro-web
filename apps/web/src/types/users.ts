@@ -6,26 +6,15 @@
 // Office Types
 // ============================================================================
 
-/** Office basic info for lists and dropdowns */
+/** Office with all fields (simplified model - just name and status) */
 export interface Office {
   id: string;
   name: string;
   isActive: boolean;
-}
-
-/** Full office details */
-export interface OfficeDetail extends Office {
-  address1?: string;
-  address2?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  country?: string;
-  phone?: string;
-  email?: string;
-  settings?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  /** Number of users assigned to this office (optional) */
+  userCount?: number;
 }
 
 /** Office access record for a user */
@@ -178,7 +167,20 @@ export interface OfficesListResponse {
 
 /** Office detail response */
 export interface OfficeDetailResponse {
-  office: OfficeDetail;
+  office: Office;
+}
+
+/** Office create/update response */
+export interface OfficeMutationResponse {
+  message: string;
+  office: Office;
+}
+
+/** Office delete response */
+export interface OfficeDeleteResponse {
+  message: string;
+  removedAssignments: number;
+  clearedCurrentOffice: number;
 }
 
 /** Roles list response */
@@ -256,5 +258,26 @@ export interface UsersListParams {
   limit?: number;
   officeId?: string;
   search?: string;
+  isActive?: boolean;
+}
+
+// ============================================================================
+// Office Request Types
+// ============================================================================
+
+/** Create office request */
+export interface CreateOfficeRequest {
+  name: string;
+  isActive?: boolean;
+}
+
+/** Update office request */
+export interface UpdateOfficeRequest {
+  name?: string;
+  isActive?: boolean;
+}
+
+/** Offices list query params */
+export interface OfficesListParams {
   isActive?: boolean;
 }
