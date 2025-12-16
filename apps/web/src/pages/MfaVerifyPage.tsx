@@ -70,6 +70,7 @@ export function MfaVerifyPage(): React.ReactElement {
       }, 1000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [resendCooldown]);
 
   /**
