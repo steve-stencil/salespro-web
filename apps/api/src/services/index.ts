@@ -19,3 +19,21 @@ export type {
   PresignUploadResult,
   UpdateFileParams,
 } from './file';
+
+// Invite service
+export {
+  createInvite,
+  validateInviteToken,
+  acceptInvite,
+  revokeInvite,
+  resendInvite,
+  listPendingInvites,
+  InviteServiceError,
+} from './invite';
+export type {
+  CreateInviteResult,
+  AcceptInviteResult,
+  ValidateInviteResult,
+  CreateInviteOptions,
+  AcceptInviteOptions,
+} from './invite';

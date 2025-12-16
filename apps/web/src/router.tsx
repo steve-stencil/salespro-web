@@ -8,6 +8,7 @@ import { PermissionGuard } from './components/PermissionGuard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PERMISSIONS } from './hooks/usePermissions';
 import { AppLayout } from './layouts/AppLayout';
+import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
@@ -25,6 +26,7 @@ import { UsersPage } from './pages/UsersPage';
  * - /mfa-verify - MFA verification (after login)
  * - /forgot-password - Request password reset
  * - /reset-password - Reset password with token
+ * - /accept-invite - Accept invitation and create account
  *
  * Protected routes (with sidebar):
  * - /dashboard - Main dashboard
@@ -50,6 +52,10 @@ export const router = createBrowserRouter([
   {
     path: '/reset-password',
     element: <ResetPasswordPage />,
+  },
+  {
+    path: '/accept-invite',
+    element: <AcceptInvitePage />,
   },
 
   // Protected routes with AppLayout

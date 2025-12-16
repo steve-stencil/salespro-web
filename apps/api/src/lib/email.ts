@@ -2,7 +2,11 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 import { env } from '../config/env.js';
 
-import { mfaCodeTemplate, passwordResetTemplate } from './email-templates.js';
+import {
+  inviteUserTemplate,
+  mfaCodeTemplate,
+  passwordResetTemplate,
+} from './email-templates.js';
 import { AppError, ErrorCode } from './errors.js';
 
 /**
@@ -177,11 +181,52 @@ async function sendMfaCodeEmail(
 }
 
 /**
+ * Options for sending user invite email
+ */
+interface SendInviteEmailOptions {
+  /** Recipient email address */
+  email: string;
+  /** Invite token (will be appended to invite URL) */
+  token: string;
+  /** Name of the company the user is being invited to */
+  companyName: string;
+  /** Name of the person who sent the invite */
+  inviterName: string;
+  /** Expiration time in days (default: 7) */
+  expiresInDays?: number;
+}
+
+/**
+ * Send a user invitation email
+ * @param options - Email options including recipient, token, company name, and inviter name
+ */
+async function sendInviteEmail(
+  options: SendInviteEmailOptions,
+): Promise<SendEmailResult> {
+  const { email, token, companyName, inviterName, expiresInDays = 7 } = options;
+  const inviteUrl = `${env.APP_URL}/accept-invite?token=${encodeURIComponent(token)}`;
+  const template = inviteUserTemplate({
+    inviteUrl,
+    companyName,
+    inviterName,
+    expiresInDays,
+  });
+
+  return sendEmail({
+    to: email,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  });
+}
+
+/**
  * Email service with methods for sending different types of emails
  */
 export const emailService = {
   sendEmail,
   sendPasswordResetEmail,
   sendMfaCodeEmail,
+  sendInviteEmail,
   isConfigured: isEmailServiceConfigured,
 };

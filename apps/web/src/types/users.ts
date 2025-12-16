@@ -281,3 +281,90 @@ export interface UpdateOfficeRequest {
 export interface OfficesListParams {
   isActive?: boolean;
 }
+
+// ============================================================================
+// Invite Types
+// ============================================================================
+
+/** Pending invite in list view */
+export interface InviteListItem {
+  id: string;
+  email: string;
+  roles: string[];
+  expiresAt: string;
+  createdAt: string;
+  invitedBy: {
+    id: string;
+    email: string;
+    nameFirst?: string;
+    nameLast?: string;
+  };
+}
+
+/** Invites list response */
+export interface InvitesListResponse {
+  invites: InviteListItem[];
+  pagination: Pagination;
+}
+
+/** Create invite request */
+export interface CreateInviteRequest {
+  email: string;
+  roles: string[];
+}
+
+/** Create invite response */
+export interface CreateInviteResponse {
+  message: string;
+  invite: {
+    id: string;
+    email: string;
+    expiresAt: string;
+  };
+  /** Token returned only in development mode */
+  token?: string;
+}
+
+/** Resend invite response */
+export interface ResendInviteResponse {
+  message: string;
+  invite: {
+    id: string;
+    email: string;
+    expiresAt: string;
+  };
+  /** Token returned only in development mode */
+  token?: string;
+}
+
+/** Validate invite token response */
+export interface ValidateInviteResponse {
+  valid: boolean;
+  email: string;
+  companyName: string;
+}
+
+/** Accept invite request */
+export interface AcceptInviteRequest {
+  token: string;
+  password: string;
+  nameFirst?: string;
+  nameLast?: string;
+}
+
+/** Accept invite response */
+export interface AcceptInviteResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    nameFirst?: string;
+    nameLast?: string;
+  };
+}
+
+/** Invites list query params */
+export interface InvitesListParams {
+  page?: number;
+  limit?: number;
+}

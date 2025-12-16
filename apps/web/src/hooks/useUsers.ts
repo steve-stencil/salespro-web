@@ -3,9 +3,15 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { usersApi } from '../services/users';
+import { usersApi, inviteApi } from '../services/users';
 
-import type { UsersListParams, UpdateUserRequest } from '../types/users';
+import type {
+  UsersListParams,
+  UpdateUserRequest,
+  InvitesListParams,
+  CreateInviteRequest,
+  AcceptInviteRequest,
+} from '../types/users';
 
 /** Query key factory for users */
 export const userKeys = {
@@ -15,6 +21,14 @@ export const userKeys = {
   details: () => [...userKeys.all, 'detail'] as const,
   detail: (id: string) => [...userKeys.details(), id] as const,
   offices: (id: string) => [...userKeys.all, id, 'offices'] as const,
+};
+
+/** Query key factory for invites */
+export const inviteKeys = {
+  all: ['invites'] as const,
+  lists: () => [...inviteKeys.all, 'list'] as const,
+  list: (params?: InvitesListParams) => [...inviteKeys.lists(), params] as const,
+  validate: (token: string) => [...inviteKeys.all, 'validate', token] as const,
 };
 
 /**
@@ -140,5 +154,82 @@ export function useSetCurrentOffice() {
       void queryClient.invalidateQueries({ queryKey: userKeys.detail(userId) });
       void queryClient.invalidateQueries({ queryKey: userKeys.lists() });
     },
+  });
+}
+
+// ============================================================================
+// Invite Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch paginated list of pending invites.
+ */
+export function useInvitesList(params?: InvitesListParams) {
+  return useQuery({
+    queryKey: inviteKeys.list(params),
+    queryFn: () => usersApi.listInvites(params),
+  });
+}
+
+/**
+ * Hook to send a new user invitation.
+ */
+export function useSendInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateInviteRequest) => usersApi.sendInvite(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: inviteKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Hook to revoke a pending invitation.
+ */
+export function useRevokeInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (inviteId: string) => usersApi.revokeInvite(inviteId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: inviteKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Hook to resend an invitation email.
+ */
+export function useResendInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (inviteId: string) => usersApi.resendInvite(inviteId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: inviteKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Hook to validate an invitation token (public).
+ */
+export function useValidateInviteToken(token: string) {
+  return useQuery({
+    queryKey: inviteKeys.validate(token),
+    queryFn: () => inviteApi.validateToken(token),
+    enabled: !!token,
+    retry: false,
+  });
+}
+
+/**
+ * Hook to accept an invitation (public).
+ */
+export function useAcceptInvite() {
+  return useMutation({
+    mutationFn: (data: AcceptInviteRequest) => inviteApi.accept(data),
   });
 }
