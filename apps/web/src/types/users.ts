@@ -7,7 +7,7 @@
 // ============================================================================
 
 /** Office with all fields (simplified model - just name and status) */
-export interface Office {
+export type Office = {
   id: string;
   name: string;
   isActive: boolean;
@@ -15,10 +15,10 @@ export interface Office {
   updatedAt: string;
   /** Number of users assigned to this office (optional) */
   userCount?: number;
-}
+};
 
 /** Office access record for a user */
-export interface UserOfficeAccess {
+export type UserOfficeAccess = {
   id: string;
   name: string;
   isActive: boolean;
@@ -29,21 +29,21 @@ export interface UserOfficeAccess {
     nameFirst?: string;
     nameLast?: string;
   } | null;
-}
+};
 
 // ============================================================================
 // Role Types
 // ============================================================================
 
 /** Role basic info for lists */
-export interface RoleBasic {
+export type RoleBasic = {
   id: string;
   name: string;
   displayName: string;
-}
+};
 
 /** Full role details */
-export interface Role extends RoleBasic {
+export type Role = {
   description?: string;
   type: 'system' | 'company';
   permissions: string[];
@@ -53,15 +53,15 @@ export interface Role extends RoleBasic {
   updatedAt?: string;
   /** Number of users assigned to this role (optional) */
   userCount?: number;
-}
+} & RoleBasic;
 
 /** Permission metadata from API */
-export interface PermissionMeta {
+export type PermissionMeta = {
   name: string;
   label: string;
   category: string;
   description: string;
-}
+};
 
 /** Permissions grouped by category */
 export type PermissionsByCategory = Record<string, string[]>;
@@ -71,7 +71,7 @@ export type PermissionsByCategory = Record<string, string[]>;
 // ============================================================================
 
 /** User in list view */
-export interface UserListItem {
+export type UserListItem = {
   id: string;
   email: string;
   nameFirst?: string;
@@ -83,40 +83,40 @@ export interface UserListItem {
   roles: RoleBasic[];
   lastLoginDate?: string;
   createdAt: string;
-}
+};
 
 /** Full user details */
-export interface UserDetail extends UserListItem {
+export type UserDetail = {
   needsResetPassword: boolean;
   allowedOffices: UserOfficeAccess[];
   updatedAt: string;
-}
+} & UserListItem;
 
 // ============================================================================
 // API Response Types
 // ============================================================================
 
 /** Pagination info */
-export interface Pagination {
+export type Pagination = {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
-}
+};
 
 /** Users list response */
-export interface UsersListResponse {
+export type UsersListResponse = {
   users: UserListItem[];
   pagination: Pagination;
-}
+};
 
 /** User detail response */
-export interface UserDetailResponse {
+export type UserDetailResponse = {
   user: UserDetail;
-}
+};
 
 /** User update response */
-export interface UserUpdateResponse {
+export type UserUpdateResponse = {
   message: string;
   user: {
     id: string;
@@ -124,24 +124,24 @@ export interface UserUpdateResponse {
     nameFirst?: string;
     nameLast?: string;
   };
-}
+};
 
 /** User activate response */
-export interface UserActivateResponse {
+export type UserActivateResponse = {
   message: string;
   user: {
     id: string;
     isActive: boolean;
   };
-}
+};
 
 /** User offices response */
-export interface UserOfficesResponse {
+export type UserOfficesResponse = {
   offices: UserOfficeAccess[];
-}
+};
 
 /** Add office access response */
-export interface AddOfficeAccessResponse {
+export type AddOfficeAccessResponse = {
   message: string;
   officeAccess: {
     id: string;
@@ -149,52 +149,52 @@ export interface AddOfficeAccessResponse {
     officeName: string;
     assignedAt: string;
   };
-}
+};
 
 /** Set current office response */
-export interface SetCurrentOfficeResponse {
+export type SetCurrentOfficeResponse = {
   message: string;
   user: {
     id: string;
     currentOffice: { id: string; name: string } | null;
   };
-}
+};
 
 /** Offices list response */
-export interface OfficesListResponse {
+export type OfficesListResponse = {
   offices: Office[];
-}
+};
 
 /** Office detail response */
-export interface OfficeDetailResponse {
+export type OfficeDetailResponse = {
   office: Office;
-}
+};
 
 /** Office create/update response */
-export interface OfficeMutationResponse {
+export type OfficeMutationResponse = {
   message: string;
   office: Office;
-}
+};
 
 /** Office delete response */
-export interface OfficeDeleteResponse {
+export type OfficeDeleteResponse = {
   message: string;
   removedAssignments: number;
   clearedCurrentOffice: number;
-}
+};
 
 /** Roles list response */
-export interface RolesListResponse {
+export type RolesListResponse = {
   roles: Role[];
-}
+};
 
 /** Role detail response */
-export interface RoleDetailResponse {
+export type RoleDetailResponse = {
   role: Role;
-}
+};
 
 /** Role create/update response */
-export interface RoleMutationResponse {
+export type RoleMutationResponse = {
   message: string;
   role: {
     id: string;
@@ -205,89 +205,89 @@ export interface RoleMutationResponse {
     permissions: string[];
     isDefault: boolean;
   };
-}
+};
 
 /** Permissions response */
-export interface PermissionsResponse {
+export type PermissionsResponse = {
   permissions: PermissionMeta[];
   byCategory: PermissionsByCategory;
-}
+};
 
 /** My roles response */
-export interface MyRolesResponse {
+export type MyRolesResponse = {
   roles: RoleBasic[];
   permissions: string[];
-}
+};
 
 // ============================================================================
 // Request Types
 // ============================================================================
 
 /** Update user request */
-export interface UpdateUserRequest {
+export type UpdateUserRequest = {
   nameFirst?: string;
   nameLast?: string;
-}
+};
 
 /** Create role request */
-export interface CreateRoleRequest {
+export type CreateRoleRequest = {
   name: string;
   displayName: string;
   description?: string;
   permissions: string[];
   isDefault?: boolean;
-}
+};
 
 /** Update role request */
-export interface UpdateRoleRequest {
+export type UpdateRoleRequest = {
   displayName?: string;
   description?: string;
   permissions?: string[];
   isDefault?: boolean;
-}
+};
 
 /** Assign role request */
-export interface AssignRoleRequest {
+export type AssignRoleRequest = {
   userId: string;
   roleId: string;
-}
+};
 
 /** Users list query params */
-export interface UsersListParams {
+export type UsersListParams = {
   page?: number;
   limit?: number;
   officeId?: string;
   search?: string;
   isActive?: boolean;
-}
+};
 
 // ============================================================================
 // Office Request Types
 // ============================================================================
 
 /** Create office request */
-export interface CreateOfficeRequest {
+export type CreateOfficeRequest = {
   name: string;
   isActive?: boolean;
-}
+};
 
 /** Update office request */
-export interface UpdateOfficeRequest {
+export type UpdateOfficeRequest = {
   name?: string;
   isActive?: boolean;
-}
+};
 
 /** Offices list query params */
-export interface OfficesListParams {
+export type OfficesListParams = {
   isActive?: boolean;
-}
+};
 
 // ============================================================================
 // Invite Types
 // ============================================================================
 
 /** Pending invite in list view */
-export interface InviteListItem {
+export type InviteListItem = {
   id: string;
   email: string;
   roles: string[];
@@ -299,22 +299,22 @@ export interface InviteListItem {
     nameFirst?: string;
     nameLast?: string;
   };
-}
+};
 
 /** Invites list response */
-export interface InvitesListResponse {
+export type InvitesListResponse = {
   invites: InviteListItem[];
   pagination: Pagination;
-}
+};
 
 /** Create invite request */
-export interface CreateInviteRequest {
+export type CreateInviteRequest = {
   email: string;
   roles: string[];
-}
+};
 
 /** Create invite response */
-export interface CreateInviteResponse {
+export type CreateInviteResponse = {
   message: string;
   invite: {
     id: string;
@@ -323,10 +323,10 @@ export interface CreateInviteResponse {
   };
   /** Token returned only in development mode */
   token?: string;
-}
+};
 
 /** Resend invite response */
-export interface ResendInviteResponse {
+export type ResendInviteResponse = {
   message: string;
   invite: {
     id: string;
@@ -335,25 +335,25 @@ export interface ResendInviteResponse {
   };
   /** Token returned only in development mode */
   token?: string;
-}
+};
 
 /** Validate invite token response */
-export interface ValidateInviteResponse {
+export type ValidateInviteResponse = {
   valid: boolean;
   email: string;
   companyName: string;
-}
+};
 
 /** Accept invite request */
-export interface AcceptInviteRequest {
+export type AcceptInviteRequest = {
   token: string;
   password: string;
   nameFirst?: string;
   nameLast?: string;
-}
+};
 
 /** Accept invite response */
-export interface AcceptInviteResponse {
+export type AcceptInviteResponse = {
   message: string;
   user: {
     id: string;
@@ -361,10 +361,10 @@ export interface AcceptInviteResponse {
     nameFirst?: string;
     nameLast?: string;
   };
-}
+};
 
 /** Invites list query params */
-export interface InvitesListParams {
+export type InvitesListParams = {
   page?: number;
   limit?: number;
-}
+};

@@ -7,29 +7,29 @@
 export type SessionSource = 'web' | 'ios' | 'android' | 'api';
 
 /** Login request payload */
-export interface LoginRequest {
+export type LoginRequest = {
   email: string;
   password: string;
   source?: SessionSource;
   rememberMe?: boolean;
-}
+};
 
 /** Basic user info returned on login */
-export interface LoginUser {
+export type LoginUser = {
   id: string;
   email: string;
   nameFirst: string;
   nameLast: string;
-}
+};
 
 /** Login response from API */
-export interface LoginResponse {
+export type LoginResponse = {
   message: string;
   user?: LoginUser;
   requiresMfa?: boolean;
   error?: string;
   errorCode?: LoginErrorCode;
-}
+};
 
 /** Login error codes for programmatic handling */
 export type LoginErrorCode =
@@ -41,7 +41,7 @@ export type LoginErrorCode =
   | 'mfa_required';
 
 /** Full user profile from /auth/me */
-export interface User {
+export type User = {
   id: string;
   email: string;
   nameFirst: string;
@@ -52,65 +52,65 @@ export interface User {
     id: string;
     name: string;
   };
-}
+};
 
 /** Validation error details from API */
-export interface ValidationErrorDetails {
+export type ValidationErrorDetails = {
   fieldErrors: Record<string, string[]>;
   formErrors: string[];
-}
+};
 
 /** API error response structure */
-export interface ApiErrorResponse {
+export type ApiErrorResponse = {
   error: string;
   errorCode?: string;
   details?: ValidationErrorDetails;
-}
+};
 
 /** Logout response */
-export interface LogoutResponse {
+export type LogoutResponse = {
   message: string;
-}
+};
 
 /** Forgot password request */
-export interface ForgotPasswordRequest {
+export type ForgotPasswordRequest = {
   email: string;
-}
+};
 
 /** Forgot password response */
-export interface ForgotPasswordResponse {
+export type ForgotPasswordResponse = {
   message: string;
-}
+};
 
 /** Reset password request */
-export interface ResetPasswordRequest {
+export type ResetPasswordRequest = {
   token: string;
   password: string;
-}
+};
 
 /** Reset password response */
-export interface ResetPasswordResponse {
+export type ResetPasswordResponse = {
   message: string;
-}
+};
 
 /** MFA verification request */
-export interface MfaVerifyRequest {
+export type MfaVerifyRequest = {
   code: string;
-}
+};
 
 /** MFA verification response */
-export interface MfaVerifyResponse {
+export type MfaVerifyResponse = {
   message: string;
   user?: LoginUser;
-}
+};
 
 /** Auth context state */
-export interface AuthState {
+export type AuthState = {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   requiresMfa: boolean;
-}
+};
 
 /** Auth context actions */
 export type AuthContextType = AuthState & {

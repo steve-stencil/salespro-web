@@ -35,7 +35,7 @@ import { PERMISSIONS } from '../src/lib/permissions';
 /**
  * Role configuration interface
  */
-interface RoleConfig {
+type RoleConfig = {
   name: string;
   displayName: string;
   description: string;
@@ -43,7 +43,7 @@ interface RoleConfig {
   isDefault: boolean;
   permissions: string[];
   companyAccessLevel?: CompanyAccessLevel;
-}
+};
 
 /**
  * Default system roles configuration

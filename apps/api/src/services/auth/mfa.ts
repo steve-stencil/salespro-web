@@ -50,7 +50,7 @@ export enum MfaErrorCode {
 /**
  * Result from MFA code generation/send
  */
-export interface MfaSendCodeResult {
+export type MfaSendCodeResult = {
   success: boolean;
   error?: string;
   errorCode?: MfaErrorCode;
@@ -58,36 +58,36 @@ export interface MfaSendCodeResult {
   expiresIn?: number;
   /** MFA code (only returned in development mode) */
   code?: string;
-}
+};
 
 /**
  * Result from MFA verification
  */
-export interface MfaVerifyResult {
+export type MfaVerifyResult = {
   success: boolean;
   user?: User;
   error?: string;
   errorCode?: MfaErrorCode;
-}
+};
 
 /**
  * Result from enabling MFA
  */
-export interface MfaEnableResult {
+export type MfaEnableResult = {
   success: boolean;
   recoveryCodes?: string[];
   error?: string;
   errorCode?: MfaErrorCode;
-}
+};
 
 /**
  * Result from disabling MFA
  */
-export interface MfaDisableResult {
+export type MfaDisableResult = {
   success: boolean;
   error?: string;
   errorCode?: MfaErrorCode;
-}
+};
 
 /**
  * Store for pending MFA codes (in production, use Redis)

@@ -16,13 +16,13 @@ import Typography from '@mui/material/Typography';
 
 import type { Office } from '../../types/users';
 
-interface OfficeCardProps {
+type OfficeCardProps = {
   office: Office;
   /** Handler for edit action. If undefined, edit button is hidden. */
   onEdit?: ((office: Office) => void) | undefined;
   /** Handler for delete action. If undefined, delete button is hidden. */
   onDelete?: ((office: Office) => void) | undefined;
-}
+};
 
 /**
  * Card component displaying office information.

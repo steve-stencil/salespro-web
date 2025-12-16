@@ -13,6 +13,7 @@ import {
 import { hashPassword, generateSecureToken, hashToken } from '../lib/crypto';
 import { emailService } from '../lib/email';
 import { AppError, ErrorCode } from '../lib/errors';
+
 import { logLoginEvent } from './auth/events';
 import { PermissionService } from './PermissionService';
 
@@ -22,48 +23,48 @@ import type { EntityManager } from '@mikro-orm/core';
 const INVITE_EXPIRATION_DAYS = 7;
 
 /** Result type for invite creation */
-export interface CreateInviteResult {
+export type CreateInviteResult = {
   success: boolean;
   invite?: UserInvite;
   error?: string;
   /** Token returned only in development mode */
   token?: string;
-}
+};
 
 /** Result type for invite acceptance */
-export interface AcceptInviteResult {
+export type AcceptInviteResult = {
   success: boolean;
   user?: User;
   error?: string;
-}
+};
 
 /** Result type for invite validation */
-export interface ValidateInviteResult {
+export type ValidateInviteResult = {
   valid: boolean;
   invite?: UserInvite;
   companyName?: string;
   email?: string;
   error?: string;
-}
+};
 
 /** Options for creating an invite */
-export interface CreateInviteOptions {
+export type CreateInviteOptions = {
   email: string;
   companyId: string;
   invitedById: string;
   roles: string[];
   inviterName: string;
-}
+};
 
 /** Options for accepting an invite */
-export interface AcceptInviteOptions {
+export type AcceptInviteOptions = {
   token: string;
   password: string;
   nameFirst?: string;
   nameLast?: string;
   ipAddress: string;
   userAgent: string;
-}
+};
 
 /**
  * Create and send a user invitation

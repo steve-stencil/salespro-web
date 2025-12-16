@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { UserInvite, User, Company, InviteStatus } from '../../entities';
+import { UserInvite, InviteStatus } from '../../entities';
 import {
   createInvite,
   validateInviteToken,
@@ -10,39 +10,49 @@ import {
   listPendingInvites,
 } from '../../services/invite';
 
+import type { User, Company } from '../../entities';
 import type { EntityManager } from '@mikro-orm/core';
 
 // Mock crypto functions
 vi.mock('../../lib/crypto', () => ({
   generateSecureToken: vi.fn(() => 'mock-token-12345'),
   hashToken: vi.fn((token: string) => `hashed-${token}`),
-  hashPassword: vi.fn(async () => 'hashed-password'),
+  hashPassword: vi.fn(() => Promise.resolve('hashed-password')),
 }));
 
 // Mock email service
 vi.mock('../../lib/email', () => ({
   emailService: {
     isConfigured: vi.fn(() => true),
-    sendInviteEmail: vi.fn(async () => ({ success: true })),
+    sendInviteEmail: vi.fn(() => Promise.resolve({ success: true })),
   },
 }));
 
 // Mock auth events
 vi.mock('../../services/auth/events', () => ({
-  logLoginEvent: vi.fn(async () => undefined),
+  logLoginEvent: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Mock PermissionService
 vi.mock('../../services/PermissionService', () => ({
-  PermissionService: vi.fn().mockImplementation(() => ({
-    assignRole: vi.fn(async () => ({ success: true })),
-  })),
+  PermissionService: class MockPermissionService {
+    assignRole = vi.fn(() => Promise.resolve({ success: true }));
+  },
 }));
 
 /**
  * Create a mock EntityManager
  */
-function createMockEm() {
+function createMockEm(): {
+  findOne: ReturnType<typeof vi.fn>;
+  find: ReturnType<typeof vi.fn>;
+  findAndCount: ReturnType<typeof vi.fn>;
+  count: ReturnType<typeof vi.fn>;
+  persist: ReturnType<typeof vi.fn>;
+  persistAndFlush: ReturnType<typeof vi.fn>;
+  flush: ReturnType<typeof vi.fn>;
+  getReference: ReturnType<typeof vi.fn>;
+} {
   return {
     findOne: vi.fn(),
     find: vi.fn(),
@@ -51,8 +61,8 @@ function createMockEm() {
     persist: vi.fn(),
     persistAndFlush: vi.fn(),
     flush: vi.fn(),
-    getReference: vi.fn((entity, id) => ({ id })),
-  } as unknown as EntityManager;
+    getReference: vi.fn((_entity, id) => ({ id })),
+  };
 }
 
 /**
@@ -359,7 +369,10 @@ describe('InviteService', () => {
 
   describe('listPendingInvites', () => {
     it('should return paginated pending invites', async () => {
-      const invites = [createMockInvite(), createMockInvite({ id: 'invite-2' })];
+      const invites = [
+        createMockInvite(),
+        createMockInvite({ id: 'invite-2' }),
+      ];
       vi.mocked(mockEm.findAndCount).mockResolvedValue([invites, 2]);
 
       const result = await listPendingInvites(

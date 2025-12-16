@@ -4,11 +4,11 @@ import { OAuthModel, parseScopes } from '../lib/oauth';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 /** OAuth token context attached to request */
-export interface OAuthContext {
+export type OAuthContext = {
   userId: string;
   clientId: string;
   scopes: string[];
-}
+};
 
 /**
  * Middleware that requires OAuth bearer token authentication.

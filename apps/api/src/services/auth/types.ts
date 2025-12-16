@@ -3,7 +3,7 @@ import type { SessionSource, User } from '../../entities';
 /**
  * Login request parameters
  */
-export interface LoginParams {
+export type LoginParams = {
   email: string;
   password: string;
   source: SessionSource;
@@ -13,18 +13,18 @@ export interface LoginParams {
   deviceId?: string | undefined;
   /** Session ID from express-session (req.sessionID) */
   sessionId: string;
-}
+};
 
 /**
  * Login result returned from authentication
  */
-export interface LoginResult {
+export type LoginResult = {
   success: boolean;
   user?: User;
   requiresMfa?: boolean;
   error?: string;
   errorCode?: LoginErrorCode;
-}
+};
 
 /**
  * Login error codes for specific error handling
@@ -41,16 +41,16 @@ export enum LoginErrorCode {
 /**
  * Password reset request result
  */
-export interface PasswordResetRequestResult {
+export type PasswordResetRequestResult = {
   success: boolean;
   /** Token is only returned in development for testing */
   token?: string;
-}
+};
 
 /**
  * Password reset result
  */
-export interface PasswordResetResult {
+export type PasswordResetResult = {
   success: boolean;
   error?: string;
-}
+};

@@ -30,14 +30,14 @@ import type {
   UpdateRoleRequest,
 } from '../../types/users';
 
-interface RoleEditDialogProps {
+type RoleEditDialogProps = {
   open: boolean;
   role?: Role | null;
   onClose: () => void;
   onSaved: () => void;
   /** Initial values for creating a new role (e.g., when cloning) */
   initialValues?: Partial<CreateRoleRequest> | undefined;
-}
+};
 
 /**
  * Dialog for creating or editing a role.
@@ -132,7 +132,7 @@ export function RoleEditDialog({
       if (role) {
         const updateData: UpdateRoleRequest = {
           displayName,
-          description: description ? description : undefined,
+          ...(description && { description }),
           permissions,
           isDefault,
         };
@@ -144,7 +144,7 @@ export function RoleEditDialog({
         const createData: CreateRoleRequest = {
           name,
           displayName,
-          description: description ? description : undefined,
+          ...(description && { description }),
           permissions,
           isDefault,
         };
@@ -298,4 +298,3 @@ export function RoleEditDialog({
     </Dialog>
   );
 }
-

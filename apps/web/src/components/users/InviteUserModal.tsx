@@ -28,11 +28,11 @@ import { useRolesList } from '../../hooks/useRoles';
 import { useSendInvite } from '../../hooks/useUsers';
 import { handleApiError } from '../../lib/api-client';
 
-interface InviteUserModalProps {
+type InviteUserModalProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-}
+};
 
 /**
  * Modal for inviting new users to the company.
@@ -207,10 +207,7 @@ export function InviteUserModal({
                           {role.displayName}
                         </Typography>
                         {role.description && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                          >
+                          <Typography variant="caption" color="text.secondary">
                             {role.description}
                           </Typography>
                         )}
@@ -220,9 +217,11 @@ export function InviteUserModal({
                 ))}
               </FormGroup>
             )}
-            {selectedRoles.length === 0 && !loadingRoles && roles.length > 0 && (
-              <FormHelperText>Select at least one role</FormHelperText>
-            )}
+            {selectedRoles.length === 0 &&
+              !loadingRoles &&
+              roles.length > 0 && (
+                <FormHelperText>Select at least one role</FormHelperText>
+              )}
           </FormControl>
         </Box>
       </DialogContent>

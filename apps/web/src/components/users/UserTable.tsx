@@ -19,14 +19,14 @@ import Typography from '@mui/material/Typography';
 
 import type { UserListItem, Pagination } from '../../types/users';
 
-interface UserTableProps {
+type UserTableProps = {
   users: UserListItem[];
   pagination: Pagination;
   isLoading: boolean;
   onPageChange: (page: number) => void;
   onRowsPerPageChange: (rowsPerPage: number) => void;
   onEditUser: (userId: string) => void;
-}
+};
 
 /**
  * Data table for displaying users.

@@ -4,17 +4,17 @@ import React, { Component } from 'react';
 
 import type { ErrorInfo, ReactNode } from 'react';
 
-interface Props {
+type Props = {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: ((error: Error, errorInfo: ErrorInfo) => void) | undefined;
-}
+};
 
-interface State {
+type State = {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
-}
+};
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {

@@ -4,14 +4,14 @@
  * per brand trademark requirements.
  */
 
-interface FrogIconProps {
+type FrogIconProps = {
   /** Icon color - defaults to Leap Green */
   color?: string;
   /** Icon size in pixels - height will be proportional */
   size?: number;
   /** Whether the icon is filled or outlined */
   filled?: boolean;
-}
+};
 
 /**
  * Leap's official frog icon SVG component.

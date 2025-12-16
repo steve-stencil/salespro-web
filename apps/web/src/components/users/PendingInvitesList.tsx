@@ -6,7 +6,6 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
@@ -30,9 +29,9 @@ import { handleApiError } from '../../lib/api-client';
 
 import type { InviteListItem } from '../../types/users';
 
-interface PendingInvitesListProps {
+type PendingInvitesListProps = {
   onInviteChange: () => void;
-}
+};
 
 /**
  * Format a date for display.
@@ -52,7 +51,8 @@ function formatDate(dateStr: string): string {
 function isExpiringSoon(expiresAt: string): boolean {
   const expires = new Date(expiresAt);
   const now = new Date();
-  const hoursUntilExpiry = (expires.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const hoursUntilExpiry =
+    (expires.getTime() - now.getTime()) / (1000 * 60 * 60);
   return hoursUntilExpiry < 24 && hoursUntilExpiry > 0;
 }
 
@@ -194,7 +194,13 @@ export function PendingInvitesList({
                     </Box>
                   </TableCell>
                   <TableCell align="right">
-                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 0.5,
+                        justifyContent: 'flex-end',
+                      }}
+                    >
                       <Tooltip title="Resend invitation">
                         <span>
                           <IconButton

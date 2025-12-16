@@ -5,7 +5,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { User, Company } from '../entities';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import { requireAuth, requirePermission } from '../middleware';
@@ -18,6 +17,7 @@ import {
   listPendingInvites,
 } from '../services';
 
+import type { User, Company } from '../entities';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
@@ -143,11 +143,10 @@ router.get(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const { invites, total } = await listPendingInvites(
-        em,
-        user.company.id,
-        { page: pageNum, limit: limitNum },
-      );
+      const { invites, total } = await listPendingInvites(em, user.company.id, {
+        page: pageNum,
+        limit: limitNum,
+      });
 
       res.status(200).json({
         invites: invites.map(invite => ({
@@ -242,12 +241,7 @@ router.post(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const result = await resendInvite(
-        em,
-        id,
-        user.company.id,
-        user.fullName,
-      );
+      const result = await resendInvite(em, id, user.company.id, user.fullName);
 
       if (!result.success) {
         res.status(400).json({ error: result.error });
@@ -286,7 +280,9 @@ router.post(
  */
 router.get('/validate', async (req: Request, res: Response) => {
   try {
-    const parseResult = validateTokenSchema.safeParse({ token: req.query.token });
+    const parseResult = validateTokenSchema.safeParse({
+      token: req.query.token,
+    });
     if (!parseResult.success) {
       res.status(400).json({
         error: 'Validation failed',

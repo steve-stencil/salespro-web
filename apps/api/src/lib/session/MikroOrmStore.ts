@@ -21,7 +21,7 @@ function isValidUuid(sid: string): boolean {
 /**
  * Configuration options for the MikroORM session store
  */
-export interface MikroOrmStoreOptions {
+export type MikroOrmStoreOptions = {
   /** Entity manager instance */
   em: EntityManager;
   /** Enable lazy cleanup of expired sessions on get (default: true) */
@@ -30,7 +30,7 @@ export interface MikroOrmStoreOptions {
   cleanupOnInit?: boolean;
   /** Interval for batch cleanup in milliseconds (default: 15 minutes, 0 to disable) */
   cleanupInterval?: number;
-}
+};
 
 /**
  * Custom express-session store using MikroORM and PostgreSQL.
