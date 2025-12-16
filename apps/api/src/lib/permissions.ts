@@ -48,6 +48,12 @@ export const PERMISSIONS = {
   COMPANY_READ: 'company:read',
   COMPANY_UPDATE: 'company:update',
 
+  // Files
+  FILE_READ: 'file:read',
+  FILE_CREATE: 'file:create',
+  FILE_UPDATE: 'file:update',
+  FILE_DELETE: 'file:delete',
+
   // ==================================
   // Platform Permissions (Internal Users Only)
   // ==================================
@@ -212,6 +218,28 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     label: 'Manage Company',
     category: 'Company',
     description: 'Update company profile and subscription settings',
+  },
+
+  // Files
+  'file:read': {
+    label: 'View Files',
+    category: 'Files',
+    description: 'View and download files',
+  },
+  'file:create': {
+    label: 'Upload Files',
+    category: 'Files',
+    description: 'Upload new files to the system',
+  },
+  'file:update': {
+    label: 'Edit Files',
+    category: 'Files',
+    description: 'Update file metadata and visibility',
+  },
+  'file:delete': {
+    label: 'Delete Files',
+    category: 'Files',
+    description: 'Delete files from the system',
   },
 
   // Platform (Internal Users Only)

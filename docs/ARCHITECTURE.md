@@ -78,9 +78,13 @@ This document describes the architecture and design patterns used in this MERN m
 ```
 apps/api/src/
 ├── config/          # Environment configuration
+├── entities/        # MikroORM entities
 ├── lib/             # Utility functions
-├── models/          # Mongoose models
+│   └── storage/     # File storage adapters (S3, local)
+├── middleware/      # Express middleware
 ├── routes/          # Express route handlers
+├── services/        # Business logic services
+│   └── file/        # File service (upload, download, metadata)
 ├── __tests__/       # Test files
 └── index.ts         # Application entry point
 ```
@@ -208,6 +212,55 @@ pnpm --filter api test
 - **Structured logging** for debugging
 - **Error boundaries** for graceful failures
 - **Security headers** and CORS configuration
+
+## File Upload System
+
+The API includes a pluggable file upload system with multi-tenant support.
+
+### Storage Adapter Pattern
+
+The storage layer uses an adapter pattern for flexibility:
+
+```
+lib/storage/
+├── types.ts              # StorageAdapter interface and types
+├── utils.ts              # Key generation, validation utilities
+├── LocalStorageAdapter.ts # Filesystem storage for development
+├── S3StorageAdapter.ts    # AWS S3 storage for production
+└── index.ts              # Factory to get appropriate adapter
+```
+
+**Key Design Decisions:**
+
+- **Adapter Pattern**: Swappable storage backends without code changes
+- **Company-Scoped Keys**: Files organized as `{companyId}/files/{uuid}.{ext}`
+- **Presigned URLs**: Direct client-to-S3 uploads for large files
+- **Soft Delete**: Files marked as deleted, not permanently removed
+
+### File Visibility Levels
+
+- `private` - Only uploader can access
+- `company` - All company members can access (default)
+- `public` - Publicly accessible
+
+### Thumbnail Generation
+
+Images automatically generate thumbnails (200x200) using Sharp:
+
+- Stored separately: `{companyId}/thumbnails/{uuid}_thumb.{ext}`
+- Async generation for presigned uploads
+- Non-blocking (failure doesn't block upload)
+
+### Configuration
+
+Storage is controlled by environment variables:
+
+| Variable             | Description                           |
+| -------------------- | ------------------------------------- |
+| `S3_BUCKET`          | S3 bucket name (enables S3 mode)      |
+| `S3_REGION`          | S3 region (defaults to `AWS_REGION`)  |
+| `MAX_FILE_SIZE_MB`   | Maximum file size (default: 10)       |
+| `ALLOWED_FILE_TYPES` | Comma-separated MIME types/extensions |
 
 ## Extension Points
 

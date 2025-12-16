@@ -128,3 +128,23 @@ export const DEFAULT_PASSWORD_POLICY: PasswordPolicy = {
   maxAgeDays: 0,
   historyCount: 5,
 };
+
+/** File visibility levels for access control */
+export enum FileVisibility {
+  /** Only the uploader can access */
+  PRIVATE = 'private',
+  /** All users in the same company can access */
+  COMPANY = 'company',
+  /** Publicly accessible (no auth required) */
+  PUBLIC = 'public',
+}
+
+/** Status of a file upload */
+export enum FileStatus {
+  /** File upload is pending (presigned URL generated but not confirmed) */
+  PENDING = 'pending',
+  /** File is uploaded and active */
+  ACTIVE = 'active',
+  /** File is soft deleted */
+  DELETED = 'deleted',
+}

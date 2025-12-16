@@ -39,5 +39,8 @@ export { TrustedDevice } from './TrustedDevice.entity';
 export { RememberMeToken } from './RememberMeToken.entity';
 export { ApiKey } from './ApiKey.entity';
 
+// File entities
+export { File } from './File.entity';
+
 // Types and enums
 export * from './types';

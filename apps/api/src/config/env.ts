@@ -17,6 +17,20 @@ const EnvSchema = z.object({
   SES_FROM_EMAIL: z.email().optional(),
   /** Frontend app URL for password reset links */
   APP_URL: z.url().default('http://localhost:5173'),
+
+  // S3 Storage Configuration (optional - falls back to local storage if not set)
+  /** S3 bucket name for file storage */
+  S3_BUCKET: z.string().optional(),
+  /** S3 region (defaults to AWS_REGION if not set) */
+  S3_REGION: z.string().optional(),
+
+  // File Upload Configuration
+  /** Maximum file size in megabytes (default: 10MB) */
+  MAX_FILE_SIZE_MB: z.coerce.number().positive().default(10),
+  /** Comma-separated list of allowed MIME types/extensions */
+  ALLOWED_FILE_TYPES: z
+    .string()
+    .default('image/*,application/pdf,.doc,.docx,.xls,.xlsx'),
 });
 
 export const env = EnvSchema.parse(process.env);

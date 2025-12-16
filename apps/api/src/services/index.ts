@@ -11,3 +11,11 @@ export type {
 
 export { PermissionService } from './PermissionService';
 export type { RoleAssignmentResult } from './PermissionService';
+
+export { FileService, FileServiceError, FileErrorCode } from './file';
+export type {
+  UploadFileParams,
+  PresignUploadParams,
+  PresignUploadResult,
+  UpdateFileParams,
+} from './file';

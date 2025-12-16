@@ -58,16 +58,16 @@ src/
 
 ```typescript
 // External libraries
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 // Internal imports (absolute paths)
-import { User } from "@shared/types";
-import { validateUser } from "@shared/zod";
+import { User } from '@shared/types';
+import { validateUser } from '@shared/zod';
 
 // Relative imports
-import { UserCard } from "./UserCard";
-import { useUserData } from "../hooks/useUserData";
+import { UserCard } from './UserCard';
+import { useUserData } from '../hooks/useUserData';
 ```
 
 ## API Development Patterns
@@ -76,9 +76,9 @@ import { useUserData } from "../hooks/useUserData";
 
 ```typescript
 // apps/api/src/routes/users.ts
-import { Router } from "express";
-import { z } from "zod";
-import { User } from "@shared/types";
+import { Router } from 'express';
+import { z } from 'zod';
+import { User } from '@shared/types';
 
 const router = Router();
 
@@ -87,7 +87,7 @@ const createUserSchema = z.object({
   email: z.string().email(),
 });
 
-router.post("/", async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const userData = createUserSchema.parse(req.body);
     // Implementation
@@ -120,9 +120,9 @@ export const handleError = (error: unknown, res: Response) => {
   }
 
   // Log unexpected errors
-  console.error("Unexpected error:", error);
+  console.error('Unexpected error:', error);
   return res.status(500).json({
-    error: "Internal server error",
+    error: 'Internal server error',
     statusCode: 500,
   });
 };
@@ -132,8 +132,8 @@ export const handleError = (error: unknown, res: Response) => {
 
 ```typescript
 // apps/api/src/models/User.ts
-import { Schema, model, Document } from "mongoose";
-import { z } from "zod";
+import { Schema, model, Document } from 'mongoose';
+import { z } from 'zod';
 
 const userSchema = new Schema({
   name: { type: String, required: true },
@@ -147,7 +147,7 @@ export interface IUser extends Document {
   createdAt: Date;
 }
 
-export const User = model<IUser>("User", userSchema);
+export const User = model<IUser>('User', userSchema);
 
 // Zod schema for validation
 export const userSchemaZod = z.object({
@@ -189,13 +189,13 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onEdit }) => {
 
 ```typescript
 // apps/web/src/hooks/useUsers.ts
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { User } from "@shared/types";
-import { api } from "../api";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { User } from '@shared/types';
+import { api } from '../api';
 
 export const useUsers = () => {
   return useQuery({
-    queryKey: ["users"],
+    queryKey: ['users'],
     queryFn: api.getUsers,
   });
 };
@@ -206,7 +206,7 @@ export const useCreateUser = () => {
   return useMutation({
     mutationFn: api.createUser,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -216,9 +216,9 @@ export const useCreateUser = () => {
 
 ```typescript
 // apps/web/src/api/index.ts
-import { User } from "@shared/types";
+import { User } from '@shared/types';
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000/api";
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000/api';
 
 class ApiClient {
   private async request<T>(
@@ -227,7 +227,7 @@ class ApiClient {
   ): Promise<T> {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         ...options?.headers,
       },
       ...options,
@@ -241,12 +241,12 @@ class ApiClient {
   }
 
   async getUsers(): Promise<User[]> {
-    return this.request<User[]>("/users");
+    return this.request<User[]>('/users');
   }
 
-  async createUser(user: Omit<User, "id">): Promise<User> {
-    return this.request<User>("/users", {
-      method: "POST",
+  async createUser(user: Omit<User, 'id'>): Promise<User> {
+    return this.request<User>('/users', {
+      method: 'POST',
       body: JSON.stringify(user),
     });
   }
@@ -284,7 +284,7 @@ export interface UpdateUserRequest {
 
 ```typescript
 // packages/shared/src/zod/user.ts
-import { z } from "zod";
+import { z } from 'zod';
 
 export const userSchema = z.object({
   id: z.string(),
@@ -309,7 +309,7 @@ export const updateUserSchema = z.object({
 
 ```typescript
 // packages/shared/src/utils/validation.ts
-import { z } from "zod";
+import { z } from 'zod';
 
 export const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -317,7 +317,7 @@ export const validateEmail = (email: string): boolean => {
 };
 
 export const sanitizeString = (str: string): string => {
-  return str.trim().replace(/\s+/g, " ");
+  return str.trim().replace(/\s+/g, ' ');
 };
 ```
 
@@ -331,19 +331,19 @@ The project uses Jest as the primary testing framework with TypeScript support. 
 // jest.config.js (root)
 module.exports = {
   projects: [
-    "<rootDir>/apps/api",
-    "<rootDir>/apps/web",
-    "<rootDir>/packages/shared",
+    '<rootDir>/apps/api',
+    '<rootDir>/apps/web',
+    '<rootDir>/packages/shared',
   ],
   collectCoverageFrom: [
-    "**/*.{ts,tsx}",
-    "!**/*.d.ts",
-    "!**/node_modules/**",
-    "!**/dist/**",
-    "!**/coverage/**",
+    '**/*.{ts,tsx}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!**/dist/**',
+    '!**/coverage/**',
   ],
-  coverageDirectory: "<rootDir>/coverage",
-  coverageReporters: ["text", "lcov", "html"],
+  coverageDirectory: '<rootDir>/coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
   coverageThreshold: {
     global: {
       branches: 80,
@@ -359,11 +359,11 @@ module.exports = {
 
 ```typescript
 // apps/api/src/__tests__/users.test.ts
-import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
-import request from "supertest";
-import { app } from "../server";
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import request from 'supertest';
+import { app } from '../server';
 
-describe("Users API", () => {
+describe('Users API', () => {
   beforeEach(() => {
     // Setup test database
   });
@@ -372,28 +372,28 @@ describe("Users API", () => {
     // Cleanup test data
   });
 
-  it("should create a user", async () => {
+  it('should create a user', async () => {
     const userData = {
-      name: "John Doe",
-      email: "john@example.com",
+      name: 'John Doe',
+      email: 'john@example.com',
     };
 
     const response = await request(app)
-      .post("/api/users")
+      .post('/api/users')
       .send(userData)
       .expect(201);
 
     expect(response.body).toMatchObject(userData);
   });
 
-  it("should handle validation errors", async () => {
+  it('should handle validation errors', async () => {
     const invalidData = {
-      name: "",
-      email: "invalid-email",
+      name: '',
+      email: 'invalid-email',
     };
 
     const response = await request(app)
-      .post("/api/users")
+      .post('/api/users')
       .send(invalidData)
       .expect(400);
 
@@ -441,19 +441,19 @@ describe('UserCard', () => {
 
 ```typescript
 // apps/api/src/__tests__/lib/errors.test.ts
-import { AppError, errorHandler, formatZod } from "../../lib/errors";
-import { ZodError, z } from "zod";
+import { AppError, errorHandler, formatZod } from '../../lib/errors';
+import { ZodError, z } from 'zod';
 
-describe("AppError", () => {
-  it("should create an AppError with correct properties", () => {
-    const error = new AppError(400, "BAD_REQUEST", "Invalid input", {
-      field: "email",
+describe('AppError', () => {
+  it('should create an AppError with correct properties', () => {
+    const error = new AppError(400, 'BAD_REQUEST', 'Invalid input', {
+      field: 'email',
     });
 
     expect(error.status).toBe(400);
-    expect(error.code).toBe("BAD_REQUEST");
-    expect(error.message).toBe("Invalid input");
-    expect(error.details).toEqual({ field: "email" });
+    expect(error.code).toBe('BAD_REQUEST');
+    expect(error.message).toBe('Invalid input');
+    expect(error.details).toEqual({ field: 'email' });
   });
 });
 ```
@@ -486,23 +486,69 @@ pnpm --filter @shared/core test
 ### 7. Mock Patterns
 
 ```typescript
-// Mock external dependencies
-jest.mock("mongoose", () => ({
-  connect: jest.fn(),
+// Mock external dependencies (Vitest)
+vi.mock('mongoose', () => ({
+  connect: vi.fn(),
   connection: {
     readyState: 0,
   },
 }));
 
 // Mock environment variables
-process.env.NODE_ENV = "test";
-process.env.MONGODB_URI = "mongodb://localhost:27017/test";
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
 
 // Mock API responses
-jest.mock("../api", () => ({
-  getUsers: jest.fn().mockResolvedValue([]),
-  createUser: jest.fn().mockResolvedValue({ id: "1", name: "Test User" }),
+vi.mock('../api', () => ({
+  getUsers: vi.fn().mockResolvedValue([]),
+  createUser: vi.fn().mockResolvedValue({ id: '1', name: 'Test User' }),
 }));
+```
+
+### 8. Testing File Upload System
+
+```typescript
+// Mock storage adapter for file upload tests
+vi.mock('../../lib/storage', () => ({
+  getStorageAdapter: vi.fn(() => ({
+    upload: vi.fn().mockResolvedValue({
+      key: 'test-key',
+      size: 1000,
+      etag: '"abc123"',
+    }),
+    download: vi.fn().mockResolvedValue(mockStream),
+    delete: vi.fn().mockResolvedValue(undefined),
+    exists: vi.fn().mockResolvedValue(true),
+    getSignedDownloadUrl: vi.fn().mockResolvedValue('https://signed-url'),
+    generatePresignedUpload: vi.fn().mockResolvedValue({
+      url: 'https://upload-url',
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/pdf' },
+      expiresAt: new Date(Date.now() + 900000),
+    }),
+  })),
+  isS3Configured: vi.fn().mockReturnValue(true),
+  generateStorageKey: vi.fn(
+    (companyId, fileId, ext) => `${companyId}/files/${fileId}.${ext}`,
+  ),
+}));
+
+// Mock thumbnail generation
+vi.mock('../../services/file/thumbnail', () => ({
+  generateAndUploadThumbnail: vi.fn().mockResolvedValue('thumbnail-key'),
+  generateThumbnailAsync: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Integration test with file upload
+it('should upload a file', async () => {
+  const response = await makeRequest()
+    .post('/api/files/upload')
+    .set('Cookie', authCookie)
+    .attach('file', Buffer.from('test'), 'test.pdf');
+
+  expect(response.status).toBe(201);
+  expect(response.body.file).toHaveProperty('id');
+});
 ```
 
 ## Environment Configuration
@@ -511,11 +557,11 @@ jest.mock("../api", () => ({
 
 ```typescript
 // apps/api/src/config/env.ts
-import { z } from "zod";
+import { z } from 'zod';
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "production", "test"]),
-  PORT: z.string().transform(Number).default("4000"),
+  NODE_ENV: z.enum(['development', 'production', 'test']),
+  PORT: z.string().transform(Number).default('4000'),
   MONGODB_URI: z.string().url(),
 });
 
@@ -527,8 +573,8 @@ export const env = envSchema.parse(process.env);
 ```typescript
 // apps/web/src/config/env.ts
 const env = {
-  VITE_API_BASE: import.meta.env.VITE_API_BASE || "http://localhost:4000/api",
-  VITE_NODE_ENV: import.meta.env.VITE_NODE_ENV || "development",
+  VITE_API_BASE: import.meta.env.VITE_API_BASE || 'http://localhost:4000/api',
+  VITE_NODE_ENV: import.meta.env.VITE_NODE_ENV || 'development',
 } as const;
 
 export { env };
