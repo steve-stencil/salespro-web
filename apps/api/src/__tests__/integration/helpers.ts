@@ -4,6 +4,9 @@ import { getORM } from '../../lib/db';
 
 import { getTestServer } from './server-setup';
 
+// Re-export all auth test helpers for convenience
+export * from './auth-test-helpers';
+
 export const getTestApp = () => {
   const { server } = getTestServer();
   return server;

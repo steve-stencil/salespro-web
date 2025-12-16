@@ -679,4 +679,486 @@ describe('Roles Routes Integration Tests', () => {
       expect(response.status).toBe(400);
     });
   });
+
+  // ============================================================================
+  // Authorization Denial Tests
+  // ============================================================================
+
+  describe('Authorization Denial Tests', () => {
+    /**
+     * Helper to create a user with specific permissions
+     */
+    async function createUserWithPermissions(
+      permissions: string[],
+    ): Promise<{ user: User; cookie: string }> {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const role = em.create(Role, {
+        id: uuid(),
+        name: `denialTestRole-${Date.now()}-${Math.random()}`,
+        displayName: 'Denial Test Role',
+        permissions,
+        type: RoleType.COMPANY,
+        company: testCompany,
+      });
+      em.persist(role);
+
+      const user = em.create(User, {
+        id: uuid(),
+        email: `denial-test-${Date.now()}-${Math.random()}@example.com`,
+        passwordHash: await hashPassword('TestPassword123!'),
+        nameFirst: 'Denial',
+        nameLast: 'Test',
+        isActive: true,
+        emailVerified: true,
+        mfaEnabled: false,
+        company: testCompany,
+      });
+      em.persist(user);
+
+      const userRole = em.create(UserRole, {
+        id: uuid(),
+        user,
+        role,
+        company: testCompany,
+      });
+      em.persist(userRole);
+
+      const sid = uuid();
+      const session = em.create(Session, {
+        sid,
+        user,
+        company: testCompany,
+        data: { userId: user.id },
+        source: 'web',
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        absoluteExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        mfaVerified: false,
+      });
+      em.persist(session);
+
+      await em.flush();
+
+      return { user, cookie: `sid=${sid}` };
+    }
+
+    describe('POST /api/roles - role:create denial', () => {
+      it('should return 403 without role:create permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+        ]);
+
+        const response = await makeRequest()
+          .post('/api/roles')
+          .set('Cookie', userCookie)
+          .send({
+            name: 'deniedRole',
+            displayName: 'Denied Role',
+            permissions: ['customer:read'],
+          });
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+
+      it('should allow with role:create permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:create',
+        ]);
+
+        const response = await makeRequest()
+          .post('/api/roles')
+          .set('Cookie', userCookie)
+          .send({
+            name: `allowedRole-${Date.now()}`,
+            displayName: 'Allowed Role',
+            permissions: ['customer:read'],
+          });
+
+        expect(response.status).toBe(201);
+      });
+
+      it('should allow with role:* wildcard', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:*',
+        ]);
+
+        const response = await makeRequest()
+          .post('/api/roles')
+          .set('Cookie', userCookie)
+          .send({
+            name: `wildcardRole-${Date.now()}`,
+            displayName: 'Wildcard Role',
+            permissions: ['customer:read'],
+          });
+
+        expect(response.status).toBe(201);
+      });
+    });
+
+    describe('PATCH /api/roles/:id - role:update denial', () => {
+      let editableRole: Role;
+
+      beforeEach(async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        editableRole = em.create(Role, {
+          id: uuid(),
+          name: `editableDenialRole-${Date.now()}`,
+          displayName: 'Editable Denial Role',
+          permissions: ['customer:read'],
+          type: RoleType.COMPANY,
+          company: testCompany,
+        });
+        em.persist(editableRole);
+        await em.flush();
+      });
+
+      it('should return 403 without role:update permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+          'role:create',
+        ]);
+
+        const response = await makeRequest()
+          .patch(`/api/roles/${editableRole.id}`)
+          .set('Cookie', userCookie)
+          .send({
+            displayName: 'Should Not Update',
+          });
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+
+      it('should allow with role:update permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:update',
+        ]);
+
+        const response = await makeRequest()
+          .patch(`/api/roles/${editableRole.id}`)
+          .set('Cookie', userCookie)
+          .send({
+            displayName: 'Updated Successfully',
+          });
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe('DELETE /api/roles/:id - role:delete denial', () => {
+      let deletableRole: Role;
+
+      beforeEach(async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        deletableRole = em.create(Role, {
+          id: uuid(),
+          name: `deletableDenialRole-${Date.now()}`,
+          displayName: 'Deletable Denial Role',
+          permissions: ['customer:read'],
+          type: RoleType.COMPANY,
+          company: testCompany,
+        });
+        em.persist(deletableRole);
+        await em.flush();
+      });
+
+      it('should return 403 without role:delete permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+          'role:update',
+        ]);
+
+        const response = await makeRequest()
+          .delete(`/api/roles/${deletableRole.id}`)
+          .set('Cookie', userCookie);
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+
+      it('should allow with role:delete permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:delete',
+        ]);
+
+        const response = await makeRequest()
+          .delete(`/api/roles/${deletableRole.id}`)
+          .set('Cookie', userCookie);
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe('POST /api/roles/assign - role:assign denial', () => {
+      let assignableRole: Role;
+      let targetForAssign: User;
+
+      beforeEach(async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        assignableRole = em.create(Role, {
+          id: uuid(),
+          name: `assignableDenialRole-${Date.now()}`,
+          displayName: 'Assignable Denial Role',
+          permissions: ['customer:read'],
+          type: RoleType.COMPANY,
+          company: testCompany,
+        });
+        em.persist(assignableRole);
+
+        targetForAssign = em.create(User, {
+          id: uuid(),
+          email: `assign-target-${Date.now()}@example.com`,
+          passwordHash: await hashPassword('TestPassword123!'),
+          nameFirst: 'Assign',
+          nameLast: 'Target',
+          isActive: true,
+          emailVerified: true,
+          mfaEnabled: false,
+          company: testCompany,
+        });
+        em.persist(targetForAssign);
+        await em.flush();
+      });
+
+      it('should return 403 without role:assign permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+          'role:create',
+          'role:update',
+          'role:delete',
+        ]);
+
+        const response = await makeRequest()
+          .post('/api/roles/assign')
+          .set('Cookie', userCookie)
+          .send({
+            userId: targetForAssign.id,
+            roleId: assignableRole.id,
+          });
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+
+      it('should allow with role:assign permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:assign',
+        ]);
+
+        const response = await makeRequest()
+          .post('/api/roles/assign')
+          .set('Cookie', userCookie)
+          .send({
+            userId: targetForAssign.id,
+            roleId: assignableRole.id,
+          });
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe('POST /api/roles/revoke - role:assign denial', () => {
+      let revokeRole: Role;
+      let targetForRevoke: User;
+
+      beforeEach(async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        revokeRole = em.create(Role, {
+          id: uuid(),
+          name: `revokeDenialRole-${Date.now()}`,
+          displayName: 'Revoke Denial Role',
+          permissions: ['customer:read'],
+          type: RoleType.COMPANY,
+          company: testCompany,
+        });
+        em.persist(revokeRole);
+
+        targetForRevoke = em.create(User, {
+          id: uuid(),
+          email: `revoke-target-denial-${Date.now()}@example.com`,
+          passwordHash: await hashPassword('TestPassword123!'),
+          nameFirst: 'Revoke',
+          nameLast: 'Target',
+          isActive: true,
+          emailVerified: true,
+          mfaEnabled: false,
+          company: testCompany,
+        });
+        em.persist(targetForRevoke);
+
+        // Assign the role first so we can revoke it
+        const userRole = em.create(UserRole, {
+          id: uuid(),
+          user: targetForRevoke,
+          role: revokeRole,
+          company: testCompany,
+        });
+        em.persist(userRole);
+        await em.flush();
+      });
+
+      it('should return 403 without role:assign permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+        ]);
+
+        const response = await makeRequest()
+          .post('/api/roles/revoke')
+          .set('Cookie', userCookie)
+          .send({
+            userId: targetForRevoke.id,
+            roleId: revokeRole.id,
+          });
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+
+      it('should allow with role:assign permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:assign',
+        ]);
+
+        const response = await makeRequest()
+          .post('/api/roles/revoke')
+          .set('Cookie', userCookie)
+          .send({
+            userId: targetForRevoke.id,
+            roleId: revokeRole.id,
+          });
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe('GET /api/roles/:id/users - role:read denial', () => {
+      it('should return 403 without role:read permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'user:read',
+        ]);
+
+        const response = await makeRequest()
+          .get(`/api/roles/${adminRole.id}/users`)
+          .set('Cookie', userCookie);
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+
+      it('should allow with role:read permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+        ]);
+
+        const response = await makeRequest()
+          .get(`/api/roles/${adminRole.id}/users`)
+          .set('Cookie', userCookie);
+
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe('GET /api/roles/users/:userId - role:read denial', () => {
+      it('should return 403 without role:read permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'user:read',
+        ]);
+
+        const response = await makeRequest()
+          .get(`/api/roles/users/${testUser.id}`)
+          .set('Cookie', userCookie);
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+    });
+
+    describe('POST /api/roles/:id/clone - role:create denial', () => {
+      it('should return 403 without role:create permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+        ]);
+
+        const response = await makeRequest()
+          .post(`/api/roles/${adminRole.id}/clone`)
+          .set('Cookie', userCookie)
+          .send({
+            name: `clonedRole-${Date.now()}`,
+            displayName: 'Cloned Role',
+          });
+
+        expect(response.status).toBe(403);
+        expect(response.body.error).toBe('Forbidden');
+      });
+
+      it('should allow with role:create permission', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:create',
+        ]);
+
+        const response = await makeRequest()
+          .post(`/api/roles/${adminRole.id}/clone`)
+          .set('Cookie', userCookie)
+          .send({
+            name: `clonedRole-${Date.now()}`,
+            displayName: 'Cloned Role',
+          });
+
+        expect(response.status).toBe(201);
+      });
+    });
+
+    describe('User with only role:read permission', () => {
+      it('should only be able to read roles, not modify them', async () => {
+        const { cookie: userCookie } = await createUserWithPermissions([
+          'role:read',
+        ]);
+
+        // Can read roles
+        const listResponse = await makeRequest()
+          .get('/api/roles')
+          .set('Cookie', userCookie);
+        expect(listResponse.status).toBe(200);
+
+        // Can read specific role
+        const getResponse = await makeRequest()
+          .get(`/api/roles/${adminRole.id}`)
+          .set('Cookie', userCookie);
+        expect(getResponse.status).toBe(200);
+
+        // Cannot create
+        const createResponse = await makeRequest()
+          .post('/api/roles')
+          .set('Cookie', userCookie)
+          .send({
+            name: 'shouldFail',
+            displayName: 'Should Fail',
+            permissions: ['customer:read'],
+          });
+        expect(createResponse.status).toBe(403);
+
+        // Cannot clone (which is also a create operation)
+        const cloneResponse = await makeRequest()
+          .post(`/api/roles/${adminRole.id}/clone`)
+          .set('Cookie', userCookie)
+          .send({
+            name: 'cloneShouldFail',
+            displayName: 'Clone Should Fail',
+          });
+        expect(cloneResponse.status).toBe(403);
+      });
+    });
+  });
 });
