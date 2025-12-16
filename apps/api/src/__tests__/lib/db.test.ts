@@ -7,12 +7,12 @@ import type { initORM, getORM, closeORM, getORMConfig } from '../../lib/db';
 import '../setup';
 
 // Module interface for dynamic import
-interface DbModule {
+type DbModule = {
   initORM: typeof initORM;
   getORM: typeof getORM;
   closeORM: typeof closeORM;
   getORMConfig: typeof getORMConfig;
-}
+};
 
 // We need to import the module after setup so mocks are in place
 // Reset module state between tests

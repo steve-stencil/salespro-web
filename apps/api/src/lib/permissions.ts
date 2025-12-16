@@ -75,11 +75,11 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 /**
  * Metadata for each permission, used for UI rendering.
  */
-export interface PermissionMeta {
+export type PermissionMeta = {
   label: string;
   category: string;
   description: string;
-}
+};
 
 /**
  * Permission metadata for UI rendering and documentation.

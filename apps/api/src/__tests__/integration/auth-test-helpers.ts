@@ -9,24 +9,24 @@ import { PERMISSIONS } from '../../lib/permissions';
 import type { EntityManager } from '@mikro-orm/core';
 
 /** Result from creating a user with session */
-export interface UserWithSession {
+export type UserWithSession = {
   user: User;
   cookie: string;
   sessionId: string;
-}
+};
 
 /** Result from creating a company with entities */
-export interface CompanySetup {
+export type CompanySetup = {
   company: Company;
   adminUser: User;
   adminCookie: string;
   adminSessionId: string;
   adminRole: Role;
   office?: Office;
-}
+};
 
 /** Options for creating a user with permissions */
-export interface CreateUserOptions {
+export type CreateUserOptions = {
   companyId: string;
   permissions: string[];
   email?: string;
@@ -34,10 +34,10 @@ export interface CreateUserOptions {
   nameLast?: string;
   isActive?: boolean;
   mfaEnabled?: boolean;
-}
+};
 
 /** Options for creating an internal user */
-export interface CreateInternalUserOptions {
+export type CreateInternalUserOptions = {
   platformRoleId?: string;
   companyAccessLevel?: CompanyAccessLevel;
   platformPermissions?: string[];
@@ -46,16 +46,16 @@ export interface CreateInternalUserOptions {
   nameFirst?: string;
   nameLast?: string;
   switchToCompanyId?: string;
-}
+};
 
 /** Options for creating a company */
-export interface CreateCompanyOptions {
+export type CreateCompanyOptions = {
   name?: string;
   isActive?: boolean;
   mfaRequired?: boolean;
   createOffice?: boolean;
   officeName?: string;
-}
+};
 
 /**
  * Create a test company with standard configuration.

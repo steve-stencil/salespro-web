@@ -25,7 +25,7 @@ export type OfficeSortOption =
   | 'created-desc'
   | 'users';
 
-interface OfficeFiltersProps {
+type OfficeFiltersProps = {
   searchQuery: string;
   statusFilter: OfficeStatusFilter;
   sortOption: OfficeSortOption;
@@ -34,7 +34,7 @@ interface OfficeFiltersProps {
   onStatusChange: (value: OfficeStatusFilter) => void;
   onSortChange: (value: OfficeSortOption) => void;
   onClearFilters: () => void;
-}
+};
 
 /**
  * Search and filter controls for offices list.

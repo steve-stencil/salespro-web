@@ -101,12 +101,12 @@ export async function getThumbnailUrl(
 /**
  * Result type for listFiles operation.
  */
-export interface ListFilesResult {
+export type ListFilesResult = {
   files: File[];
   total: number;
   page: number;
   totalPages: number;
-}
+};
 
 /**
  * List files for a company with pagination.

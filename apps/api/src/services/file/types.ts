@@ -8,7 +8,7 @@ import type { Company, User } from '../../entities';
 /**
  * Parameters for uploading a file.
  */
-export interface UploadFileParams {
+export type UploadFileParams = {
   /** File buffer (from multer) */
   buffer: Buffer;
   /** Original filename */
@@ -25,12 +25,12 @@ export interface UploadFileParams {
   description?: string;
   /** Optional metadata */
   metadata?: Record<string, unknown>;
-}
+};
 
 /**
  * Parameters for requesting a presigned upload URL.
  */
-export interface PresignUploadParams {
+export type PresignUploadParams = {
   /** Original filename */
   filename: string;
   /** MIME type */
@@ -45,12 +45,12 @@ export interface PresignUploadParams {
   visibility?: FileVisibility;
   /** Optional description */
   description?: string;
-}
+};
 
 /**
  * Result of requesting a presigned upload URL.
  */
-export interface PresignUploadResult {
+export type PresignUploadResult = {
   /** The file ID (for confirmation) */
   fileId: string;
   /** Presigned upload URL */
@@ -61,12 +61,12 @@ export interface PresignUploadResult {
   headers: Record<string, string>;
   /** Expiration timestamp */
   expiresAt: Date;
-}
+};
 
 /**
  * Parameters for updating a file.
  */
-export interface UpdateFileParams {
+export type UpdateFileParams = {
   /** New filename (optional) */
   filename?: string;
   /** New visibility (optional) */
@@ -75,7 +75,7 @@ export interface UpdateFileParams {
   description?: string;
   /** Updated metadata (optional) */
   metadata?: Record<string, unknown>;
-}
+};
 
 /**
  * Error codes for file operations.

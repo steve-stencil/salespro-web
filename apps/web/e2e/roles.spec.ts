@@ -66,13 +66,12 @@ test.describe('Roles Page', () => {
 
       // Should have at least one section heading
       expect(headingTexts.length).toBeGreaterThan(0);
-      expect(
-        headingTexts.some(
-          text =>
-            text.toLowerCase().includes('system') ||
-            text.toLowerCase().includes('custom'),
-        ),
-      ).toBe(true);
+      const hasExpectedSection = headingTexts.some(
+        text =>
+          text.toLowerCase().includes('system') ||
+          text.toLowerCase().includes('custom'),
+      );
+      expect(hasExpectedSection).toBe(true);
     });
 
     test('should display role details when clicking on a role card', async ({
@@ -210,7 +209,7 @@ test.describe('Permission System Behavior', () => {
   test.describe('Permission-Based Access Control', () => {
     test('should show 403 page when user lacks required permission', async ({
       page,
-      loginAsUser,
+      loginAsUser: _loginAsUser,
     }) => {
       // Note: This test requires a user without role:read permission
       // For now, we'll test that unauthenticated users get redirected
@@ -289,15 +288,21 @@ test.describe('Role CRUD Operations', () => {
 
       // At least one validation error should be visible
       const hasNameError = await nameError.isVisible().catch(() => false);
-      const hasDisplayNameError = await displayNameError.isVisible().catch(() => false);
-      const hasPermissionsError = await permissionsError.isVisible().catch(() => false);
+      const hasDisplayNameError = await displayNameError
+        .isVisible()
+        .catch(() => false);
+      const hasPermissionsError = await permissionsError
+        .isVisible()
+        .catch(() => false);
 
-      expect(hasNameError || hasDisplayNameError || hasPermissionsError).toBe(
-        true,
-      );
+      const hasValidationError =
+        hasNameError || hasDisplayNameError || hasPermissionsError;
+      expect(hasValidationError).toBe(true);
     });
 
-    test('should successfully create a new role', async ({ adminPage: page }) => {
+    test('should successfully create a new role', async ({
+      adminPage: page,
+    }) => {
       await page.goto('/roles');
 
       // Open create dialog
@@ -520,7 +525,8 @@ test.describe('Loading States', () => {
 
     // Check for skeleton loaders (they appear briefly)
     const skeleton = page.locator('.MuiSkeleton-root');
-    const skeletonVisible = await skeleton
+    // Skeleton may or may not be visible depending on load speed
+    await skeleton
       .first()
       .isVisible()
       .catch(() => false);

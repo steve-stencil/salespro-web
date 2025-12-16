@@ -24,19 +24,19 @@ import { handleApiError } from '../lib/api-client';
 
 import type { ChangeEvent, FormEvent } from 'react';
 
-interface FormData {
+type FormData = {
   nameFirst: string;
   nameLast: string;
   password: string;
   confirmPassword: string;
-}
+};
 
-interface FormErrors {
+type FormErrors = {
   nameFirst?: string;
   nameLast?: string;
   password?: string;
   confirmPassword?: string;
-}
+};
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -119,8 +119,8 @@ export function AcceptInvitePage(): React.ReactElement {
       await acceptInviteMutation.mutateAsync({
         token,
         password: formData.password,
-        nameFirst: formData.nameFirst || undefined,
-        nameLast: formData.nameLast || undefined,
+        ...(formData.nameFirst && { nameFirst: formData.nameFirst }),
+        ...(formData.nameLast && { nameLast: formData.nameLast }),
       });
       setIsSuccess(true);
     } catch (error) {
@@ -172,8 +172,9 @@ export function AcceptInvitePage(): React.ReactElement {
 
   // Invalid or missing token state
   if (!token || validateError || !inviteData?.valid) {
-    const errorMessage =
-      validateError ? handleApiError(validateError) : 'Invalid or expired invitation link';
+    const errorMessage = validateError
+      ? handleApiError(validateError)
+      : 'Invalid or expired invitation link';
 
     return (
       <Box
@@ -332,11 +333,7 @@ export function AcceptInvitePage(): React.ReactElement {
               get started.
             </Typography>
 
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 1 }}
-            >
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Account email: <strong>{inviteData.email}</strong>
             </Typography>
           </Box>

@@ -19,12 +19,12 @@ import { darkTheme, lightTheme } from './theme';
 
 type ColorMode = 'light' | 'dark' | 'system';
 
-interface ColorModeContextType {
+type ColorModeContextType = {
   mode: ColorMode;
   actualMode: 'light' | 'dark';
   setMode: (mode: ColorMode) => void;
   toggleMode: () => void;
-}
+};
 
 const ColorModeContext = createContext<ColorModeContextType | undefined>(
   undefined,
@@ -32,9 +32,9 @@ const ColorModeContext = createContext<ColorModeContextType | undefined>(
 
 const STORAGE_KEY = 'leap-color-mode';
 
-interface ColorModeProviderProps {
+type ColorModeProviderProps = {
   children: React.ReactNode;
-}
+};
 
 /**
  * Provider component that wraps app with theme and color mode support.

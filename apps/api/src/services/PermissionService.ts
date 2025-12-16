@@ -13,10 +13,10 @@ import type { EntityManager } from '@mikro-orm/core';
  * Cache entry for user permissions.
  * Stores the merged permissions from all roles and an expiration timestamp.
  */
-interface CacheEntry {
+type CacheEntry = {
   permissions: Set<string>;
   expiresAt: number;
-}
+};
 
 /** Cache TTL in milliseconds (5 minutes) */
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -24,11 +24,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 /**
  * Result type for role assignment operations
  */
-export interface RoleAssignmentResult {
+export type RoleAssignmentResult = {
   success: boolean;
   userRole?: UserRole;
   error?: string;
-}
+};
 
 /**
  * Permission Service for the RBAC system.

@@ -27,16 +27,16 @@ import { ApiClientError } from '../lib/api-client';
 
 import type { ChangeEvent, FormEvent } from 'react';
 
-interface FormData {
+type FormData = {
   email: string;
   password: string;
   rememberMe: boolean;
-}
+};
 
-interface FormErrors {
+type FormErrors = {
   email?: string;
   password?: string;
-}
+};
 
 /**
  * Maps API error codes to user-friendly messages.

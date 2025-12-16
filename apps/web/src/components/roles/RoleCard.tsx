@@ -18,7 +18,7 @@ import Typography from '@mui/material/Typography';
 
 import type { Role } from '../../types/users';
 
-interface RoleCardProps {
+type RoleCardProps = {
   role: Role;
   /** Handler for click action (view details). */
   onClick?: ((role: Role) => void) | undefined;
@@ -26,7 +26,7 @@ interface RoleCardProps {
   onEdit?: ((role: Role) => void) | undefined;
   /** Handler for delete action. If undefined, delete button is hidden. */
   onDelete?: ((role: Role) => void) | undefined;
-}
+};
 
 /**
  * Card component displaying role information.
@@ -193,7 +193,12 @@ export function RoleCard({
       {onClick ? (
         <CardActionArea
           onClick={handleCardClick}
-          sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'stretch',
+          }}
           aria-label={`View details for ${role.displayName}`}
         >
           {cardContent}
@@ -203,7 +208,9 @@ export function RoleCard({
       )}
 
       {/* Action buttons - always visible outside clickable area */}
-      {(onClick || onEdit || onDelete) && (
+      {(onClick !== undefined ||
+        onEdit !== undefined ||
+        onDelete !== undefined) && (
         <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
           {onClick && (
             <Tooltip title="View details">
@@ -224,9 +231,7 @@ export function RoleCard({
               <span>
                 <IconButton
                   size="small"
-                  onClick={e =>
-                    !isSystemRole && handleActionClick(e, onEdit)
-                  }
+                  onClick={e => !isSystemRole && handleActionClick(e, onEdit)}
                   disabled={isSystemRole}
                   aria-label={`Edit ${role.displayName}`}
                   data-testid={`edit-role-${role.name}`}
@@ -245,9 +250,7 @@ export function RoleCard({
               <span>
                 <IconButton
                   size="small"
-                  onClick={e =>
-                    !isSystemRole && handleActionClick(e, onDelete)
-                  }
+                  onClick={e => !isSystemRole && handleActionClick(e, onDelete)}
                   disabled={isSystemRole}
                   color="error"
                   aria-label={`Delete ${role.displayName}`}

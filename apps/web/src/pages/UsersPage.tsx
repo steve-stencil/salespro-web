@@ -17,7 +17,7 @@ import { PendingInvitesList } from '../components/users/PendingInvitesList';
 import { UserEditDialog } from '../components/users/UserEditDialog';
 import { UserFilters } from '../components/users/UserFilters';
 import { UserTable } from '../components/users/UserTable';
-import { usePermissions, PERMISSIONS } from '../hooks/usePermissions';
+import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
 import { useUsersList, useInvitesList } from '../hooks/useUsers';
 
 import type { UsersListParams } from '../types/users';
@@ -36,10 +36,10 @@ export function UsersPage(): React.ReactElement {
 
   const { data, isLoading, error, refetch } = useUsersList(filters);
   const { data: invitesData, refetch: refetchInvites } = useInvitesList();
-  const { hasPermission } = usePermissions();
+  const { hasPermission } = useUserPermissions();
 
   const canInviteUsers = hasPermission(PERMISSIONS.USER_CREATE);
-  const pendingInvitesCount = invitesData?.pagination?.total ?? 0;
+  const pendingInvitesCount = invitesData?.pagination.total ?? 0;
 
   /**
    * Handle tab change.

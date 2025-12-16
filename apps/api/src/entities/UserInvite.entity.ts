@@ -11,6 +11,7 @@ import { v4 as uuid } from 'uuid';
 import { InviteStatus } from './types';
 
 import type { Company } from './Company.entity';
+import type { Office } from './Office.entity';
 import type { User } from './User.entity';
 
 /**
@@ -41,6 +42,20 @@ export class UserInvite {
   /** Roles to assign when invite is accepted */
   @Property({ type: 'array' })
   roles: string[] = [];
+
+  /**
+   * The office the user will be assigned to as their current/active office.
+   * This determines what data the user sees by default.
+   */
+  @ManyToOne('Office')
+  currentOffice!: Office;
+
+  /**
+   * Array of office IDs the user will have access to.
+   * The currentOffice must be included in this list.
+   */
+  @Property({ type: 'array' })
+  allowedOffices: string[] = [];
 
   /** Invite expiration (typically 7 days) */
   @Property({ type: 'Date' })

@@ -12,21 +12,21 @@ import { AppError, ErrorCode } from './errors.js';
 /**
  * Email sending result type
  */
-interface SendEmailResult {
+type SendEmailResult = {
   messageId: string;
   success: boolean;
-}
+};
 
 /**
  * Email send options
  */
-interface SendEmailOptions {
+type SendEmailOptions = {
   to: string | string[];
   subject: string;
   html: string;
   text: string;
   replyTo?: string;
-}
+};
 
 /**
  * Email service error for failed email operations
@@ -183,7 +183,7 @@ async function sendMfaCodeEmail(
 /**
  * Options for sending user invite email
  */
-interface SendInviteEmailOptions {
+type SendInviteEmailOptions = {
   /** Recipient email address */
   email: string;
   /** Invite token (will be appended to invite URL) */
@@ -194,7 +194,7 @@ interface SendInviteEmailOptions {
   inviterName: string;
   /** Expiration time in days (default: 7) */
   expiresInDays?: number;
-}
+};
 
 /**
  * Send a user invitation email

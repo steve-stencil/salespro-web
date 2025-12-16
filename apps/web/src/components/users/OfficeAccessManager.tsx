@@ -38,10 +38,10 @@ import { handleApiError } from '../../lib/api-client';
 import type { UserDetail, Office } from '../../types/users';
 import type { SelectChangeEvent } from '@mui/material/Select';
 
-interface OfficeAccessManagerProps {
+type OfficeAccessManagerProps = {
   user: UserDetail;
   onUpdate: () => void;
-}
+};
 
 /**
  * Component for managing user office access.
@@ -54,7 +54,9 @@ export function OfficeAccessManager({
   const [selectedOffice, setSelectedOffice] = useState<Office | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: officesData, isLoading: loadingOffices } = useOfficesList(true);
+  const { data: officesData, isLoading: loadingOffices } = useOfficesList({
+    isActive: true,
+  });
   const addOfficeMutation = useAddOfficeAccess();
   const removeOfficeMutation = useRemoveOfficeAccess();
   const setCurrentOfficeMutation = useSetCurrentOffice();
@@ -246,7 +248,8 @@ export function OfficeAccessManager({
           sx={{ flex: 1 }}
           renderInput={params => (
             <TextField
-              {...params}
+              // Type assertion needed due to MUI + exactOptionalPropertyTypes conflict
+              {...(params as React.ComponentProps<typeof TextField>)}
               label="Select Office"
               size="small"
               placeholder={

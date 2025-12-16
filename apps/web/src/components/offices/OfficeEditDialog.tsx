@@ -23,12 +23,12 @@ import { handleApiError } from '../../lib/api-client';
 
 import type { Office, CreateOfficeRequest } from '../../types/users';
 
-interface OfficeEditDialogProps {
+type OfficeEditDialogProps = {
   open: boolean;
   office?: Office | null;
   onClose: () => void;
   onSaved: () => void;
-}
+};
 
 /**
  * Dialog for creating or editing an office.

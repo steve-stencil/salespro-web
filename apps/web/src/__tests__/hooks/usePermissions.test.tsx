@@ -1,10 +1,9 @@
 /**
  * Unit tests for permission hooks and utility functions.
  */
-import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { ReactNode } from 'react';
 
 import {
   matchPermission,
@@ -18,6 +17,8 @@ import {
   PERMISSIONS,
 } from '../../hooks/usePermissions';
 import { rolesApi } from '../../services/roles';
+
+import type { ReactNode } from 'react';
 
 // Mock the roles API
 vi.mock('../../services/roles', () => ({
@@ -464,4 +465,3 @@ describe('PERMISSIONS constant', () => {
     expect(PERMISSIONS.CUSTOMER_DELETE).toBe('customer:delete');
   });
 });
-

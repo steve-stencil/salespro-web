@@ -43,11 +43,11 @@ import { OfficeAccessManager } from './OfficeAccessManager';
 
 import type { SelectChangeEvent } from '@mui/material/Select';
 
-interface TabPanelProps {
+type TabPanelProps = {
   children?: React.ReactNode;
   index: number;
   value: number;
-}
+};
 
 /**
  * Tab panel wrapper component.
@@ -61,12 +61,12 @@ function TabPanel({
   return <Box sx={{ py: 2 }}>{children}</Box>;
 }
 
-interface UserEditDialogProps {
+type UserEditDialogProps = {
   userId: string | null;
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
-}
+};
 
 /**
  * Dialog for editing user details, roles, and office access.

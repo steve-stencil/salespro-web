@@ -1,10 +1,11 @@
 /**
  * Modal dialog for inviting new users to the company.
- * Allows selecting roles to assign to the invited user.
+ * Allows selecting roles and offices to assign to the invited user.
  */
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import Alert from '@mui/material/Alert';
+import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
@@ -22,17 +23,20 @@ import FormLabel from '@mui/material/FormLabel';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
+import { useOfficesList } from '../../hooks/useOffices';
 import { useRolesList } from '../../hooks/useRoles';
 import { useSendInvite } from '../../hooks/useUsers';
 import { handleApiError } from '../../lib/api-client';
 
-interface InviteUserModalProps {
+import type { Office } from '../../types/users';
+
+type InviteUserModalProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-}
+};
 
 /**
  * Modal for inviting new users to the company.
@@ -44,21 +48,53 @@ export function InviteUserModal({
 }: InviteUserModalProps): React.ReactElement {
   const [email, setEmail] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedAllowedOffices, setSelectedAllowedOffices] = useState<
+    string[]
+  >([]);
+  const [selectedCurrentOffice, setSelectedCurrentOffice] =
+    useState<Office | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const { data: rolesData, isLoading: loadingRoles } = useRolesList();
+  const { data: officesData, isLoading: loadingOffices } = useOfficesList({
+    isActive: true,
+  });
   const sendInviteMutation = useSendInvite();
+
+  // Memoize offices to avoid reference changes
+  const offices = useMemo(
+    () => officesData?.offices ?? [],
+    [officesData?.offices],
+  );
+
+  // Filter current office options to only show selected allowed offices
+  const currentOfficeOptions = useMemo(
+    () => offices.filter(office => selectedAllowedOffices.includes(office.id)),
+    [offices, selectedAllowedOffices],
+  );
 
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setEmail('');
       setSelectedRoles([]);
+      setSelectedAllowedOffices([]);
+      setSelectedCurrentOffice(null);
       setError(null);
       setEmailError(null);
     }
   }, [open]);
+
+  // Clear current office if it's no longer in allowed offices
+  useEffect(() => {
+    if (
+      selectedCurrentOffice &&
+      !selectedAllowedOffices.includes(selectedCurrentOffice.id)
+    ) {
+      setSelectedCurrentOffice(null);
+    }
+  }, [selectedAllowedOffices, selectedCurrentOffice]);
 
   /**
    * Validate email format.
@@ -94,6 +130,17 @@ export function InviteUserModal({
   }
 
   /**
+   * Handle allowed office checkbox toggle.
+   */
+  function handleOfficeToggle(officeId: string): void {
+    setSelectedAllowedOffices(prev =>
+      prev.includes(officeId)
+        ? prev.filter(id => id !== officeId)
+        : [...prev, officeId],
+    );
+  }
+
+  /**
    * Handle form submission.
    */
   async function handleSubmit(): Promise<void> {
@@ -113,6 +160,18 @@ export function InviteUserModal({
       return;
     }
 
+    // Validate at least one allowed office
+    if (selectedAllowedOffices.length === 0) {
+      setError('Please select at least one allowed office');
+      return;
+    }
+
+    // Validate current office is selected
+    if (!selectedCurrentOffice) {
+      setError('Please select a current office');
+      return;
+    }
+
     setError(null);
     setEmailError(null);
 
@@ -120,6 +179,8 @@ export function InviteUserModal({
       await sendInviteMutation.mutateAsync({
         email: email.trim(),
         roles: selectedRoles,
+        currentOfficeId: selectedCurrentOffice.id,
+        allowedOfficeIds: selectedAllowedOffices,
       });
       onSuccess();
       onClose();
@@ -130,6 +191,16 @@ export function InviteUserModal({
 
   const isLoading = sendInviteMutation.isPending;
   const roles = rolesData?.roles ?? [];
+
+  /**
+   * Check if form is valid for submission.
+   */
+  const isFormValid =
+    email.trim() &&
+    !emailError &&
+    selectedRoles.length > 0 &&
+    selectedAllowedOffices.length > 0 &&
+    selectedCurrentOffice !== null;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -207,10 +278,7 @@ export function InviteUserModal({
                           {role.displayName}
                         </Typography>
                         {role.description && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                          >
+                          <Typography variant="caption" color="text.secondary">
                             {role.description}
                           </Typography>
                         )}
@@ -220,10 +288,88 @@ export function InviteUserModal({
                 ))}
               </FormGroup>
             )}
-            {selectedRoles.length === 0 && !loadingRoles && roles.length > 0 && (
-              <FormHelperText>Select at least one role</FormHelperText>
-            )}
+            {selectedRoles.length === 0 &&
+              !loadingRoles &&
+              roles.length > 0 && (
+                <FormHelperText>Select at least one role</FormHelperText>
+              )}
           </FormControl>
+
+          <FormControl
+            component="fieldset"
+            error={selectedAllowedOffices.length === 0}
+          >
+            <FormLabel component="legend">
+              Allowed Offices
+              <Typography
+                component="span"
+                variant="caption"
+                color="text.secondary"
+                sx={{ ml: 1 }}
+              >
+                (select at least one)
+              </Typography>
+            </FormLabel>
+            {loadingOffices ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : offices.length === 0 ? (
+              <Alert severity="info" sx={{ mt: 1 }}>
+                No offices available. Please create offices first.
+              </Alert>
+            ) : (
+              <FormGroup sx={{ mt: 1 }}>
+                {offices.map(office => (
+                  <FormControlLabel
+                    key={office.id}
+                    control={
+                      <Checkbox
+                        checked={selectedAllowedOffices.includes(office.id)}
+                        onChange={() => handleOfficeToggle(office.id)}
+                        disabled={isLoading}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">{office.name}</Typography>
+                    }
+                  />
+                ))}
+              </FormGroup>
+            )}
+            {selectedAllowedOffices.length === 0 &&
+              !loadingOffices &&
+              offices.length > 0 && (
+                <FormHelperText>Select at least one office</FormHelperText>
+              )}
+          </FormControl>
+
+          <Autocomplete
+            options={currentOfficeOptions}
+            value={selectedCurrentOffice}
+            onChange={(_, newValue) => setSelectedCurrentOffice(newValue)}
+            getOptionLabel={option => option.name}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            disabled={isLoading || selectedAllowedOffices.length === 0}
+            renderInput={params => (
+              <TextField
+                {...params}
+                label="Current Office"
+                required
+                error={
+                  selectedAllowedOffices.length > 0 && !selectedCurrentOffice
+                }
+                helperText={
+                  selectedAllowedOffices.length === 0
+                    ? 'Select allowed offices first'
+                    : !selectedCurrentOffice
+                      ? 'Select the office the user will work in'
+                      : ''
+                }
+              />
+            )}
+            noOptionsText="Select allowed offices first"
+          />
         </Box>
       </DialogContent>
 
@@ -234,12 +380,7 @@ export function InviteUserModal({
         <Button
           variant="contained"
           onClick={() => void handleSubmit()}
-          disabled={
-            isLoading ||
-            !email.trim() ||
-            !!emailError ||
-            selectedRoles.length === 0
-          }
+          disabled={isLoading || !isFormValid}
           startIcon={
             isLoading ? (
               <CircularProgress size={16} color="inherit" />

@@ -22,11 +22,11 @@ const router: RouterType = Router();
 /**
  * Session data from database
  */
-interface SessionFromCookie {
+type SessionFromCookie = {
   sessionId: string;
   userId: string | undefined;
   pendingMfaUserId: string | undefined;
-}
+};
 
 /**
  * Get session from database using cookie

@@ -27,7 +27,7 @@ import { usePermissions } from '../../hooks/useRoles';
 
 import type { Role } from '../../types/users';
 
-interface RoleDetailDialogProps {
+type RoleDetailDialogProps = {
   /** Whether the dialog is open */
   open: boolean;
   /** The role to display */
@@ -40,7 +40,7 @@ interface RoleDetailDialogProps {
   onDelete?: ((role: Role) => void) | undefined;
   /** Handler for clone action (optional, hides clone button if not provided) */
   onClone?: ((role: Role) => void) | undefined;
-}
+};
 
 /**
  * Format a date string for display.
@@ -83,9 +83,7 @@ export function RoleDetailDialog({
       const meta = permissionsData.permissions.find(p => p.name === permission);
       const category = meta?.category ?? 'Other';
 
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
+      grouped[category] ??= [];
 
       grouped[category].push({
         name: permission,
@@ -98,7 +96,8 @@ export function RoleDetailDialog({
 
   // Check for wildcard permissions
   const hasFullWildcard = role?.permissions.includes('*');
-  const wildcardPermissions = role?.permissions.filter(p => p.endsWith(':*')) ?? [];
+  const wildcardPermissions =
+    role?.permissions.filter(p => p.endsWith(':*')) ?? [];
 
   return (
     <Dialog
@@ -180,7 +179,7 @@ export function RoleDetailDialog({
                       Description
                     </Typography>
                     <Typography variant="body2">
-                      {role.description || (
+                      {role.description ?? (
                         <Typography
                           component="span"
                           variant="body2"
@@ -202,7 +201,7 @@ export function RoleDetailDialog({
                     size="small"
                     color={isSystemRole ? 'default' : 'primary'}
                     variant="outlined"
-                    icon={isSystemRole ? <LockIcon /> : undefined}
+                    {...(isSystemRole && { icon: <LockIcon /> })}
                   />
                   {role.isDefault && (
                     <Chip
@@ -286,9 +285,7 @@ export function RoleDetailDialog({
               </Typography>
 
               {permissionsLoading ? (
-                <Box
-                  sx={{ display: 'flex', justifyContent: 'center', py: 4 }}
-                >
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                   <CircularProgress size={24} />
                 </Box>
               ) : (
@@ -330,11 +327,7 @@ export function RoleDetailDialog({
                         borderColor: 'info.main',
                       }}
                     >
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        gutterBottom
-                      >
+                      <Typography variant="body2" fontWeight={600} gutterBottom>
                         Wildcard Permissions
                       </Typography>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -352,7 +345,9 @@ export function RoleDetailDialog({
                   )}
 
                   {/* Permissions by Category */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box
+                    sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                  >
                     {Object.entries(permissionsByCategory).map(
                       ([category, perms]) => (
                         <Paper key={category} variant="outlined" sx={{ p: 2 }}>
@@ -489,4 +484,3 @@ export function RoleDetailDialog({
     </Dialog>
   );
 }
-

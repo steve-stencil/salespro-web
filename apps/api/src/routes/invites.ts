@@ -5,7 +5,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { User, Company } from '../entities';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import { requireAuth, requirePermission } from '../middleware';
@@ -18,6 +17,7 @@ import {
   listPendingInvites,
 } from '../services';
 
+import type { User, Company } from '../entities';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
@@ -33,10 +33,19 @@ type AuthenticatedRequest = Request & {
 // Validation Schemas
 // ============================================================================
 
-const createInviteSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  roles: z.array(z.string().uuid()).min(1, 'At least one role is required'),
-});
+const createInviteSchema = z
+  .object({
+    email: z.string().email('Invalid email address'),
+    roles: z.array(z.string().uuid()).min(1, 'At least one role is required'),
+    currentOfficeId: z.string().uuid('Current office must be a valid UUID'),
+    allowedOfficeIds: z
+      .array(z.string().uuid())
+      .min(1, 'At least one allowed office is required'),
+  })
+  .refine(data => data.allowedOfficeIds.includes(data.currentOfficeId), {
+    message: 'Current office must be one of the allowed offices',
+    path: ['currentOfficeId'],
+  });
 
 const acceptInviteSchema = z.object({
   token: z.string().min(1, 'Token is required'),
@@ -78,7 +87,8 @@ router.post(
         return;
       }
 
-      const { email, roles } = parseResult.data;
+      const { email, roles, currentOfficeId, allowedOfficeIds } =
+        parseResult.data;
       const orm = getORM();
       const em = orm.em.fork();
 
@@ -88,6 +98,8 @@ router.post(
         invitedById: user.id,
         roles,
         inviterName: user.fullName,
+        currentOfficeId,
+        allowedOfficeIds,
       });
 
       if (!result.success) {
@@ -101,6 +113,11 @@ router.post(
           id: result.invite!.id,
           email: result.invite!.email,
           expiresAt: result.invite!.expiresAt,
+          currentOffice: {
+            id: result.invite!.currentOffice.id,
+            name: result.invite!.currentOffice.name,
+          },
+          allowedOffices: result.invite!.allowedOffices,
         },
       };
 
@@ -143,17 +160,21 @@ router.get(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const { invites, total } = await listPendingInvites(
-        em,
-        user.company.id,
-        { page: pageNum, limit: limitNum },
-      );
+      const { invites, total } = await listPendingInvites(em, user.company.id, {
+        page: pageNum,
+        limit: limitNum,
+      });
 
       res.status(200).json({
         invites: invites.map(invite => ({
           id: invite.id,
           email: invite.email,
           roles: invite.roles,
+          currentOffice: {
+            id: invite.currentOffice.id,
+            name: invite.currentOffice.name,
+          },
+          allowedOffices: invite.allowedOffices,
           expiresAt: invite.expiresAt,
           createdAt: invite.createdAt,
           invitedBy: {
@@ -242,12 +263,7 @@ router.post(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const result = await resendInvite(
-        em,
-        id,
-        user.company.id,
-        user.fullName,
-      );
+      const result = await resendInvite(em, id, user.company.id, user.fullName);
 
       if (!result.success) {
         res.status(400).json({ error: result.error });
@@ -286,7 +302,9 @@ router.post(
  */
 router.get('/validate', async (req: Request, res: Response) => {
   try {
-    const parseResult = validateTokenSchema.safeParse({ token: req.query.token });
+    const parseResult = validateTokenSchema.safeParse({
+      token: req.query.token,
+    });
     if (!parseResult.success) {
       res.status(400).json({
         error: 'Validation failed',

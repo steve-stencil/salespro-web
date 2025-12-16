@@ -3,10 +3,10 @@
  */
 
 /** Scope definition with description and category */
-export interface ScopeDefinition {
+export type ScopeDefinition = {
   description: string;
   category: string;
-}
+};
 
 /**
  * All available OAuth scopes and their descriptions.

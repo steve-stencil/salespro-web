@@ -11,7 +11,7 @@ export { FileVisibility } from '../../entities/types';
 /**
  * Parameters for uploading a file to storage.
  */
-export interface UploadParams {
+export type UploadParams = {
   /** The storage key (path) where the file will be stored */
   key: string;
   /** File content as a Buffer */
@@ -20,24 +20,24 @@ export interface UploadParams {
   mimeType: string;
   /** Optional metadata to store with the file */
   metadata?: Record<string, string>;
-}
+};
 
 /**
  * Result of a successful file upload.
  */
-export interface UploadResult {
+export type UploadResult = {
   /** The storage key where the file was stored */
   key: string;
   /** Size of the uploaded file in bytes */
   size: number;
   /** ETag or hash of the file (for S3 compatibility) */
   etag?: string;
-}
+};
 
 /**
  * Parameters for generating a presigned upload URL.
  */
-export interface PresignParams {
+export type PresignParams = {
   /** The storage key (path) where the file will be stored */
   key: string;
   /** MIME type of the file to be uploaded */
@@ -46,12 +46,12 @@ export interface PresignParams {
   expiresIn?: number;
   /** Maximum file size allowed in bytes */
   maxSize?: number;
-}
+};
 
 /**
  * Result of generating a presigned upload URL.
  */
-export interface PresignedUpload {
+export type PresignedUpload = {
   /** The presigned URL for direct upload */
   url: string;
   /** HTTP method to use (typically PUT) */
@@ -62,25 +62,25 @@ export interface PresignedUpload {
   key: string;
   /** Expiration timestamp */
   expiresAt: Date;
-}
+};
 
 /**
  * Parameters for generating a presigned download URL.
  */
-export interface PresignDownloadParams {
+export type PresignDownloadParams = {
   /** The storage key of the file to download */
   key: string;
   /** Expiration time in seconds (default: 3600 = 1 hour) */
   expiresIn?: number;
   /** Optional filename for Content-Disposition header */
   filename?: string;
-}
+};
 
 /**
  * Storage adapter interface.
  * Implementations must provide these methods for file operations.
  */
-export interface StorageAdapter {
+export type StorageAdapter = {
   /**
    * Upload a file to storage.
    * @param params Upload parameters including key, buffer, and mimeType
@@ -122,26 +122,26 @@ export interface StorageAdapter {
    * @returns Presigned upload details
    */
   generatePresignedUpload(params: PresignParams): Promise<PresignedUpload>;
-}
+};
 
 /**
  * Configuration for S3 storage adapter.
  */
-export interface S3StorageConfig {
+export type S3StorageConfig = {
   /** S3 bucket name */
   bucket: string;
   /** AWS region */
   region: string;
   /** Optional endpoint URL (for S3-compatible services) */
   endpoint?: string;
-}
+};
 
 /**
  * Configuration for local storage adapter.
  */
-export interface LocalStorageConfig {
+export type LocalStorageConfig = {
   /** Base path for local file storage */
   basePath: string;
   /** Base URL for serving files (for local dev server) */
   baseUrl?: string;
-}
+};

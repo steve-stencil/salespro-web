@@ -4,12 +4,14 @@
  */
 import { test as base, expect } from '@playwright/test';
 
+import type { Page, Browser } from '@playwright/test';
+
 /**
  * Login via UI and wait for successful authentication.
  * This is more reliable for E2E tests as it tests the full user flow.
  */
 async function loginViaUI(
-  page: Awaited<ReturnType<typeof base['newPage']>>,
+  page: Page,
   email: string,
   password: string,
 ): Promise<void> {
@@ -47,7 +49,11 @@ async function loginViaUI(
   }
 
   // Verify we're on dashboard (or allow other authenticated pages)
-  if (!currentUrl.includes('/dashboard') && !currentUrl.includes('/roles') && !currentUrl.includes('/users')) {
+  if (
+    !currentUrl.includes('/dashboard') &&
+    !currentUrl.includes('/roles') &&
+    !currentUrl.includes('/users')
+  ) {
     // Check if we're still on login (login failed)
     if (currentUrl.includes('/login')) {
       const alert = page.locator('[role="alert"]');
@@ -63,9 +69,10 @@ async function loginViaUI(
 /**
  * Extended test context with authentication helpers.
  */
+
 type AuthFixtures = {
-  authenticatedPage: Awaited<ReturnType<typeof base['newPage']>>;
-  adminPage: Awaited<ReturnType<typeof base['newPage']>>;
+  authenticatedPage: Page;
+  adminPage: Page;
   loginAsUser: (email: string, password: string) => Promise<void>;
 };
 
@@ -76,7 +83,7 @@ export const test = base.extend<AuthFixtures>({
   /**
    * Page with a logged-in user (uses default test user).
    */
-  authenticatedPage: async ({ browser }, use) => {
+  authenticatedPage: async ({ browser }: { browser: Browser }, use) => {
     const page = await browser.newPage();
     await loginViaUI(
       page,
@@ -91,7 +98,7 @@ export const test = base.extend<AuthFixtures>({
   /**
    * Page with an admin user logged in.
    */
-  adminPage: async ({ browser }, use) => {
+  adminPage: async ({ browser }: { browser: Browser }, use) => {
     const page = await browser.newPage();
     await loginViaUI(
       page,
@@ -114,4 +121,3 @@ export const test = base.extend<AuthFixtures>({
 });
 
 export { expect };
-

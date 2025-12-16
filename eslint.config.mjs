@@ -46,13 +46,20 @@ export default [
       '@typescript-eslint/no-unsafe-member-access': 'off',
 
       // Additional TypeScript strict rules
-      '@typescript-eslint/prefer-nullish-coalescing': 'error',
+      '@typescript-eslint/prefer-nullish-coalescing': [
+        'error',
+        {
+          ignorePrimitives: {
+            boolean: true, // Allow || for boolean expressions (e.g., a || b where both are booleans)
+          },
+        },
+      ],
       '@typescript-eslint/prefer-optional-chain': 'error',
       '@typescript-eslint/no-unnecessary-condition': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       '@typescript-eslint/prefer-readonly': 'error',
       '@typescript-eslint/prefer-function-type': 'error',
-      '@typescript-eslint/consistent-type-definitions': ['error', 'interface'],
+      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
       '@typescript-eslint/consistent-type-imports': [
         'error',
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },

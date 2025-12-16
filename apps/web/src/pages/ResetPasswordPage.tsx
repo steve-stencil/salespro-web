@@ -30,15 +30,15 @@ import { authApi } from '../services/auth';
 
 import type { ChangeEvent, FormEvent } from 'react';
 
-interface FormData {
+type FormData = {
   password: string;
   confirmPassword: string;
-}
+};
 
-interface FormErrors {
+type FormErrors = {
   password?: string;
   confirmPassword?: string;
-}
+};
 
 const MIN_PASSWORD_LENGTH = 8;
 

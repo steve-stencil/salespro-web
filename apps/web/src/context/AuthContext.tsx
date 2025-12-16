@@ -18,9 +18,9 @@ import type { ReactNode } from 'react';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-interface AuthProviderProps {
+type AuthProviderProps = {
   children: ReactNode;
-}
+};
 
 /**
  * Authentication provider component.

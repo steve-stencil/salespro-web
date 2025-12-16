@@ -122,7 +122,7 @@ export function getInvalidPasswords(): Array<{
 }
 
 // Type definitions for test data
-export interface TestCompanyData {
+export type TestCompanyData = {
   id: string;
   name: string;
   maxSessionsPerUser: number;
@@ -136,9 +136,9 @@ export interface TestCompanyData {
     historyCount: number;
     expirationDays: number;
   };
-}
+};
 
-export interface TestUserData {
+export type TestUserData = {
   id: string;
   email: string;
   passwordHash: string;
@@ -152,9 +152,9 @@ export interface TestUserData {
   needsResetPassword: boolean;
   lockedUntil?: Date;
   companyId?: string;
-}
+};
 
-export interface TestOAuthClientData {
+export type TestOAuthClientData = {
   id: string;
   clientId: string;
   clientSecret: string;
@@ -167,9 +167,9 @@ export interface TestOAuthClientData {
   requirePkce: boolean;
   accessTokenLifetime: number;
   refreshTokenLifetime: number;
-}
+};
 
-export interface TestLoginParams {
+export type TestLoginParams = {
   email: string;
   password: string;
   source: SessionSource;
@@ -177,4 +177,4 @@ export interface TestLoginParams {
   userAgent: string;
   rememberMe?: boolean;
   deviceId?: string;
-}
+};
