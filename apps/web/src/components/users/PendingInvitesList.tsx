@@ -29,9 +29,9 @@ import { handleApiError } from '../../lib/api-client';
 
 import type { InviteListItem } from '../../types/users';
 
-interface PendingInvitesListProps {
+type PendingInvitesListProps = {
   onInviteChange: () => void;
-}
+};
 
 /**
  * Format a date for display.

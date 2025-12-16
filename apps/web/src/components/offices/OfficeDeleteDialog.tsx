@@ -12,12 +12,12 @@ import DialogTitle from '@mui/material/DialogTitle';
 
 import type { Office } from '../../types/users';
 
-interface OfficeDeleteDialogProps {
+type OfficeDeleteDialogProps = {
   office: Office | null;
   isDeleting: boolean;
   onClose: () => void;
   onConfirm: () => void;
-}
+};
 
 /**
  * Dialog for confirming office deletion with user warning.

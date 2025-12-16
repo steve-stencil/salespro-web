@@ -101,7 +101,7 @@ export enum CompanyAccessLevel {
 }
 
 /** Company-configurable password policy */
-export interface PasswordPolicy {
+export type PasswordPolicy = {
   /** Minimum password length */
   minLength: number;
   /** Require at least one uppercase letter */
@@ -116,7 +116,7 @@ export interface PasswordPolicy {
   maxAgeDays: number;
   /** Number of previous passwords to prevent reuse */
   historyCount: number;
-}
+};
 
 /** Default password policy for new companies */
 export const DEFAULT_PASSWORD_POLICY: PasswordPolicy = {

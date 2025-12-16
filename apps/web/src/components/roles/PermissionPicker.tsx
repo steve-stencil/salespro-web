@@ -12,11 +12,11 @@ import Typography from '@mui/material/Typography';
 
 import { usePermissions } from '../../hooks/useRoles';
 
-interface PermissionPickerProps {
+type PermissionPickerProps = {
   selectedPermissions: string[];
   onChange: (permissions: string[]) => void;
   disabled?: boolean;
-}
+};
 
 /**
  * Component for selecting permissions grouped by category.

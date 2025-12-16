@@ -2,11 +2,11 @@
  * Email templates for password reset and MFA verification
  */
 
-interface EmailTemplate {
+type EmailTemplate = {
   subject: string;
   html: string;
   text: string;
-}
+};
 
 /**
  * Format minutes into a human-readable expiration string
@@ -115,7 +115,7 @@ This is an automated message from SalesPro. Please do not reply to this email.
 /**
  * Options for the user invite email template
  */
-interface InviteTemplateOptions {
+type InviteTemplateOptions = {
   /** The full URL for accepting the invitation */
   inviteUrl: string;
   /** Name of the company the user is being invited to */
@@ -124,19 +124,16 @@ interface InviteTemplateOptions {
   inviterName: string;
   /** Expiration time in days (default: 7) */
   expiresInDays?: number;
-}
+};
 
 /**
  * Generate user invitation email template
  * @param options - Template options including invite URL, company name, and inviter name
  */
-export function inviteUserTemplate(options: InviteTemplateOptions): EmailTemplate {
-  const {
-    inviteUrl,
-    companyName,
-    inviterName,
-    expiresInDays = 7,
-  } = options;
+export function inviteUserTemplate(
+  options: InviteTemplateOptions,
+): EmailTemplate {
+  const { inviteUrl, companyName, inviterName, expiresInDays = 7 } = options;
 
   const expirationText = `${expiresInDays} day${expiresInDays === 1 ? '' : 's'}`;
 

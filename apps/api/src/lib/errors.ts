@@ -2,7 +2,7 @@ import { ZodError } from 'zod';
 
 import type { ErrorRequestHandler, Request, Response } from 'express';
 
-export interface ErrorEnvelope {
+export type ErrorEnvelope = {
   error: {
     code: string;
     message: string;
@@ -10,7 +10,7 @@ export interface ErrorEnvelope {
     timestamp: string;
     path?: string | undefined;
   };
-}
+};
 
 // Comprehensive error codes for better AI agent understanding
 export enum ErrorCode {

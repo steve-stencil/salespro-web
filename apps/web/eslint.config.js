@@ -32,4 +32,12 @@ export default [
   },
   reactHooks.configs['recommended-latest'],
   reactRefresh.configs.vite,
+  // Disable React rules for E2E tests (Playwright's `use` fixture API is not a React hook)
+  {
+    files: ['e2e/**/*.{ts,tsx}'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ];

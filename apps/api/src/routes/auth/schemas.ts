@@ -4,6 +4,7 @@ import { SessionSource } from '../../entities';
 
 /** Extend express-session types */
 declare module 'express-session' {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- Must use interface for module augmentation (interfaces merge, types don't)
   interface SessionData {
     userId?: string | undefined;
     companyId?: string | undefined;

@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 
 import { FrogIcon } from './FrogIcon';
 
-interface LeapLogoProps {
+type LeapLogoProps = {
   /**
    * Size variant for the logo.
    * @default 'medium'
@@ -24,7 +24,7 @@ interface LeapLogoProps {
    * @default true
    */
   showTrademark?: boolean;
-}
+};
 
 const sizeConfig = {
   small: { fontSize: '1.25rem', iconSize: 28, tmFontSize: 5, tmTop: 3 },

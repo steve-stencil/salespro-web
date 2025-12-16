@@ -24,7 +24,7 @@ import type { ReactNode } from 'react';
 // Types
 // ============================================================================
 
-interface PermissionGuardProps {
+type PermissionGuardProps = {
   /** Required permission to access the content */
   permission: string;
   /** Content to render if user has permission */
@@ -35,9 +35,9 @@ interface PermissionGuardProps {
   showLoading?: boolean;
   /** Redirect to this path if permission denied (for route guards) */
   redirectTo?: string;
-}
+};
 
-interface MultiPermissionGuardProps {
+type MultiPermissionGuardProps = {
   /** Required permissions to access the content */
   permissions: string[];
   /** Content to render if user has permission(s) */
@@ -48,14 +48,14 @@ interface MultiPermissionGuardProps {
   showLoading?: boolean;
   /** Redirect to this path if permission denied */
   redirectTo?: string;
-}
+};
 
-interface RequirePermissionProps {
+type RequirePermissionProps = {
   /** Permission string required */
   permission: string;
   /** Content to render if authorized */
   children: ReactNode;
-}
+};
 
 // ============================================================================
 // Loading Component
@@ -127,10 +127,7 @@ export function ForbiddenPage(): React.ReactElement {
         administrator if you believe this is a mistake.
       </Typography>
       <Box sx={{ display: 'flex', gap: 2 }}>
-        <Button
-          variant="contained"
-          onClick={() => void navigate('/dashboard')}
-        >
+        <Button variant="contained" onClick={() => void navigate('/dashboard')}>
           Go to Dashboard
         </Button>
         <Button variant="outlined" onClick={() => void navigate(-1)}>
@@ -202,7 +199,7 @@ export function RequireAllPermissions({
   }
 
   if (!hasPermission) {
-    if (fallback !== undefined && fallback !== null) {
+    if (fallback) {
       return <>{fallback}</>;
     }
     if (redirectTo) {
@@ -236,7 +233,7 @@ export function RequireAnyPermission({
   }
 
   if (!hasPermission) {
-    if (fallback !== undefined && fallback !== null) {
+    if (fallback) {
       return <>{fallback}</>;
     }
     if (redirectTo) {
@@ -274,12 +271,12 @@ export function RequirePermission({
 // Alert Components for Inline Permission Errors
 // ============================================================================
 
-interface PermissionAlertProps {
+type PermissionAlertProps = {
   /** Permission that is missing */
   permission: string;
   /** Action that was attempted */
   action?: string;
-}
+};
 
 /**
  * Alert component to display when user lacks a specific permission.
@@ -290,11 +287,13 @@ export function PermissionDeniedAlert({
   action = 'perform this action',
 }: PermissionAlertProps): React.ReactElement {
   return (
-    <Alert severity="error" sx={{ mb: 2 }} data-testid="permission-denied-alert">
+    <Alert
+      severity="error"
+      sx={{ mb: 2 }}
+      data-testid="permission-denied-alert"
+    >
       You don&apos;t have the required permission ({permission}) to {action}.
       Contact your administrator for access.
     </Alert>
   );
 }
-
-

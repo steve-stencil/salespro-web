@@ -12,7 +12,7 @@ import {
 import type { SESClient, SendEmailCommandOutput } from '@aws-sdk/client-ses';
 
 // Type for mock call arguments
-interface MockCallArg {
+type MockCallArg = {
   input: {
     Source: string;
     Destination: {
@@ -27,7 +27,7 @@ interface MockCallArg {
     };
     ReplyToAddresses?: string[];
   };
-}
+};
 
 // Mock the env module
 vi.mock('../../config/env', () => ({

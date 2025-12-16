@@ -18,14 +18,14 @@ import { useOfficesList } from '../../hooks/useOffices';
 
 import type { SelectChangeEvent } from '@mui/material/Select';
 
-interface UserFiltersProps {
+type UserFiltersProps = {
   onSearchChange: (search: string) => void;
   onOfficeChange: (officeId: string) => void;
   onActiveChange: (isActive: boolean | undefined) => void;
   initialSearch?: string;
   initialOfficeId?: string;
   initialIsActive?: boolean;
-}
+};
 
 /**
  * Filter bar for users list.
@@ -49,7 +49,7 @@ export function UserFilters({
         : 'inactive',
   );
 
-  const { data: officesData } = useOfficesList(true); // Only active offices
+  const { data: officesData } = useOfficesList({ isActive: true }); // Only active offices
 
   // Debounce search input
   useEffect(() => {

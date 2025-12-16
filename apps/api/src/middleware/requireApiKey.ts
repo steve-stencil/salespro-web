@@ -5,12 +5,12 @@ import { getORM } from '../lib/db';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 /** API key context attached to request */
-export interface ApiKeyContext {
+export type ApiKeyContext = {
   apiKeyId: string;
   companyId: string;
   userId: string;
   scopes: string[];
-}
+};
 
 /**
  * Middleware that requires API key authentication.

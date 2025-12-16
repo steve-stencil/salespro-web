@@ -8,12 +8,12 @@ import {
   isRetryableApiError,
 } from '../lib/api-client';
 
-interface ApiErrorState {
+type ApiErrorState = {
   error: string | null;
   code: string | null;
   isRetryable: boolean;
   timestamp: string | null;
-}
+};
 
 export function useApiError() {
   const [errorState, setErrorState] = useState<ApiErrorState>({

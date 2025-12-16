@@ -29,13 +29,13 @@ import { LeapLogo } from './LeapLogo';
 /** Width of the sidebar drawer */
 const DRAWER_WIDTH = 240;
 
-interface NavItem {
+type NavItem = {
   label: string;
   path: string;
   icon: React.ReactNode;
   /** Permission required to see this nav item. If undefined, always shown. */
   permission?: string;
-}
+};
 
 /** Navigation items for the sidebar with optional permission requirements */
 const NAV_ITEMS: NavItem[] = [
@@ -65,10 +65,10 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-interface SidebarProps {
+type SidebarProps = {
   mobileOpen: boolean;
   onMobileClose: () => void;
-}
+};
 
 /**
  * Loading skeleton for navigation items.

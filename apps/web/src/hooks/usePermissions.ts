@@ -84,7 +84,7 @@ export function checkAnyPermission(
 // Permission Hook Result Types
 // ============================================================================
 
-export interface UseUserPermissionsResult {
+export type UseUserPermissionsResult = {
   /** Array of user's permission strings */
   permissions: string[];
   /** Loading state */
@@ -97,14 +97,14 @@ export interface UseUserPermissionsResult {
   hasAllPermissions: (permissions: string[]) => boolean;
   /** Check if user has any of the specified permissions */
   hasAnyPermission: (permissions: string[]) => boolean;
-}
+};
 
-export interface UseHasPermissionResult {
+export type UseHasPermissionResult = {
   /** Whether user has the permission */
   hasPermission: boolean;
   /** Loading state */
   isLoading: boolean;
-}
+};
 
 // ============================================================================
 // Permission Hooks
@@ -267,5 +267,3 @@ export const PERMISSIONS = {
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
-
-

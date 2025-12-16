@@ -12,10 +12,10 @@ import type { Response } from 'express';
 /**
  * Request type with authenticated user.
  */
-export interface AuthenticatedFileRequest {
+export type AuthenticatedFileRequest = {
   user?: User & { company?: Company };
   file?: Express.Multer.File;
-}
+};
 
 /**
  * Map FileServiceError to HTTP response.

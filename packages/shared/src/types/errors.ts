@@ -1,16 +1,16 @@
 // Shared error types for consistent error handling across the application
 
-export interface ApiError {
+export type ApiError = {
   code: ErrorCode;
   message: string;
   details?: unknown;
   timestamp: string;
   path?: string;
-}
+};
 
-export interface ErrorResponse {
+export type ErrorResponse = {
   error: ApiError;
-}
+};
 
 // Error codes that match the backend ErrorCode enum
 export enum ErrorCode {

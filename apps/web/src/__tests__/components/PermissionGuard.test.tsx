@@ -1,11 +1,10 @@
 /**
  * Tests for PermissionGuard components.
  */
-import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { ReactNode } from 'react';
 
 import {
   PermissionGuard,
@@ -16,6 +15,8 @@ import {
   PermissionDeniedAlert,
 } from '../../components/PermissionGuard';
 import { rolesApi } from '../../services/roles';
+
+import type { ReactNode } from 'react';
 
 // Mock the roles API
 vi.mock('../../services/roles', () => ({
@@ -40,10 +41,10 @@ function createQueryClient(): QueryClient {
   });
 }
 
-interface WrapperProps {
+type WrapperProps = {
   children: ReactNode;
   initialRoute?: string;
-}
+};
 
 function createTestWrapper(initialRoute = '/test') {
   const queryClient = createQueryClient();
@@ -261,7 +262,9 @@ describe('RequireAllPermissions', () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector('[data-testid="permission-loading"]')).not.toBeInTheDocument();
+      expect(
+        container.querySelector('[data-testid="permission-loading"]'),
+      ).not.toBeInTheDocument();
     });
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
   });
@@ -334,7 +337,9 @@ describe('RequireAnyPermission', () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector('[data-testid="permission-loading"]')).not.toBeInTheDocument();
+      expect(
+        container.querySelector('[data-testid="permission-loading"]'),
+      ).not.toBeInTheDocument();
     });
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
   });
@@ -396,7 +401,7 @@ describe('RequirePermission', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('should not show loading state (instant hide/show)', async () => {
+  it('should not show loading state (instant hide/show)', () => {
     mockGetMyRoles.mockImplementation(
       () =>
         new Promise(resolve => {
@@ -455,5 +460,3 @@ describe('PermissionDeniedAlert', () => {
     expect(screen.getByText(/perform this action/)).toBeInTheDocument();
   });
 });
-
-

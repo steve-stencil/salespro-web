@@ -32,11 +32,11 @@ import { handleApiError } from '../../lib/api-client';
 
 import type { Office } from '../../types/users';
 
-interface InviteUserModalProps {
+type InviteUserModalProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-}
+};
 
 /**
  * Modal for inviting new users to the company.

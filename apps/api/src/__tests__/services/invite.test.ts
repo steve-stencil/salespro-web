@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/unbound-method */
+ 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { UserInvite, InviteStatus } from '../../entities';
@@ -36,7 +36,7 @@ vi.mock('../../services/auth/events', () => ({
 
 // Mock PermissionService
 vi.mock('../../services/PermissionService', () => ({
-  PermissionService: class {
+  PermissionService: class MockPermissionService {
     assignRole = vi.fn(() => Promise.resolve({ success: true }));
   },
 }));
@@ -44,7 +44,16 @@ vi.mock('../../services/PermissionService', () => ({
 /**
  * Create a mock EntityManager
  */
-function createMockEm() {
+function createMockEm(): {
+  findOne: ReturnType<typeof vi.fn>;
+  find: ReturnType<typeof vi.fn>;
+  findAndCount: ReturnType<typeof vi.fn>;
+  count: ReturnType<typeof vi.fn>;
+  persist: ReturnType<typeof vi.fn>;
+  persistAndFlush: ReturnType<typeof vi.fn>;
+  flush: ReturnType<typeof vi.fn>;
+  getReference: ReturnType<typeof vi.fn>;
+} {
   return {
     findOne: vi.fn(),
     find: vi.fn(),
@@ -54,7 +63,7 @@ function createMockEm() {
     persistAndFlush: vi.fn(),
     flush: vi.fn(),
     getReference: vi.fn((_entity, id) => ({ id })),
-  } as unknown as EntityManager;
+  };
 }
 
 /**
