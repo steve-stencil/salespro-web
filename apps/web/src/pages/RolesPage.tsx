@@ -1,8 +1,11 @@
 /**
  * Roles management page.
  * Lists all roles with create/edit/delete capabilities.
+ * Actions are conditionally rendered based on user permissions.
  */
 import AddIcon from '@mui/icons-material/Add';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import SearchIcon from '@mui/icons-material/Search';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,40 +15,175 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
 import Grid from '@mui/material/Grid';
+import InputAdornment from '@mui/material/InputAdornment';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import Skeleton from '@mui/material/Skeleton';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
+import { RequirePermission } from '../components/PermissionGuard';
 import { RoleCard } from '../components/roles/RoleCard';
+import { RoleDetailDialog } from '../components/roles/RoleDetailDialog';
 import { RoleEditDialog } from '../components/roles/RoleEditDialog';
+import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
 import { useRolesList, useDeleteRole } from '../hooks/useRoles';
 import { handleApiError } from '../lib/api-client';
 
-import type { Role } from '../types/users';
+import type { Role, CreateRoleRequest } from '../types/users';
+import type { SelectChangeEvent } from '@mui/material/Select';
+
+/** Filter options for role type */
+type RoleTypeFilter = 'all' | 'system' | 'company';
+
+/** Sort options for roles */
+type RoleSortOption = 'name-asc' | 'name-desc' | 'created-desc' | 'permissions';
+
+/**
+ * Role card skeleton for loading state.
+ */
+function RoleCardSkeleton(): React.ReactElement {
+  return (
+    <Box
+      sx={{
+        p: 2,
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        height: '100%',
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+        <Skeleton variant="text" width="60%" height={28} />
+        <Skeleton variant="rounded" width={60} height={24} />
+      </Box>
+      <Skeleton variant="text" width="40%" height={16} sx={{ mb: 2 }} />
+      <Skeleton variant="text" width="100%" height={40} sx={{ mb: 2 }} />
+      <Skeleton variant="text" width="30%" height={20} />
+    </Box>
+  );
+}
 
 /**
  * Main roles management page component.
  */
 export function RolesPage(): React.ReactElement {
   const [editRole, setEditRole] = useState<Role | null>(null);
+  const [viewRole, setViewRole] = useState<Role | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteRole, setDeleteRole] = useState<Role | null>(null);
+  const [cloneRole, setCloneRole] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<RoleTypeFilter>('all');
+  const [sortOption, setSortOption] = useState<RoleSortOption>('name-asc');
 
   const { data: rolesData, isLoading, refetch } = useRolesList();
   const deleteRoleMutation = useDeleteRole();
+  const { hasPermission } = useUserPermissions();
+
+  // Permission flags for UI rendering
+  const canCreateRole = hasPermission(PERMISSIONS.ROLE_CREATE);
+  const canUpdateRole = hasPermission(PERMISSIONS.ROLE_UPDATE);
+  const canDeleteRole = hasPermission(PERMISSIONS.ROLE_DELETE);
+
+  // Filter and sort roles
+  const filteredRoles = useMemo(() => {
+    if (!rolesData?.roles) return [];
+
+    let roles = [...rolesData.roles];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      roles = roles.filter(
+        role =>
+          role.name.toLowerCase().includes(query) ||
+          role.displayName.toLowerCase().includes(query) ||
+          role.description?.toLowerCase().includes(query),
+      );
+    }
+
+    // Apply type filter
+    if (typeFilter !== 'all') {
+      roles = roles.filter(role => role.type === typeFilter);
+    }
+
+    // Apply sorting
+    roles.sort((a, b) => {
+      switch (sortOption) {
+        case 'name-asc':
+          return a.displayName.localeCompare(b.displayName);
+        case 'name-desc':
+          return b.displayName.localeCompare(a.displayName);
+        case 'created-desc':
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case 'permissions':
+          return b.permissions.length - a.permissions.length;
+        default:
+          return 0;
+      }
+    });
+
+    return roles;
+  }, [rolesData?.roles, searchQuery, typeFilter, sortOption]);
+
+  // Separate filtered roles by type
+  const systemRoles = useMemo(
+    () => filteredRoles.filter(r => r.type === 'system'),
+    [filteredRoles],
+  );
+  const companyRoles = useMemo(
+    () => filteredRoles.filter(r => r.type === 'company'),
+    [filteredRoles],
+  );
+
+  // Show sections based on filter
+  const showSystemRoles = typeFilter === 'all' || typeFilter === 'system';
+  const showCompanyRoles = typeFilter === 'all' || typeFilter === 'company';
+
+  /**
+   * Clear all filters.
+   */
+  function handleClearFilters(): void {
+    setSearchQuery('');
+    setTypeFilter('all');
+    setSortOption('name-asc');
+  }
+
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    typeFilter !== 'all' ||
+    sortOption !== 'name-asc';
 
   /**
    * Handle create role button click.
    */
   function handleCreateClick(): void {
     setIsCreateOpen(true);
+    setCloneRole(null);
+  }
+
+  /**
+   * Handle view role details action.
+   */
+  function handleViewRole(role: Role): void {
+    setViewRole(role);
   }
 
   /**
    * Handle edit role action.
    */
   function handleEditRole(role: Role): void {
+    setViewRole(null);
     setEditRole(role);
   }
 
@@ -53,18 +191,28 @@ export function RolesPage(): React.ReactElement {
    * Handle delete role action.
    */
   function handleDeleteClick(role: Role): void {
+    setViewRole(null);
     setDeleteRole(role);
+  }
+
+  /**
+   * Handle clone role action.
+   */
+  function handleCloneRole(role: Role): void {
+    setViewRole(null);
+    setCloneRole(role);
+    setIsCreateOpen(true);
   }
 
   /**
    * Confirm role deletion.
    */
-  async function handleConfirmDelete(): Promise<void> {
+  async function handleConfirmDelete(force = false): Promise<void> {
     if (!deleteRole) return;
 
     setError(null);
     try {
-      await deleteRoleMutation.mutateAsync(deleteRole.id);
+      await deleteRoleMutation.mutateAsync({ roleId: deleteRole.id, force });
       setDeleteRole(null);
       void refetch();
     } catch (err) {
@@ -78,6 +226,7 @@ export function RolesPage(): React.ReactElement {
   function handleDialogClose(): void {
     setEditRole(null);
     setIsCreateOpen(false);
+    setCloneRole(null);
   }
 
   /**
@@ -87,9 +236,19 @@ export function RolesPage(): React.ReactElement {
     void refetch();
   }
 
-  // Separate system and company roles
-  const systemRoles = rolesData?.roles.filter(r => r.type === 'system') ?? [];
-  const companyRoles = rolesData?.roles.filter(r => r.type === 'company') ?? [];
+  /**
+   * Get initial values for create dialog (for cloning).
+   */
+  function getCloneInitialValues(): Partial<CreateRoleRequest> {
+    if (!cloneRole) return {};
+    return {
+      name: `${cloneRole.name}-copy`,
+      displayName: `${cloneRole.displayName} (Copy)`,
+      ...(cloneRole.description ? { description: cloneRole.description } : {}),
+      permissions: cloneRole.permissions,
+      isDefault: false,
+    };
+  }
 
   return (
     <Box>
@@ -110,13 +269,91 @@ export function RolesPage(): React.ReactElement {
             Manage roles and permissions for your company.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleCreateClick}
-        >
-          Create Role
-        </Button>
+        <RequirePermission permission={PERMISSIONS.ROLE_CREATE}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleCreateClick}
+            data-testid="create-role-btn"
+          >
+            Create Role
+          </Button>
+        </RequirePermission>
+      </Box>
+
+      {/* Search and Filter Controls */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          mb: 3,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <TextField
+          placeholder="Search roles..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          size="small"
+          sx={{ minWidth: 250 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          data-testid="roles-search-input"
+        />
+
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel id="role-type-filter-label">Type</InputLabel>
+          <Select
+            labelId="role-type-filter-label"
+            value={typeFilter}
+            label="Type"
+            onChange={(e: SelectChangeEvent) =>
+              setTypeFilter(e.target.value as RoleTypeFilter)
+            }
+            data-testid="roles-type-filter"
+          >
+            <MenuItem value="all">All Types</MenuItem>
+            <MenuItem value="custom">Custom Only</MenuItem>
+            <MenuItem value="system">System Only</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <InputLabel id="role-sort-label">Sort By</InputLabel>
+          <Select
+            labelId="role-sort-label"
+            value={sortOption}
+            label="Sort By"
+            onChange={(e: SelectChangeEvent) =>
+              setSortOption(e.target.value as RoleSortOption)
+            }
+            data-testid="roles-sort-select"
+          >
+            <MenuItem value="name-asc">Name (A-Z)</MenuItem>
+            <MenuItem value="name-desc">Name (Z-A)</MenuItem>
+            <MenuItem value="created-desc">Newest First</MenuItem>
+            <MenuItem value="permissions">Most Permissions</MenuItem>
+          </Select>
+        </FormControl>
+
+        {hasActiveFilters && (
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<FilterListIcon />}
+            onClick={handleClearFilters}
+          >
+            Clear Filters
+          </Button>
+        )}
       </Box>
 
       {/* Error State */}
@@ -128,67 +365,110 @@ export function RolesPage(): React.ReactElement {
 
       {/* Loading State */}
       {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
+        <Box sx={{ mb: 4 }}>
+          <Skeleton variant="text" width={200} height={32} sx={{ mb: 1 }} />
+          <Skeleton variant="text" width={300} height={20} sx={{ mb: 2 }} />
+          <Grid container spacing={2}>
+            {[1, 2, 3].map(i => (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+                <RoleCardSkeleton />
+              </Grid>
+            ))}
+          </Grid>
         </Box>
       ) : (
         <>
-          {/* Company Roles */}
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h3" component="h2" gutterBottom>
-              Custom Roles ({companyRoles.length})
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Roles created for your company.
-            </Typography>
+          {/* Custom Roles */}
+          {showCompanyRoles && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h3" component="h2" gutterBottom>
+                Custom Roles ({companyRoles.length})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Roles created for your company. Click a card to view details.
+              </Typography>
 
-            {companyRoles.length === 0 ? (
-              <Alert severity="info">
-                No custom roles created yet. Click &quot;Create Role&quot; to
-                add one.
-              </Alert>
-            ) : (
-              <Grid container spacing={2}>
-                {companyRoles.map(role => (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={role.id}>
-                    <RoleCard
-                      role={role}
-                      onEdit={handleEditRole}
-                      onDelete={handleDeleteClick}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </Box>
+              {companyRoles.length === 0 ? (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  {searchQuery.trim()
+                    ? 'No custom roles match your search.'
+                    : canCreateRole
+                      ? 'No custom roles created yet. Click "Create Role" to add one.'
+                      : 'No custom roles have been created for your company yet.'}
+                </Alert>
+              ) : (
+                <Grid container spacing={2}>
+                  {companyRoles.map(role => (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={role.id}>
+                      <RoleCard
+                        role={role}
+                        onClick={handleViewRole}
+                        onEdit={canUpdateRole ? handleEditRole : undefined}
+                        onDelete={canDeleteRole ? handleDeleteClick : undefined}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </Box>
+          )}
 
           {/* System Roles */}
-          <Box>
-            <Typography variant="h3" component="h2" gutterBottom>
-              System Roles ({systemRoles.length})
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Built-in roles that cannot be modified or deleted.
-            </Typography>
+          {showSystemRoles && (
+            <Box>
+              <Typography variant="h3" component="h2" gutterBottom>
+                System Roles ({systemRoles.length})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Built-in roles that cannot be modified. Click to view details.
+              </Typography>
 
-            {systemRoles.length === 0 ? (
-              <Alert severity="info">No system roles available.</Alert>
-            ) : (
-              <Grid container spacing={2}>
-                {systemRoles.map(role => (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={role.id}>
-                    <RoleCard
-                      role={role}
-                      onEdit={handleEditRole}
-                      onDelete={handleDeleteClick}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </Box>
+              {systemRoles.length === 0 ? (
+                <Alert severity="info">
+                  {searchQuery.trim()
+                    ? 'No system roles match your search.'
+                    : 'No system roles available.'}
+                </Alert>
+              ) : (
+                <Grid container spacing={2}>
+                  {systemRoles.map(role => (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={role.id}>
+                      <RoleCard
+                        role={role}
+                        onClick={handleViewRole}
+                        onEdit={canUpdateRole ? handleEditRole : undefined}
+                        onDelete={canDeleteRole ? handleDeleteClick : undefined}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </Box>
+          )}
+
+          {/* No results message */}
+          {filteredRoles.length === 0 && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              No roles found matching your criteria.{' '}
+              {hasActiveFilters && (
+                <Button size="small" onClick={handleClearFilters}>
+                  Clear filters
+                </Button>
+              )}
+            </Alert>
+          )}
         </>
       )}
+
+      {/* View Role Details Dialog */}
+      <RoleDetailDialog
+        open={viewRole !== null}
+        role={viewRole}
+        onClose={() => setViewRole(null)}
+        onEdit={canUpdateRole ? handleEditRole : undefined}
+        onDelete={canDeleteRole ? handleDeleteClick : undefined}
+        onClone={canCreateRole ? handleCloneRole : undefined}
+      />
 
       {/* Create/Edit Dialog */}
       <RoleEditDialog
@@ -196,6 +476,7 @@ export function RolesPage(): React.ReactElement {
         role={editRole}
         onClose={handleDialogClose}
         onSaved={handleRoleSaved}
+        initialValues={getCloneInitialValues()}
       />
 
       {/* Delete Confirmation Dialog */}

@@ -66,9 +66,66 @@ export const rolesApi = {
 
   /**
    * Delete a role.
+   * @param roleId - The role ID to delete
+   * @param force - If true, delete even if users are assigned
    */
-  delete: async (roleId: string): Promise<{ message: string }> => {
-    return apiClient.delete<{ message: string }>(`/roles/${roleId}`);
+  delete: async (
+    roleId: string,
+    force = false,
+  ): Promise<{ message: string; removedAssignments?: number }> => {
+    const url = force ? `/roles/${roleId}?force=true` : `/roles/${roleId}`;
+    return apiClient.delete<{ message: string; removedAssignments?: number }>(
+      url,
+    );
+  },
+
+  /**
+   * Clone an existing role.
+   */
+  clone: async (
+    roleId: string,
+    data: { name: string; displayName: string; description?: string },
+  ): Promise<{
+    message: string;
+    role: {
+      id: string;
+      name: string;
+      displayName: string;
+      description?: string;
+      type: string;
+      permissions: string[];
+      isDefault: boolean;
+      createdAt: string;
+    };
+    clonedFrom: { id: string; name: string };
+  }> => {
+    return apiClient.post(`/roles/${roleId}/clone`, data);
+  },
+
+  /**
+   * Get users assigned to a specific role.
+   */
+  getRoleUsers: async (
+    roleId: string,
+    page = 1,
+    limit = 25,
+  ): Promise<{
+    users: Array<{
+      id: string;
+      email: string;
+      nameFirst?: string;
+      nameLast?: string;
+      isActive: boolean;
+      assignedAt: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> => {
+    return apiClient.get(`/roles/${roleId}/users?page=${page}&limit=${limit}`);
   },
 
   /**

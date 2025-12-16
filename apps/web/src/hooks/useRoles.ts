@@ -114,7 +114,28 @@ export function useDeleteRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (roleId: string) => rolesApi.delete(roleId),
+    mutationFn: ({ roleId, force = false }: { roleId: string; force?: boolean }) =>
+      rolesApi.delete(roleId, force),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: roleKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Hook to clone a role.
+ */
+export function useCloneRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      roleId,
+      data,
+    }: {
+      roleId: string;
+      data: { name: string; displayName: string; description?: string };
+    }) => rolesApi.clone(roleId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: roleKeys.lists() });
     },

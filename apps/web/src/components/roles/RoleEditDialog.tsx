@@ -35,6 +35,8 @@ interface RoleEditDialogProps {
   role?: Role | null;
   onClose: () => void;
   onSaved: () => void;
+  /** Initial values for creating a new role (e.g., when cloning) */
+  initialValues?: Partial<CreateRoleRequest> | undefined;
 }
 
 /**
@@ -45,8 +47,10 @@ export function RoleEditDialog({
   role,
   onClose,
   onSaved,
+  initialValues,
 }: RoleEditDialogProps): React.ReactElement {
   const isEditing = !!role;
+  const isCloning = !role && !!initialValues;
 
   const [name, setName] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -63,15 +67,24 @@ export function RoleEditDialog({
   const createRoleMutation = useCreateRole();
   const updateRoleMutation = useUpdateRole();
 
-  // Initialize form when role changes
+  // Initialize form when role or initialValues changes
   useEffect(() => {
     if (role) {
+      // Editing existing role
       setName(role.name);
       setDisplayName(role.displayName);
       setDescription(role.description ?? '');
       setPermissions(role.permissions);
       setIsDefault(role.isDefault);
+    } else if (initialValues) {
+      // Cloning from initialValues
+      setName(initialValues.name ?? '');
+      setDisplayName(initialValues.displayName ?? '');
+      setDescription(initialValues.description ?? '');
+      setPermissions(initialValues.permissions ?? []);
+      setIsDefault(initialValues.isDefault ?? false);
     } else {
+      // Creating new role
       setName('');
       setDisplayName('');
       setDescription('');
@@ -80,7 +93,7 @@ export function RoleEditDialog({
     }
     setError(null);
     setValidationErrors({});
-  }, [role, open]);
+  }, [role, initialValues, open]);
 
   /**
    * Validate form fields.
@@ -151,7 +164,11 @@ export function RoleEditDialog({
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Box sx={{ flex: 1 }}>
-          {role ? `Edit Role: ${role.displayName}` : 'Create New Role'}
+          {role
+            ? `Edit Role: ${role.displayName}`
+            : isCloning
+              ? 'Clone Role'
+              : 'Create New Role'}
         </Box>
         <IconButton onClick={onClose} size="small" aria-label="Close dialog">
           <CloseIcon />
@@ -281,3 +298,4 @@ export function RoleEditDialog({
     </Dialog>
   );
 }
+

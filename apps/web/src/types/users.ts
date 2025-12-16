@@ -62,6 +62,8 @@ export interface Role extends RoleBasic {
   isSystemRole: boolean;
   createdAt: string;
   updatedAt?: string;
+  /** Number of users assigned to this role (optional) */
+  userCount?: number;
 }
 
 /** Permission metadata from API */

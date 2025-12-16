@@ -1,11 +1,11 @@
 import { Router } from 'express';
 
-import { Office   } from '../entities';
+import { Office } from '../entities';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import { requireAuth, requirePermission } from '../middleware';
 
-import type {User, Company} from '../entities';
+import type { User, Company } from '../entities';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();

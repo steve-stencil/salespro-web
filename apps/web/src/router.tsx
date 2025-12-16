@@ -4,7 +4,9 @@
  */
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
+import { PermissionGuard } from './components/PermissionGuard';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { PERMISSIONS } from './hooks/usePermissions';
 import { AppLayout } from './layouts/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
@@ -62,11 +64,19 @@ export const router = createBrowserRouter([
       },
       {
         path: '/users',
-        element: <UsersPage />,
+        element: (
+          <PermissionGuard permission={PERMISSIONS.USER_READ}>
+            <UsersPage />
+          </PermissionGuard>
+        ),
       },
       {
         path: '/roles',
-        element: <RolesPage />,
+        element: (
+          <PermissionGuard permission={PERMISSIONS.ROLE_READ}>
+            <RolesPage />
+          </PermissionGuard>
+        ),
       },
     ],
   },
@@ -83,3 +93,5 @@ export const router = createBrowserRouter([
     element: <Navigate to="/dashboard" replace />,
   },
 ]);
+
+

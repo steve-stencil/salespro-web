@@ -1,6 +1,7 @@
 /**
  * Sidebar navigation component.
  * Provides navigation links to main sections of the app.
+ * Navigation items are filtered based on user permissions.
  */
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -15,8 +16,12 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import Skeleton from '@mui/material/Skeleton';
 import Toolbar from '@mui/material/Toolbar';
+import { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
+import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
 
 import { LeapLogo } from './LeapLogo';
 
@@ -27,24 +32,29 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  /** Permission required to see this nav item. If undefined, always shown. */
+  permission?: string;
 }
 
-/** Navigation items for the sidebar */
+/** Navigation items for the sidebar with optional permission requirements */
 const NAV_ITEMS: NavItem[] = [
   {
     label: 'Dashboard',
     path: '/dashboard',
     icon: <DashboardIcon />,
+    // Dashboard is accessible to all authenticated users
   },
   {
     label: 'Users',
     path: '/users',
     icon: <PeopleIcon />,
+    permission: PERMISSIONS.USER_READ,
   },
   {
     label: 'Roles',
     path: '/roles',
     icon: <SecurityIcon />,
+    permission: PERMISSIONS.ROLE_READ,
   },
 ];
 
@@ -54,12 +64,44 @@ interface SidebarProps {
 }
 
 /**
+ * Loading skeleton for navigation items.
+ */
+function NavItemSkeleton(): React.ReactElement {
+  return (
+    <ListItem disablePadding sx={{ mb: 0.5 }}>
+      <ListItemButton sx={{ borderRadius: 2 }}>
+        <ListItemIcon sx={{ minWidth: 40 }}>
+          <Skeleton variant="circular" width={24} height={24} />
+        </ListItemIcon>
+        <ListItemText>
+          <Skeleton variant="text" width={80} />
+        </ListItemText>
+      </ListItemButton>
+    </ListItem>
+  );
+}
+
+/**
  * Sidebar drawer content component.
  * Contains logo, navigation items, and bottom section.
+ * Filters nav items based on user permissions.
  */
 function DrawerContent(): React.ReactElement {
   const location = useLocation();
   const navigate = useNavigate();
+  const { hasPermission, isLoading } = useUserPermissions();
+
+  /**
+   * Filter navigation items based on user permissions.
+   */
+  const visibleNavItems = useMemo(() => {
+    return NAV_ITEMS.filter(item => {
+      // If no permission required, show the item
+      if (!item.permission) return true;
+      // Check if user has the required permission
+      return hasPermission(item.permission);
+    });
+  }, [hasPermission]);
 
   /**
    * Handle navigation item click.
@@ -84,47 +126,57 @@ function DrawerContent(): React.ReactElement {
       <Divider />
 
       {/* Navigation Items */}
-      <List sx={{ flex: 1, px: 1, py: 2 }}>
-        {NAV_ITEMS.map(item => {
-          const isActive = location.pathname === item.path;
+      <List sx={{ flex: 1, px: 1, py: 2 }} data-testid="nav-list">
+        {isLoading ? (
+          // Show loading skeletons while permissions are loading
+          <>
+            <NavItemSkeleton />
+            <NavItemSkeleton />
+            <NavItemSkeleton />
+          </>
+        ) : (
+          visibleNavItems.map(item => {
+            const isActive = location.pathname === item.path;
 
-          return (
-            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton
-                onClick={() => handleNavClick(item.path)}
-                selected={isActive}
-                sx={{
-                  borderRadius: 2,
-                  '&.Mui-selected': {
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    '&:hover': {
-                      bgcolor: 'primary.dark',
-                    },
-                    '& .MuiListItemIcon-root': {
-                      color: 'primary.contrastText',
-                    },
-                  },
-                }}
-              >
-                <ListItemIcon
+            return (
+              <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                <ListItemButton
+                  onClick={() => handleNavClick(item.path)}
+                  selected={isActive}
+                  data-testid={`nav-item-${item.path.slice(1)}`}
                   sx={{
-                    minWidth: 40,
-                    color: isActive ? 'inherit' : 'text.secondary',
+                    borderRadius: 2,
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
+                      '& .MuiListItemIcon-root': {
+                        color: 'primary.contrastText',
+                      },
+                    },
                   }}
                 >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{
-                    fontWeight: isActive ? 600 : 400,
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          );
-        })}
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      color: isActive ? 'inherit' : 'text.secondary',
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            );
+          })
+        )}
       </List>
     </Box>
   );
