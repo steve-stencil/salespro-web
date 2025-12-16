@@ -3,6 +3,7 @@
  * Allows selecting roles and offices to assign to the invited user.
  */
 import CloseIcon from '@mui/icons-material/Close';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import SendIcon from '@mui/icons-material/Send';
 import Alert from '@mui/material/Alert';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -13,6 +14,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
@@ -27,8 +29,12 @@ import { useState, useEffect, useMemo } from 'react';
 
 import { useOfficesList } from '../../hooks/useOffices';
 import { useRolesList } from '../../hooks/useRoles';
-import { useSendInvite } from '../../hooks/useUsers';
-import { handleApiError } from '../../lib/api-client';
+import {
+  useSendInvite,
+  useUpdateInvite,
+  useResendInvite,
+} from '../../hooks/useUsers';
+import { ApiClientError, handleApiError } from '../../lib/api-client';
 
 import type { Office } from '../../types/users';
 
@@ -56,11 +62,18 @@ export function InviteUserModal({
   const [error, setError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
 
+  // Duplicate invite handling state
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [existingInviteId, setExistingInviteId] = useState<string | null>(null);
+  const [duplicateEmail, setDuplicateEmail] = useState<string>('');
+
   const { data: rolesData, isLoading: loadingRoles } = useRolesList();
   const { data: officesData, isLoading: loadingOffices } = useOfficesList({
     isActive: true,
   });
   const sendInviteMutation = useSendInvite();
+  const updateInviteMutation = useUpdateInvite();
+  const resendInviteMutation = useResendInvite();
 
   // Memoize offices to avoid reference changes
   const offices = useMemo(
@@ -83,6 +96,9 @@ export function InviteUserModal({
       setSelectedCurrentOffice(null);
       setError(null);
       setEmailError(null);
+      setShowDuplicateDialog(false);
+      setExistingInviteId(null);
+      setDuplicateEmail('');
     }
   }, [open]);
 
@@ -185,11 +201,70 @@ export function InviteUserModal({
       onSuccess();
       onClose();
     } catch (err) {
+      // Check if this is a duplicate invite error with an existing invite ID
+      if (err instanceof ApiClientError && err.response?.data) {
+        const responseData = err.response.data as {
+          existingInviteId?: string;
+          error?: string;
+        };
+        if (responseData.existingInviteId) {
+          // Show the duplicate invite dialog
+          setExistingInviteId(responseData.existingInviteId);
+          setDuplicateEmail(email.trim());
+          setShowDuplicateDialog(true);
+          return;
+        }
+      }
       setError(handleApiError(err));
     }
   }
 
-  const isLoading = sendInviteMutation.isPending;
+  /**
+   * Handle updating and resending an existing invitation.
+   */
+  async function handleUpdateAndResend(): Promise<void> {
+    if (!existingInviteId || !selectedCurrentOffice) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      // First update the invite with new roles and offices
+      await updateInviteMutation.mutateAsync({
+        inviteId: existingInviteId,
+        data: {
+          roles: selectedRoles,
+          currentOfficeId: selectedCurrentOffice.id,
+          allowedOfficeIds: selectedAllowedOffices,
+        },
+      });
+
+      // Then resend the invitation email
+      await resendInviteMutation.mutateAsync(existingInviteId);
+
+      setShowDuplicateDialog(false);
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setShowDuplicateDialog(false);
+      setError(handleApiError(err));
+    }
+  }
+
+  /**
+   * Close the duplicate dialog without taking action.
+   */
+  function handleCloseDuplicateDialog(): void {
+    setShowDuplicateDialog(false);
+    setExistingInviteId(null);
+    setDuplicateEmail('');
+  }
+
+  const isLoading =
+    sendInviteMutation.isPending ||
+    updateInviteMutation.isPending ||
+    resendInviteMutation.isPending;
   const roles = rolesData?.roles ?? [];
 
   /**
@@ -392,6 +467,42 @@ export function InviteUserModal({
           Send Invitation
         </Button>
       </DialogActions>
+
+      {/* Duplicate Invite Confirmation Dialog */}
+      <Dialog
+        open={showDuplicateDialog}
+        onClose={handleCloseDuplicateDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Pending Invitation Exists</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            A pending invitation already exists for{' '}
+            <strong>{duplicateEmail}</strong>. Would you like to update the
+            roles and offices, and resend the invitation email?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDuplicateDialog} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => void handleUpdateAndResend()}
+            disabled={isLoading}
+            startIcon={
+              isLoading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <RefreshIcon />
+              )
+            }
+          >
+            Update & Resend
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }

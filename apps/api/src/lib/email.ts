@@ -1,4 +1,5 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { fromIni } from '@aws-sdk/credential-providers';
 
 import { env } from '../config/env.js';
 
@@ -51,9 +52,19 @@ export function isEmailServiceConfigured(): boolean {
  * default credential chain (environment variables, IAM roles, etc.)
  */
 function createSESClient(): SESClient {
-  return new SESClient({
+  const clientConfig: {
+    region: string;
+    credentials?: ReturnType<typeof fromIni>;
+  } = {
     region: env.AWS_REGION,
-  });
+  };
+
+  // Use AWS profile if specified
+  if (env.AWS_PROFILE) {
+    clientConfig.credentials = fromIni({ profile: env.AWS_PROFILE });
+  }
+
+  return new SESClient(clientConfig);
 }
 
 // Singleton SES client instance

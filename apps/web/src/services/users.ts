@@ -22,6 +22,8 @@ import type {
   ValidateInviteResponse,
   AcceptInviteRequest,
   AcceptInviteResponse,
+  UpdateInviteRequest,
+  UpdateInviteResponse,
 } from '../types/users';
 
 /**
@@ -141,7 +143,9 @@ export const usersApi = {
   /**
    * Send a new user invitation.
    */
-  sendInvite: async (data: CreateInviteRequest): Promise<CreateInviteResponse> => {
+  sendInvite: async (
+    data: CreateInviteRequest,
+  ): Promise<CreateInviteResponse> => {
     return apiClient.post<CreateInviteResponse>('/users/invites', data);
   },
 
@@ -158,6 +162,19 @@ export const usersApi = {
   resendInvite: async (inviteId: string): Promise<ResendInviteResponse> => {
     return apiClient.post<ResendInviteResponse>(
       `/users/invites/${inviteId}/resend`,
+    );
+  },
+
+  /**
+   * Update a pending invitation's roles and/or offices.
+   */
+  updateInvite: async (
+    inviteId: string,
+    data: UpdateInviteRequest,
+  ): Promise<UpdateInviteResponse> => {
+    return apiClient.patch<UpdateInviteResponse>(
+      `/users/invites/${inviteId}`,
+      data,
     );
   },
 };

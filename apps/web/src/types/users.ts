@@ -382,3 +382,26 @@ export type InvitesListParams = {
   page?: number;
   limit?: number;
 };
+
+/** Update invite request */
+export type UpdateInviteRequest = {
+  roles?: string[];
+  currentOfficeId?: string;
+  allowedOfficeIds?: string[];
+};
+
+/** Update invite response */
+export type UpdateInviteResponse = {
+  message: string;
+  invite: {
+    id: string;
+    email: string;
+    roles: string[];
+    currentOffice: {
+      id: string;
+      name: string;
+    };
+    allowedOffices: string[];
+    expiresAt: string;
+  };
+};

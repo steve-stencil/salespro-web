@@ -26,6 +26,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.952.0",
     "@aws-sdk/client-ses": "^3.948.0",
+    "@aws-sdk/credential-providers": "^3.952.0",
     "@aws-sdk/s3-request-presigner": "^3.952.0",
     "@mikro-orm/core": "^6.6.2",
     "@mikro-orm/postgresql": "^6.6.2",

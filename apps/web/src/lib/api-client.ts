@@ -55,7 +55,20 @@ axiosInstance.interceptors.response.use(
 
       // Check for structured API error response
       if (errorData !== null && 'error' in errorData) {
-        const apiError = errorData['error'] as ApiError;
+        const rawError = errorData['error'];
+
+        // Handle both string and object error formats
+        // API may return { error: "message" } or { error: { code, message, ... } }
+        const apiError: ApiError =
+          typeof rawError === 'string'
+            ? {
+                code: ErrorCode.VALIDATION_ERROR,
+                message: rawError,
+                timestamp: new Date().toISOString(),
+                path: errorPath,
+              }
+            : (rawError as ApiError);
+
         throw new ApiClientError(
           apiError,
           error.response.status,

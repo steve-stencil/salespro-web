@@ -11,6 +11,7 @@ import type {
   InvitesListParams,
   CreateInviteRequest,
   AcceptInviteRequest,
+  UpdateInviteRequest,
 } from '../types/users';
 
 /** Query key factory for users */
@@ -27,7 +28,8 @@ export const userKeys = {
 export const inviteKeys = {
   all: ['invites'] as const,
   lists: () => [...inviteKeys.all, 'list'] as const,
-  list: (params?: InvitesListParams) => [...inviteKeys.lists(), params] as const,
+  list: (params?: InvitesListParams) =>
+    [...inviteKeys.lists(), params] as const,
   validate: (token: string) => [...inviteKeys.all, 'validate', token] as const,
 };
 
@@ -207,6 +209,26 @@ export function useResendInvite() {
 
   return useMutation({
     mutationFn: (inviteId: string) => usersApi.resendInvite(inviteId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: inviteKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Hook to update a pending invitation.
+ */
+export function useUpdateInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      inviteId,
+      data,
+    }: {
+      inviteId: string;
+      data: UpdateInviteRequest;
+    }) => usersApi.updateInvite(inviteId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: inviteKeys.lists() });
     },

@@ -13,6 +13,8 @@ const EnvSchema = z.object({
   // AWS SES Configuration
   /** AWS region for SES (e.g., us-east-1) */
   AWS_REGION: z.string().default('us-east-1'),
+  /** AWS profile name to use for credentials (e.g., salespro-dev) */
+  AWS_PROFILE: z.string().optional(),
   /** Verified sender email address in SES */
   SES_FROM_EMAIL: z.email().optional(),
   /** Frontend app URL for password reset links */

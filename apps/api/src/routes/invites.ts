@@ -14,6 +14,7 @@ import {
   acceptInvite,
   revokeInvite,
   resendInvite,
+  updateInvite,
   listPendingInvites,
 } from '../services';
 
@@ -100,10 +101,17 @@ router.post(
         inviterName: user.fullName,
         currentOfficeId,
         allowedOfficeIds,
+        ipAddress: req.ip ?? 'unknown',
+        userAgent: req.headers['user-agent'] ?? 'unknown',
       });
 
       if (!result.success) {
-        res.status(400).json({ error: result.error });
+        // Include existing invite ID if duplicate detected
+        const errorResponse: Record<string, unknown> = { error: result.error };
+        if (result.existingInviteId) {
+          errorResponse['existingInviteId'] = result.existingInviteId;
+        }
+        res.status(400).json(errorResponse);
         return;
       }
 
@@ -170,19 +178,25 @@ router.get(
           id: invite.id,
           email: invite.email,
           roles: invite.roles,
-          currentOffice: {
-            id: invite.currentOffice.id,
-            name: invite.currentOffice.name,
-          },
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          currentOffice: invite.currentOffice
+            ? {
+                id: invite.currentOffice.id,
+                name: invite.currentOffice.name,
+              }
+            : null,
           allowedOffices: invite.allowedOffices,
           expiresAt: invite.expiresAt,
           createdAt: invite.createdAt,
-          invitedBy: {
-            id: invite.invitedBy.id,
-            email: invite.invitedBy.email,
-            nameFirst: invite.invitedBy.nameFirst,
-            nameLast: invite.invitedBy.nameLast,
-          },
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          invitedBy: invite.invitedBy
+            ? {
+                id: invite.invitedBy.id,
+                email: invite.invitedBy.email,
+                nameFirst: invite.invitedBy.nameFirst,
+                nameLast: invite.invitedBy.nameLast,
+              }
+            : null,
         })),
         pagination: {
           page: pageNum,
@@ -233,6 +247,78 @@ router.delete(
       res.status(200).json({ message: 'Invitation revoked successfully' });
     } catch (err) {
       req.log.error({ err }, 'Revoke invite error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PATCH /users/invites/:id
+ * Update a pending invitation's roles and/or offices
+ */
+router.patch(
+  '/:id',
+  requireAuth(),
+  requirePermission(PERMISSIONS.USER_CREATE),
+  async (req: Request, res: Response) => {
+    try {
+      const user = (req as AuthenticatedRequest).user;
+      if (!user?.company) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Invite ID is required' });
+        return;
+      }
+
+      const { roles, currentOfficeId, allowedOfficeIds } = req.body as {
+        roles?: string[];
+        currentOfficeId?: string;
+        allowedOfficeIds?: string[];
+      };
+
+      // At least one field must be provided
+      if (!roles && !currentOfficeId && !allowedOfficeIds) {
+        res.status(400).json({
+          error:
+            'At least one of roles, currentOfficeId, or allowedOfficeIds is required',
+        });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const result = await updateInvite(em, id, user.company.id, {
+        roles,
+        currentOfficeId,
+        allowedOfficeIds,
+      });
+
+      if (!result.success) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+
+      res.status(200).json({
+        message: 'Invitation updated successfully',
+        invite: {
+          id: result.invite!.id,
+          email: result.invite!.email,
+          roles: result.invite!.roles,
+          currentOffice: {
+            id: result.invite!.currentOffice.id,
+            name: result.invite!.currentOffice.name,
+          },
+          allowedOffices: result.invite!.allowedOffices,
+          expiresAt: result.invite!.expiresAt,
+        },
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Update invite error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },
@@ -303,7 +389,7 @@ router.post(
 router.get('/validate', async (req: Request, res: Response) => {
   try {
     const parseResult = validateTokenSchema.safeParse({
-      token: req.query.token,
+      token: req.query['token'],
     });
     if (!parseResult.success) {
       res.status(400).json({

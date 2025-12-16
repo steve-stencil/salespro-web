@@ -29,11 +29,11 @@ r.use('/oauth', oauthRoutes);
 // Role & Permission routes
 r.use('/roles', roleRoutes);
 
+// User invite management routes (protected) - MUST be before /users to avoid /:id conflict
+r.use('/users/invites', inviteRoutes);
+
 // User management routes
 r.use('/users', userRoutes);
-
-// User invite management routes (protected)
-r.use('/users/invites', inviteRoutes);
 
 // Public invite routes (validate and accept)
 r.use('/invites', inviteRoutes);

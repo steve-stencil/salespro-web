@@ -27,6 +27,7 @@ export {
   acceptInvite,
   revokeInvite,
   resendInvite,
+  updateInvite,
   listPendingInvites,
   InviteServiceError,
 } from './invite';
@@ -36,4 +37,5 @@ export type {
   ValidateInviteResult,
   CreateInviteOptions,
   AcceptInviteOptions,
+  UpdateInviteOptions,
 } from './invite';

@@ -2,6 +2,7 @@
  * Invite service for managing user invitations.
  * Handles creating, validating, accepting, revoking, and resending invites.
  */
+import { env } from '../config/env';
 import {
   User,
   UserInvite,
@@ -31,6 +32,8 @@ export type CreateInviteResult = {
   error?: string;
   /** Token returned only in development mode */
   token?: string;
+  /** Existing invite ID when duplicate detected */
+  existingInviteId?: string;
 };
 
 /** Result type for invite acceptance */
@@ -60,6 +63,10 @@ export type CreateInviteOptions = {
   currentOfficeId: string;
   /** Array of office IDs the user will have access to (required, non-empty) */
   allowedOfficeIds: string[];
+  /** IP address of the inviter for audit logging */
+  ipAddress: string;
+  /** User agent of the inviter for audit logging */
+  userAgent: string;
 };
 
 /** Options for accepting an invite */
@@ -87,6 +94,8 @@ export async function createInvite(
     inviterName,
     currentOfficeId,
     allowedOfficeIds,
+    ipAddress,
+    userAgent,
   } = options;
   const normalizedEmail = email.toLowerCase().trim();
 
@@ -114,6 +123,7 @@ export async function createInvite(
     return {
       success: false,
       error: 'A pending invitation already exists for this email',
+      existingInviteId: existingInvite.id,
     };
   }
 
@@ -172,7 +182,13 @@ export async function createInvite(
   // Log the event
   const inviter = await em.findOne(User, { id: invitedById });
   if (inviter) {
-    await logInviteSentEvent(em, inviter, normalizedEmail);
+    await logInviteSentEvent(
+      em,
+      inviter,
+      normalizedEmail,
+      ipAddress,
+      userAgent,
+    );
   }
 
   // Send email
@@ -271,8 +287,12 @@ async function logInviteSentEvent(
   em: EntityManager,
   inviter: User,
   inviteeEmail: string,
+  ipAddress: string,
+  userAgent: string,
 ): Promise<void> {
   await logLoginEvent(em, inviter, LoginEventType.INVITE_SENT, {
+    ipAddress,
+    userAgent,
     source: SessionSource.WEB,
     metadata: { inviteeEmail },
   });
@@ -300,7 +320,29 @@ async function sendInviteEmailSafe(
       expiresInDays: INVITE_EXPIRATION_DAYS,
     });
   } catch (error) {
-    console.error('Failed to send invite email:', error);
+    // Detect AWS SES sandbox mode errors and provide helpful guidance
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isSandboxError =
+      errorMessage.includes('not verified') ||
+      errorMessage.includes('MessageRejected') ||
+      errorMessage.includes('failed the check');
+
+    if (isSandboxError) {
+      console.error(
+        'AWS SES Error: Email addresses must be verified in SES sandbox mode.',
+        '\nSender:',
+        env.SES_FROM_EMAIL,
+        '\nRecipient:',
+        email,
+        '\nError:',
+        errorMessage,
+        '\n\nTo fix:',
+        '\n1. Verify both sender and recipient emails in AWS SES Console',
+        '\n2. Or request production access from AWS SES to exit sandbox mode',
+      );
+    } else {
+      console.error('Failed to send invite email:', error);
+    }
   }
 }
 
@@ -456,6 +498,100 @@ async function assignInviteRoles(
       invite.invitedBy.id,
     );
   }
+}
+
+/** Options for updating an invite */
+export type UpdateInviteOptions = {
+  roles?: string[];
+  currentOfficeId?: string;
+  allowedOfficeIds?: string[];
+};
+
+/**
+ * Update a pending invite's roles and/or offices
+ */
+export async function updateInvite(
+  em: EntityManager,
+  inviteId: string,
+  companyId: string,
+  options: UpdateInviteOptions,
+): Promise<CreateInviteResult> {
+  const { roles, currentOfficeId, allowedOfficeIds } = options;
+
+  const invite = await em.findOne(
+    UserInvite,
+    { id: inviteId, company: companyId, status: InviteStatus.PENDING },
+    { populate: ['company', 'currentOffice'] },
+  );
+
+  if (!invite) {
+    return { success: false, error: 'Invite not found or already processed' };
+  }
+
+  // Validate and update roles if provided
+  if (roles !== undefined) {
+    if (roles.length === 0) {
+      return { success: false, error: 'At least one role is required' };
+    }
+    invite.roles = roles;
+  }
+
+  // Validate and update offices if provided
+  if (allowedOfficeIds !== undefined) {
+    if (allowedOfficeIds.length === 0) {
+      return {
+        success: false,
+        error: 'At least one allowed office is required',
+      };
+    }
+
+    // Validate all allowed offices exist and belong to company
+    const allowedOffices = await em.find(Office, {
+      id: { $in: allowedOfficeIds },
+      company: companyId,
+      isActive: true,
+    });
+    if (allowedOffices.length !== allowedOfficeIds.length) {
+      return {
+        success: false,
+        error:
+          'One or more allowed offices not found or do not belong to this company',
+      };
+    }
+
+    invite.allowedOffices = allowedOfficeIds;
+  }
+
+  // Validate and update current office if provided
+  if (currentOfficeId !== undefined) {
+    // Ensure current office is in allowed offices
+    const effectiveAllowedOffices = allowedOfficeIds ?? invite.allowedOffices;
+    if (!effectiveAllowedOffices.includes(currentOfficeId)) {
+      return {
+        success: false,
+        error: 'Current office must be one of the allowed offices',
+      };
+    }
+
+    // Validate current office exists and belongs to company
+    const currentOffice = await em.findOne(Office, {
+      id: currentOfficeId,
+      company: companyId,
+      isActive: true,
+    });
+    if (!currentOffice) {
+      return {
+        success: false,
+        error: 'Current office not found or does not belong to this company',
+      };
+    }
+
+    invite.currentOffice = currentOffice;
+  }
+
+  await em.flush();
+
+  return { success: true, invite };
 }
 
 /**
