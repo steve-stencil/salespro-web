@@ -6,6 +6,8 @@ import {
   User,
   UserInvite,
   Company,
+  Office,
+  UserOffice,
   InviteStatus,
   LoginEventType,
   SessionSource,
@@ -13,6 +15,7 @@ import {
 import { hashPassword, generateSecureToken, hashToken } from '../lib/crypto';
 import { emailService } from '../lib/email';
 import { AppError, ErrorCode } from '../lib/errors';
+
 import { logLoginEvent } from './auth/events';
 import { PermissionService } from './PermissionService';
 
@@ -53,6 +56,10 @@ export interface CreateInviteOptions {
   invitedById: string;
   roles: string[];
   inviterName: string;
+  /** The office to set as the user's current/active office (required) */
+  currentOfficeId: string;
+  /** Array of office IDs the user will have access to (required, non-empty) */
+  allowedOfficeIds: string[];
 }
 
 /** Options for accepting an invite */
@@ -72,8 +79,25 @@ export async function createInvite(
   em: EntityManager,
   options: CreateInviteOptions,
 ): Promise<CreateInviteResult> {
-  const { email, companyId, invitedById, roles, inviterName } = options;
+  const {
+    email,
+    companyId,
+    invitedById,
+    roles,
+    inviterName,
+    currentOfficeId,
+    allowedOfficeIds,
+  } = options;
   const normalizedEmail = email.toLowerCase().trim();
+
+  // Validate office fields (required)
+  const officeValidation = validateOfficeFields(
+    currentOfficeId,
+    allowedOfficeIds,
+  );
+  if (!officeValidation.success) {
+    return officeValidation;
+  }
 
   // Check if user already exists
   const existingUser = await em.findOne(User, { email: normalizedEmail });
@@ -104,6 +128,33 @@ export async function createInvite(
     return seatCheckResult;
   }
 
+  // Validate current office exists and belongs to company
+  const currentOffice = await em.findOne(Office, {
+    id: currentOfficeId,
+    company: companyId,
+    isActive: true,
+  });
+  if (!currentOffice) {
+    return {
+      success: false,
+      error: 'Current office not found or does not belong to this company',
+    };
+  }
+
+  // Validate all allowed offices exist and belong to company
+  const allowedOffices = await em.find(Office, {
+    id: { $in: allowedOfficeIds },
+    company: companyId,
+    isActive: true,
+  });
+  if (allowedOffices.length !== allowedOfficeIds.length) {
+    return {
+      success: false,
+      error:
+        'One or more allowed offices not found or do not belong to this company',
+    };
+  }
+
   // Generate token and create invite
   const token = generateSecureToken(32);
   const invite = createInviteEntity(em, {
@@ -112,6 +163,8 @@ export async function createInvite(
     company,
     invitedById,
     roles,
+    currentOffice,
+    allowedOfficeIds,
   });
 
   await em.persistAndFlush(invite);
@@ -131,6 +184,31 @@ export async function createInvite(
   }
 
   return { success: true, invite };
+}
+
+/**
+ * Validate office fields for invite creation
+ */
+function validateOfficeFields(
+  currentOfficeId: string | undefined,
+  allowedOfficeIds: string[] | undefined,
+): CreateInviteResult {
+  if (!currentOfficeId) {
+    return { success: false, error: 'Current office is required' };
+  }
+
+  if (!allowedOfficeIds || allowedOfficeIds.length === 0) {
+    return { success: false, error: 'At least one allowed office is required' };
+  }
+
+  if (!allowedOfficeIds.includes(currentOfficeId)) {
+    return {
+      success: false,
+      error: 'Current office must be one of the allowed offices',
+    };
+  }
+
+  return { success: true };
 }
 
 /**
@@ -167,6 +245,8 @@ function createInviteEntity(
     company: Company;
     invitedById: string;
     roles: string[];
+    currentOffice: Office;
+    allowedOfficeIds: string[];
   },
 ): UserInvite {
   const invite = new UserInvite();
@@ -175,6 +255,8 @@ function createInviteEntity(
   invite.company = opts.company;
   invite.invitedBy = em.getReference(User, opts.invitedById);
   invite.roles = opts.roles;
+  invite.currentOffice = opts.currentOffice;
+  invite.allowedOffices = opts.allowedOfficeIds;
   invite.expiresAt = new Date(
     Date.now() + INVITE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000,
   );
@@ -233,7 +315,7 @@ export async function validateInviteToken(
   const invite = await em.findOne(
     UserInvite,
     { tokenHash },
-    { populate: ['company'] },
+    { populate: ['company', 'currentOffice', 'invitedBy'] },
   );
 
   if (!invite) {
@@ -294,6 +376,9 @@ export async function acceptInvite(
   // Assign roles
   await assignInviteRoles(em, user, invite);
 
+  // Assign office access
+  assignInviteOfficeAccess(em, user, invite);
+
   // Mark invite as accepted
   invite.status = InviteStatus.ACCEPTED;
   invite.acceptedAt = new Date();
@@ -328,8 +413,29 @@ async function createUserFromInvite(
   user.emailVerified = true; // Email is verified via invite
   user.emailVerifiedAt = new Date();
 
+  // Set the current office from the invite
+  user.currentOffice = invite.currentOffice;
+
   em.persist(user);
   return user;
+}
+
+/**
+ * Assign office access from the invite to the user
+ */
+function assignInviteOfficeAccess(
+  em: EntityManager,
+  user: User,
+  invite: UserInvite,
+): void {
+  // Create UserOffice records for each allowed office
+  for (const officeId of invite.allowedOffices) {
+    const userOffice = new UserOffice();
+    userOffice.user = user;
+    userOffice.office = em.getReference(Office, officeId);
+    userOffice.assignedBy = invite.invitedBy;
+    em.persist(userOffice);
+  }
 }
 
 /**
@@ -438,7 +544,7 @@ export async function listPendingInvites(
     UserInvite,
     { company: companyId, status: InviteStatus.PENDING },
     {
-      populate: ['invitedBy'],
+      populate: ['invitedBy', 'currentOffice'],
       orderBy: { createdAt: 'DESC' },
       limit,
       offset,

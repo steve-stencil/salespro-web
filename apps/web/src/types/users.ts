@@ -291,6 +291,11 @@ export interface InviteListItem {
   id: string;
   email: string;
   roles: string[];
+  currentOffice: {
+    id: string;
+    name: string;
+  };
+  allowedOffices: string[];
   expiresAt: string;
   createdAt: string;
   invitedBy: {
@@ -311,6 +316,10 @@ export interface InvitesListResponse {
 export interface CreateInviteRequest {
   email: string;
   roles: string[];
+  /** The office to set as the user's current/active office (required) */
+  currentOfficeId: string;
+  /** Array of office IDs the user will have access to (required, non-empty) */
+  allowedOfficeIds: string[];
 }
 
 /** Create invite response */
@@ -320,6 +329,11 @@ export interface CreateInviteResponse {
     id: string;
     email: string;
     expiresAt: string;
+    currentOffice: {
+      id: string;
+      name: string;
+    };
+    allowedOffices: string[];
   };
   /** Token returned only in development mode */
   token?: string;
