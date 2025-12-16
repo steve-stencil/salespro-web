@@ -13,6 +13,32 @@ import type { Request, Response, Router as RouterType } from 'express';
 const router: RouterType = Router();
 
 /**
+ * UUID v4 validation regex
+ */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Parse session ID from cookie value.
+ * Express-session signed cookies have format: s:UUID.signature
+ * This extracts just the UUID part.
+ */
+function parseSessionIdFromCookie(cookieValue: string): string | null {
+  if (!cookieValue) return null;
+
+  // If it's a signed cookie (starts with s:), extract the session ID
+  if (cookieValue.startsWith('s:')) {
+    const dotIndex = cookieValue.indexOf('.', 2);
+    const sessionId =
+      dotIndex > 2 ? cookieValue.slice(2, dotIndex) : cookieValue.slice(2);
+    return UUID_REGEX.test(sessionId) ? sessionId : null;
+  }
+
+  // If it's already a plain UUID
+  return UUID_REGEX.test(cookieValue) ? cookieValue : null;
+}
+
+/**
  * Get or create a session ID for login
  * If session exists, regenerate it for security
  * If no session, generate a new UUID
@@ -217,7 +243,8 @@ router.get('/me', async (req: Request, res: Response) => {
 
     // If no session, try to look up session from our custom cookie
     if (!userId) {
-      const sessionId = (req.cookies as Record<string, string>)['sid'];
+      const rawCookie = (req.cookies as Record<string, string>)['sid'];
+      const sessionId = parseSessionIdFromCookie(rawCookie);
       if (sessionId) {
         const orm = getORM();
         const em = orm.em.fork();

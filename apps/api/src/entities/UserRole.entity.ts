@@ -21,6 +21,9 @@ import type { User } from './User.entity';
  * - Audit trail of who assigned the role and when
  *
  * A user's effective permissions are the union of all their roles' permissions.
+ *
+ * For platform roles (internal users), company is null since these roles
+ * apply across all companies.
  */
 @Entity()
 @Unique({ properties: ['user', 'role', 'company'] })
@@ -38,10 +41,13 @@ export class UserRole {
   @Index()
   role!: Role;
 
-  /** The company context for this role assignment */
-  @ManyToOne('Company')
+  /**
+   * The company context for this role assignment.
+   * Null for platform roles (internal users).
+   */
+  @ManyToOne('Company', { nullable: true })
   @Index()
-  company!: Company;
+  company?: Company;
 
   /** When this role was assigned */
   @Property({ type: 'Date' })

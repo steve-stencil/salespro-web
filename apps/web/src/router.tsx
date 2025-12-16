@@ -5,11 +5,14 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppLayout } from './layouts/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { RolesPage } from './pages/RolesPage';
+import { UsersPage } from './pages/UsersPage';
 
 /**
  * Application routes configuration.
@@ -20,8 +23,10 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
  * - /forgot-password - Request password reset
  * - /reset-password - Reset password with token
  *
- * Protected routes:
- * - /dashboard - Main dashboard (requires authentication)
+ * Protected routes (with sidebar):
+ * - /dashboard - Main dashboard
+ * - /users - User management
+ * - /roles - Role management
  * - / - Redirects to /dashboard
  */
 export const router = createBrowserRouter([
@@ -43,14 +48,27 @@ export const router = createBrowserRouter([
     element: <ResetPasswordPage />,
   },
 
-  // Protected routes
+  // Protected routes with AppLayout
   {
-    path: '/dashboard',
     element: (
       <ProtectedRoute>
-        <DashboardPage />
+        <AppLayout />
       </ProtectedRoute>
     ),
+    children: [
+      {
+        path: '/dashboard',
+        element: <DashboardPage />,
+      },
+      {
+        path: '/users',
+        element: <UsersPage />,
+      },
+      {
+        path: '/roles',
+        element: <RolesPage />,
+      },
+    ],
   },
 
   // Root redirect

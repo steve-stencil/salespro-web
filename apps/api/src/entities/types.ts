@@ -74,10 +74,30 @@ export enum OAuthClientType {
 
 /** Role type for RBAC system */
 export enum RoleType {
+  /** Platform roles for internal users (determines company access level) */
+  PLATFORM = 'platform',
   /** Built-in system roles (cannot be deleted) */
   SYSTEM = 'system',
   /** Company-created custom roles */
   COMPANY = 'company',
+}
+
+/** User type - company user vs internal platform user */
+export enum UserType {
+  /** Regular company user (belongs to one company) */
+  COMPANY = 'company',
+  /** Internal platform user (can access any company) */
+  INTERNAL = 'internal',
+}
+
+/** Defines what access an internal user has when entering a company */
+export enum CompanyAccessLevel {
+  /** SuperUser-level access (can do everything) */
+  FULL = 'full',
+  /** Can view all data but cannot modify */
+  READ_ONLY = 'read_only',
+  /** Uses specific permissions defined in the role */
+  CUSTOM = 'custom',
 }
 
 /** Company-configurable password policy */

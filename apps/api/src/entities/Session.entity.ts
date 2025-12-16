@@ -53,6 +53,14 @@ export class Session {
   @ManyToOne('Company', { nullable: true })
   company?: Company;
 
+  /**
+   * Active company context for internal users.
+   * Internal users can switch between companies; this tracks their current selection.
+   * For regular company users, this is not used (their company is fixed).
+   */
+  @ManyToOne('Company', { nullable: true })
+  activeCompany?: Company;
+
   /** Source platform for session management (set during login) */
   @Enum({ items: () => SessionSource, nullable: true })
   source?: SessionSource;

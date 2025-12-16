@@ -1,8 +1,12 @@
 import { Router } from 'express';
 
 import authRoutes from './auth';
+import internalUserRoutes from './internal-users';
 import oauthRoutes from './oauth';
+import officeRoutes from './offices';
+import platformRoutes from './platform';
 import roleRoutes from './roles';
+import userRoutes from './users';
 
 import type { Request, Response, Router as ExpressRouter } from 'express';
 
@@ -22,5 +26,17 @@ r.use('/oauth', oauthRoutes);
 
 // Role & Permission routes
 r.use('/roles', roleRoutes);
+
+// User management routes
+r.use('/users', userRoutes);
+
+// Office management routes
+r.use('/offices', officeRoutes);
+
+// Platform routes (internal users only)
+r.use('/platform', platformRoutes);
+
+// Internal user management routes
+r.use('/internal-users', internalUserRoutes);
 
 export default r;

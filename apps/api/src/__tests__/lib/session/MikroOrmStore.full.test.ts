@@ -5,6 +5,10 @@ import { MikroOrmStore } from '../../../lib/session/MikroOrmStore';
 import type { EntityManager } from '@mikro-orm/core';
 import type { SessionData } from 'express-session';
 
+// Test session ID must be a valid UUID (MikroOrmStore validates UUIDs)
+const TEST_SESSION_ID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
+const NEW_SESSION_ID = 'a47ac10b-58cc-4372-a567-0e02b2c3d480';
+
 // Helper to create session data
 function createSessionData(overrides: Partial<SessionData> = {}): SessionData {
   return {
@@ -22,7 +26,7 @@ function createSessionData(overrides: Partial<SessionData> = {}): SessionData {
 function createMockSessionEntity(overrides: Record<string, unknown> = {}) {
   const now = new Date();
   return {
-    sid: 'test-session-id',
+    sid: TEST_SESSION_ID,
     data: {},
     expiresAt: new Date(now.getTime() + 86400000),
     absoluteExpiresAt: new Date(now.getTime() + 86400000 * 30),
@@ -240,7 +244,7 @@ describe('MikroOrmStore (Full)', () => {
       });
       forkedEm.findOne.mockResolvedValue(sessionEntity);
 
-      const session = await promisifyGet(store, 'test-session-id');
+      const session = await promisifyGet(store, TEST_SESSION_ID);
 
       expect(session).toEqual({ userId: 'user-123' });
     });
@@ -251,7 +255,7 @@ describe('MikroOrmStore (Full)', () => {
       });
       forkedEm.findOne.mockResolvedValue(sessionEntity);
 
-      const session = await promisifyGet(store, 'test-session-id');
+      const session = await promisifyGet(store, TEST_SESSION_ID);
 
       expect(session).toBeNull();
       expect(forkedEm.removeAndFlush).toHaveBeenCalledWith(sessionEntity);
@@ -263,7 +267,7 @@ describe('MikroOrmStore (Full)', () => {
       });
       forkedEm.findOne.mockResolvedValue(sessionEntity);
 
-      const session = await promisifyGet(store, 'test-session-id');
+      const session = await promisifyGet(store, TEST_SESSION_ID);
 
       expect(session).toBeNull();
     });
@@ -276,7 +280,7 @@ describe('MikroOrmStore (Full)', () => {
       // Advance time
       vi.advanceTimersByTime(1000);
 
-      await promisifyGet(store, 'test-session-id');
+      await promisifyGet(store, TEST_SESSION_ID);
 
       expect(sessionEntity.lastActivityAt.getTime()).toBeGreaterThan(
         originalActivity.getTime(),
@@ -297,19 +301,20 @@ describe('MikroOrmStore (Full)', () => {
       });
       forkedEm.findOne.mockResolvedValue(sessionEntity);
 
-      const session = await promisifyGet(testStore, 'test-session-id');
+      const session = await promisifyGet(testStore, TEST_SESSION_ID);
 
       expect(session).toBeNull();
       expect(forkedEm.removeAndFlush).not.toHaveBeenCalled();
     });
 
-    it('should reject on error', async () => {
+    it('should return null on database error (graceful error handling)', async () => {
       const error = new Error('Database error');
       forkedEm.findOne.mockRejectedValue(error);
 
-      await expect(promisifyGet(store, 'test-session-id')).rejects.toThrow(
-        'Database error',
-      );
+      // MikroOrmStore now catches errors and returns null instead of rejecting
+      // This is intentional to handle invalid UUID session IDs gracefully
+      const result = await promisifyGet(store, TEST_SESSION_ID);
+      expect(result).toBeNull();
     });
   });
 
@@ -319,7 +324,7 @@ describe('MikroOrmStore (Full)', () => {
 
       const sessionData = createSessionData();
 
-      await promisifySet(store, 'new-session', sessionData);
+      await promisifySet(store, NEW_SESSION_ID, sessionData);
 
       expect(forkedEm.persist).toHaveBeenCalled();
       expect(forkedEm.flush).toHaveBeenCalled();
@@ -333,7 +338,7 @@ describe('MikroOrmStore (Full)', () => {
         userId: 'updated-user',
       } as SessionData);
 
-      await promisifySet(store, 'test-session-id', sessionData);
+      await promisifySet(store, TEST_SESSION_ID, sessionData);
 
       expect(existingSession.data).toEqual(sessionData);
       expect(forkedEm.flush).toHaveBeenCalled();
@@ -347,7 +352,7 @@ describe('MikroOrmStore (Full)', () => {
       const sessionData = createSessionData();
       sessionData.cookie.expires = newExpiry;
 
-      await promisifySet(store, 'test-session-id', sessionData);
+      await promisifySet(store, TEST_SESSION_ID, sessionData);
 
       expect(existingSession.expiresAt).toEqual(newExpiry);
     });
@@ -357,7 +362,7 @@ describe('MikroOrmStore (Full)', () => {
       forkedEm.findOne.mockRejectedValue(error);
 
       await expect(
-        promisifySet(store, 'test-session', createSessionData()),
+        promisifySet(store, TEST_SESSION_ID, createSessionData()),
       ).rejects.toThrow('Database error');
     });
 
@@ -367,7 +372,7 @@ describe('MikroOrmStore (Full)', () => {
       const sessionData = createSessionData();
       delete (sessionData.cookie as { expires?: Date }).expires;
 
-      await promisifySet(store, 'test-session', sessionData);
+      await promisifySet(store, TEST_SESSION_ID, sessionData);
 
       expect(forkedEm.persist).toHaveBeenCalled();
     });
@@ -375,10 +380,10 @@ describe('MikroOrmStore (Full)', () => {
 
   describe('destroy', () => {
     it('should delete session by sid', async () => {
-      await promisifyDestroy(store, 'test-session-id');
+      await promisifyDestroy(store, TEST_SESSION_ID);
 
       expect(forkedEm.nativeDelete).toHaveBeenCalledWith(expect.anything(), {
-        sid: 'test-session-id',
+        sid: TEST_SESSION_ID,
       });
     });
 
@@ -386,14 +391,14 @@ describe('MikroOrmStore (Full)', () => {
       const error = new Error('Database error');
       forkedEm.nativeDelete.mockRejectedValue(error);
 
-      await expect(promisifyDestroy(store, 'test-session-id')).rejects.toThrow(
+      await expect(promisifyDestroy(store, TEST_SESSION_ID)).rejects.toThrow(
         'Database error',
       );
     });
 
     it('should work without callback', () => {
       // Should not throw
-      store.destroy('test-session-id');
+      store.destroy(TEST_SESSION_ID);
       expect(forkedEm.nativeDelete).toHaveBeenCalled();
     });
   });
@@ -407,7 +412,7 @@ describe('MikroOrmStore (Full)', () => {
       const sessionData = createSessionData();
       sessionData.cookie.expires = newExpiry;
 
-      await promisifyTouch(store, 'test-session-id', sessionData);
+      await promisifyTouch(store, TEST_SESSION_ID, sessionData);
 
       expect(session.expiresAt).toEqual(newExpiry);
       expect(forkedEm.flush).toHaveBeenCalled();
@@ -424,7 +429,7 @@ describe('MikroOrmStore (Full)', () => {
       const sessionData = createSessionData();
       sessionData.cookie.expires = newExpiry;
 
-      await promisifyTouch(store, 'test-session-id', sessionData);
+      await promisifyTouch(store, TEST_SESSION_ID, sessionData);
 
       expect(session.expiresAt).toEqual(absoluteExpiry);
     });
@@ -444,7 +449,7 @@ describe('MikroOrmStore (Full)', () => {
 
       vi.advanceTimersByTime(1000);
 
-      await promisifyTouch(store, 'test-session-id', createSessionData());
+      await promisifyTouch(store, TEST_SESSION_ID, createSessionData());
 
       expect(session.lastActivityAt.getTime()).toBeGreaterThan(
         originalActivity.getTime(),

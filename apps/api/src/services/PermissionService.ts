@@ -1,5 +1,11 @@
-import { UserRole, Role } from '../entities';
-import { hasPermission as checkPermission } from '../lib/permissions';
+import { UserRole, Role, User } from '../entities';
+import { UserType, RoleType, CompanyAccessLevel } from '../entities/types';
+import {
+  hasPermission as checkPermission,
+  getReadOnlyPermissions,
+  getPlatformPermissions,
+  isPlatformPermission,
+} from '../lib/permissions';
 
 import type { EntityManager } from '@mikro-orm/core';
 
@@ -386,5 +392,256 @@ export class PermissionService {
     }
 
     return assignments;
+  }
+
+  // ==================================
+  // Internal User Methods
+  // ==================================
+
+  /**
+   * Check if a user is an internal platform user.
+   *
+   * @param userId - The user's ID
+   * @returns True if the user is an internal user
+   */
+  async isInternalUser(userId: string): Promise<boolean> {
+    const user = await this.em.findOne(User, userId);
+    return user?.userType === UserType.INTERNAL;
+  }
+
+  /**
+   * Get the platform role for an internal user.
+   * Internal users should have exactly one platform role.
+   *
+   * @param userId - The internal user's ID
+   * @returns The platform Role or null
+   */
+  async getInternalUserPlatformRole(userId: string): Promise<Role | null> {
+    const userRole = await this.em.findOne(
+      UserRole,
+      {
+        user: userId,
+        role: { type: RoleType.PLATFORM },
+      },
+      { populate: ['role'] },
+    );
+
+    return userRole?.role ?? null;
+  }
+
+  /**
+   * Get platform-level permissions for an internal user.
+   * These are permissions like platform:view_companies, platform:switch_company.
+   *
+   * @param userId - The internal user's ID
+   * @returns Array of platform permission strings
+   */
+  async getInternalUserPlatformPermissions(userId: string): Promise<string[]> {
+    const platformRole = await this.getInternalUserPlatformRole(userId);
+    if (!platformRole) {
+      return [];
+    }
+
+    // Filter to only platform permissions
+    return platformRole.permissions.filter(p => isPlatformPermission(p));
+  }
+
+  /**
+   * Get permissions for an internal user within a specific company context.
+   * The permissions depend on the platform role's companyAccessLevel:
+   * - FULL: Returns ['*'] (superUser access)
+   * - READ_ONLY: Returns all :read permissions
+   * - CUSTOM: Returns the non-platform permissions defined in the role
+   *
+   * @param userId - The internal user's ID
+   * @param companyId - The company context to access
+   * @returns Array of permission strings for the company context
+   */
+  async getInternalUserCompanyPermissions(
+    userId: string,
+    _companyId: string,
+  ): Promise<string[]> {
+    const user = await this.em.findOne(User, userId);
+    if (!user || user.userType !== UserType.INTERNAL) {
+      return [];
+    }
+
+    const platformRole = await this.getInternalUserPlatformRole(userId);
+    if (!platformRole) {
+      return [];
+    }
+
+    switch (platformRole.companyAccessLevel) {
+      case CompanyAccessLevel.FULL:
+        // SuperUser access - can do everything
+        return ['*'];
+
+      case CompanyAccessLevel.READ_ONLY:
+        // Read-only access - all :read permissions
+        return getReadOnlyPermissions();
+
+      case CompanyAccessLevel.CUSTOM:
+        // Custom permissions defined in the role (excluding platform: permissions)
+        return platformRole.permissions.filter(p => !isPlatformPermission(p));
+
+      default:
+        return [];
+    }
+  }
+
+  /**
+   * Check if an internal user has a specific platform permission.
+   *
+   * @param userId - The internal user's ID
+   * @param permission - The platform permission to check
+   * @returns True if the user has the permission
+   */
+  async hasInternalUserPlatformPermission(
+    userId: string,
+    permission: string,
+  ): Promise<boolean> {
+    const platformPermissions =
+      await this.getInternalUserPlatformPermissions(userId);
+    return checkPermission(permission, platformPermissions);
+  }
+
+  /**
+   * Check if an internal user has a specific permission within a company context.
+   *
+   * @param userId - The internal user's ID
+   * @param permission - The permission to check
+   * @param companyId - The company context
+   * @returns True if the user has the permission
+   */
+  async hasInternalUserCompanyPermission(
+    userId: string,
+    permission: string,
+    companyId: string,
+  ): Promise<boolean> {
+    const companyPermissions = await this.getInternalUserCompanyPermissions(
+      userId,
+      companyId,
+    );
+    return checkPermission(permission, companyPermissions);
+  }
+
+  /**
+   * Universal permission check that works for both company and internal users.
+   * For internal users, checks the platform role's companyAccessLevel.
+   * For company users, checks their assigned company/system roles.
+   *
+   * @param userId - The user's ID
+   * @param permission - The permission to check
+   * @param companyId - The company context
+   * @returns True if the user has the permission
+   */
+  async checkPermission(
+    userId: string,
+    permission: string,
+    companyId: string,
+  ): Promise<boolean> {
+    const isInternal = await this.isInternalUser(userId);
+
+    if (isInternal) {
+      // For platform permissions, check platform role
+      if (isPlatformPermission(permission)) {
+        return this.hasInternalUserPlatformPermission(userId, permission);
+      }
+      // For company permissions, check based on companyAccessLevel
+      return this.hasInternalUserCompanyPermission(
+        userId,
+        permission,
+        companyId,
+      );
+    }
+
+    // Regular company user - use existing permission check
+    return this.hasPermission(userId, permission, companyId);
+  }
+
+  /**
+   * Assign a platform role to an internal user.
+   * Internal users don't belong to a company, so the UserRole has no company.
+   *
+   * @param userId - The internal user's ID
+   * @param roleId - The platform role's ID
+   * @param assignedById - ID of the user making the assignment
+   * @returns Result object with success status
+   */
+  async assignPlatformRole(
+    userId: string,
+    roleId: string,
+    assignedById?: string,
+  ): Promise<RoleAssignmentResult> {
+    // Verify user is internal
+    const user = await this.em.findOne(User, userId);
+    if (!user || user.userType !== UserType.INTERNAL) {
+      return {
+        success: false,
+        error: 'User is not an internal user',
+      };
+    }
+
+    // Verify role is a platform role
+    const role = await this.em.findOne(Role, roleId);
+    if (!role || role.type !== RoleType.PLATFORM) {
+      return {
+        success: false,
+        error: 'Role is not a platform role',
+      };
+    }
+
+    // Check if already assigned
+    const existing = await this.em.findOne(UserRole, {
+      user: userId,
+      role: roleId,
+    });
+
+    if (existing) {
+      return {
+        success: false,
+        error: 'Role is already assigned to this user',
+      };
+    }
+
+    // Remove any existing platform role (internal users should have one platform role)
+    const existingPlatformRole = await this.em.findOne(UserRole, {
+      user: userId,
+      role: { type: RoleType.PLATFORM },
+    });
+    if (existingPlatformRole) {
+      await this.em.removeAndFlush(existingPlatformRole);
+    }
+
+    // Create the assignment (no company for internal users)
+    const userRole = this.em.create(UserRole, {
+      user: userId,
+      role: roleId,
+      assignedAt: new Date(),
+      ...(assignedById ? { assignedBy: assignedById } : {}),
+    });
+
+    await this.em.persistAndFlush(userRole);
+
+    return { success: true, userRole };
+  }
+
+  /**
+   * Get all platform roles.
+   *
+   * @returns Array of platform Role entities
+   */
+  async getPlatformRoles(): Promise<Role[]> {
+    return this.em.find(Role, { type: RoleType.PLATFORM });
+  }
+
+  /**
+   * Get all available platform permissions.
+   * Returns the statically defined platform permissions.
+   *
+   * @returns Array of platform permission strings
+   */
+  getAvailablePlatformPermissions(): string[] {
+    return getPlatformPermissions();
   }
 }

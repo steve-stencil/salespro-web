@@ -12,6 +12,7 @@ export { Session } from './Session.entity';
 export { Role } from './Role.entity';
 export { UserRole } from './UserRole.entity';
 export { Office } from './Office.entity';
+export { UserOffice } from './UserOffice.entity';
 
 // OAuth entities
 export { OAuthClient } from './OAuthClient.entity';

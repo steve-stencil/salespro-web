@@ -1,0 +1,386 @@
+---
+description: RBAC permission system structure and guidelines for adding new permissions
+globs:
+  - 'apps/api/**'
+alwaysApply: false
+---
+
+# Role-Based Access Control (RBAC) Permission System
+
+This document defines the permission structure for the SalesPro Dashboard. Follow these guidelines when adding new models or features that require permission-based access control.
+
+## Permission Naming Convention
+
+Permissions follow the format: `resource:action`
+
+- **resource**: Lowercase singular noun (e.g., `customer`, `user`, `role`, `office`)
+- **action**: Lowercase verb (e.g., `read`, `create`, `update`, `delete`)
+
+### Standard CRUD Actions
+
+For every new model, define these standard permissions:
+
+```typescript
+// Standard CRUD permissions pattern
+RESOURCE_READ: 'resource:read',     // View list and details
+RESOURCE_CREATE: 'resource:create', // Create new records
+RESOURCE_UPDATE: 'resource:update', // Edit existing records
+RESOURCE_DELETE: 'resource:delete', // Remove records
+```
+
+### Custom Actions
+
+For non-CRUD operations, use descriptive verbs:
+
+```typescript
+USER_ACTIVATE: 'user:activate',   // Enable/disable accounts
+ROLE_ASSIGN: 'role:assign',       // Assign roles to users
+REPORT_EXPORT: 'report:export',   // Export data
+```
+
+## Adding Permissions for a New Model
+
+When adding a new entity/model that requires CRUD permissions:
+
+### 1. Add to PERMISSIONS constant in `apps/api/src/lib/permissions.ts`
+
+```typescript
+export const PERMISSIONS = {
+  // ... existing permissions ...
+
+  // New Resource (e.g., Project)
+  PROJECT_READ: 'project:read',
+  PROJECT_CREATE: 'project:create',
+  PROJECT_UPDATE: 'project:update',
+  PROJECT_DELETE: 'project:delete',
+} as const;
+```
+
+### 2. Add metadata in PERMISSION_META
+
+```typescript
+export const PERMISSION_META: Record<Permission, PermissionMeta> = {
+  // ... existing metadata ...
+
+  // Projects
+  'project:read': {
+    label: 'View Projects',
+    category: 'Projects',
+    description: 'View project list and details',
+  },
+  'project:create': {
+    label: 'Create Projects',
+    category: 'Projects',
+    description: 'Create new projects',
+  },
+  'project:update': {
+    label: 'Edit Projects',
+    category: 'Projects',
+    description: 'Modify existing projects',
+  },
+  'project:delete': {
+    label: 'Delete Projects',
+    category: 'Projects',
+    description: 'Remove projects from the system',
+  },
+};
+```
+
+### 3. Protect API routes with middleware
+
+```typescript
+import { requireAuth, requirePermission } from '../middleware';
+import { PERMISSIONS } from '../lib/permissions';
+
+// Read operations
+router.get('/', requireAuth(), requirePermission(PERMISSIONS.PROJECT_READ), handler);
+router.get('/:id', requireAuth(), requirePermission(PERMISSIONS.PROJECT_READ), handler);
+
+// Create operations
+router.post('/', requireAuth(), requirePermission(PERMISSIONS.PROJECT_CREATE), handler);
+
+// Update operations
+router.patch('/:id', requireAuth(), requirePermission(PERMISSIONS.PROJECT_UPDATE), handler);
+
+// Delete operations
+router.delete('/:id', requireAuth(), requirePermission(PERMISSIONS.PROJECT_DELETE), handler);
+```
+
+### 4. Update system roles if needed
+
+Add new permissions to default system roles in `apps/api/scripts/seed-roles.ts`:
+
+```typescript
+const SYSTEM_ROLES: SystemRole[] = [
+  {
+    name: 'superUser',
+    displayName: 'Super User',
+    description: 'Full system access',
+    permissions: ['*'], // Already has all permissions via wildcard
+  },
+  {
+    name: 'admin',
+    displayName: 'Administrator',
+    permissions: [
+      // ... existing permissions ...
+      'project:*', // All project permissions via resource wildcard
+    ],
+  },
+  {
+    name: 'user',
+    displayName: 'Standard User',
+    permissions: [
+      // ... existing permissions ...
+      'project:read', // Read-only access
+    ],
+  },
+];
+```
+
+## Permission Middleware Options
+
+### Single Permission
+
+```typescript
+requirePermission(PERMISSIONS.PROJECT_READ)
+```
+
+### All Permissions (AND logic)
+
+```typescript
+requireAllPermissions([PERMISSIONS.PROJECT_READ, PERMISSIONS.PROJECT_DELETE])
+```
+
+### Any Permission (OR logic)
+
+```typescript
+requireAnyPermission([PERMISSIONS.PROJECT_UPDATE, PERMISSIONS.ADMIN_ACCESS])
+```
+
+## Wildcard Permissions
+
+The system supports wildcards for flexible permission assignment:
+
+- `*` - Grants all permissions (superuser only)
+- `resource:*` - Grants all actions for a specific resource
+
+```typescript
+// Role with wildcard
+{
+  name: 'projectManager',
+  permissions: ['project:*', 'user:read']
+}
+```
+
+## Permission Checking in Code
+
+### In Services
+
+```typescript
+import { PermissionService } from '../services/PermissionService';
+
+const permissionService = new PermissionService(em);
+
+// Check single permission
+const canRead = await permissionService.hasPermission(userId, 'project:read', companyId);
+
+// Check all permissions
+const canManage = await permissionService.hasAllPermissions(
+  userId,
+  ['project:read', 'project:update'],
+  companyId,
+);
+
+// Check any permission
+const hasAccess = await permissionService.hasAnyPermission(
+  userId,
+  ['project:read', 'admin:*'],
+  companyId,
+);
+```
+
+### In Route Handlers
+
+```typescript
+// Get user's effective permissions
+const permissions = await permissionService.getUserPermissions(userId, companyId);
+```
+
+## Testing Requirements
+
+When adding new permissions:
+
+1. **Unit tests**: Add tests in `apps/api/src/__tests__/lib/permissions.test.ts`
+2. **Service tests**: Update `apps/api/src/__tests__/services/PermissionService.test.ts`
+3. **Integration tests**: Add route tests in `apps/api/src/__tests__/integration/`
+4. **E2E tests**: Add Playwright tests if UI changes in `apps/web/e2e/`
+
+## Database Entities
+
+### Role Entity (`apps/api/src/entities/Role.entity.ts`)
+
+- `id`: UUID primary key
+- `name`: Unique role identifier (e.g., 'salesRep')
+- `displayName`: Human-readable name
+- `permissions`: JSON array of permission strings
+- `type`: SYSTEM, COMPANY, or PLATFORM
+- `company`: Nullable FK (null for system/platform roles)
+- `isDefault`: Auto-assign to new users
+- `companyAccessLevel`: For PLATFORM roles, defines access within companies
+
+### UserRole Entity (`apps/api/src/entities/UserRole.entity.ts`)
+
+Junction table linking users to roles:
+- `user`: FK to User
+- `role`: FK to Role
+- `company`: FK to Company (multi-tenant context, null for platform roles)
+- `assignedAt`: Timestamp
+- `assignedBy`: FK to User (audit trail)
+
+## Frontend Integration
+
+When implementing permission-aware UI:
+
+1. Fetch user permissions from `/api/roles/me`
+2. Use permission checks to show/hide UI elements
+3. Always validate on the backend (frontend checks are for UX only)
+
+```typescript
+// Example React hook usage
+const { permissions } = useUserPermissions();
+const canCreateProject = permissions.includes('project:create') || 
+                         permissions.includes('project:*') || 
+                         permissions.includes('*');
+```
+
+## Platform Permissions (Internal Users)
+
+The system supports internal platform users (Leap employees) who can access any company in the system. These users have **platform roles** with a `companyAccessLevel` that determines their access within companies.
+
+### User Types
+
+```typescript
+export enum UserType {
+  COMPANY = 'company',   // Regular company user (belongs to one company)
+  INTERNAL = 'internal', // Internal platform user (can access any company)
+}
+```
+
+### Platform Role Access Levels
+
+```typescript
+export enum CompanyAccessLevel {
+  FULL = 'full',           // SuperUser-level access in any company
+  READ_ONLY = 'read_only', // Can view all data but cannot modify
+  CUSTOM = 'custom',       // Uses specific permissions defined in the role
+}
+```
+
+### Platform Permissions
+
+Platform permissions are prefixed with `platform:` and apply only to internal users:
+
+```typescript
+// Platform-level permissions (internal users only)
+PLATFORM_ADMIN: 'platform:admin',
+PLATFORM_VIEW_COMPANIES: 'platform:view_companies',
+PLATFORM_SWITCH_COMPANY: 'platform:switch_company',
+PLATFORM_VIEW_AUDIT_LOGS: 'platform:view_audit_logs',
+PLATFORM_MANAGE_INTERNAL_USERS: 'platform:manage_internal_users',
+```
+
+### Default Platform Roles
+
+| Role | Company Access | Description |
+|------|---------------|-------------|
+| `platformAdmin` | FULL | Full superUser access in any company |
+| `platformSupport` | READ_ONLY | Read-only access for customer support |
+| `platformDeveloper` | CUSTOM | Developer access with specific read permissions |
+
+### Protecting Platform Routes
+
+Use `requireInternalUser()` middleware for routes that should only be accessible to internal users:
+
+```typescript
+import { requireAuth, requireInternalUser, requirePermission } from '../middleware';
+import { PERMISSIONS } from '../lib/permissions';
+
+// Platform routes (internal users only)
+router.get(
+  '/companies',
+  requireAuth(),
+  requireInternalUser(),
+  requirePermission(PERMISSIONS.PLATFORM_VIEW_COMPANIES),
+  handler
+);
+
+// Switch company (internal users only)
+router.post(
+  '/switch-company',
+  requireAuth(),
+  requireInternalUser(),
+  requirePermission(PERMISSIONS.PLATFORM_SWITCH_COMPANY),
+  handler
+);
+```
+
+### Company Context for Internal Users
+
+Internal users must "switch" to a company before accessing company-scoped resources:
+
+```typescript
+// Use requireCompanyContext() to ensure a company is selected
+router.get(
+  '/customers',
+  requireAuth(),
+  requireCompanyContext(), // Ensures internal user has selected a company
+  requirePermission(PERMISSIONS.CUSTOMER_READ),
+  handler
+);
+```
+
+### Permission Checking for Internal Users
+
+The `PermissionService` handles both user types automatically:
+
+```typescript
+// Universal permission check (works for both company and internal users)
+const hasAccess = await permissionService.checkPermission(
+  userId,
+  'customer:read',
+  companyId,
+);
+
+// For internal users, this checks their companyAccessLevel:
+// - FULL: Returns true for any permission
+// - READ_ONLY: Returns true for :read permissions only
+// - CUSTOM: Checks the specific permissions in their role
+```
+
+### Internal User API Routes
+
+```
+GET    /api/platform/companies        - List all companies
+GET    /api/platform/companies/:id    - Get company details
+POST   /api/platform/switch-company   - Switch active company
+GET    /api/platform/active-company   - Get current company
+DELETE /api/platform/active-company   - Exit company context
+
+GET    /api/internal-users            - List internal users
+POST   /api/internal-users            - Create internal user
+GET    /api/internal-users/:id        - Get internal user
+PATCH  /api/internal-users/:id        - Update internal user
+DELETE /api/internal-users/:id        - Delete internal user
+GET    /api/internal-users/roles      - List platform roles
+```
+
+## Security Considerations
+
+1. **Backend is authoritative**: Frontend permission checks are for UX; always enforce on backend
+2. **Principle of least privilege**: Default roles should have minimal permissions
+3. **No permission escalation**: Users cannot assign permissions they don't have
+4. **Audit trail**: Track who assigned roles and when via UserRole.assignedBy
+5. **Multi-tenant isolation**: Roles are scoped to companies (except system roles)
+6. **Platform permissions isolation**: Platform permissions can ONLY be assigned to internal users
+7. **Company context required**: Internal users must select a company to access company resources
+8. **Internal user logging**: All company switches by internal users should be logged for audit

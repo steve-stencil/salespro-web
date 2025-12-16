@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 import { env } from './env';
 
 import type { SessionOptions } from 'express-session';
@@ -37,6 +39,8 @@ export function getSessionOptions(): Omit<SessionOptions, 'store'> {
     resave: false,
     saveUninitialized: false,
     rolling: true, // Reset expiration on each request
+    // Generate UUID session IDs (required for our PostgreSQL sid column)
+    genid: () => crypto.randomUUID(),
     cookie: {
       httpOnly: true,
       secure: isProduction, // HTTPS only in production

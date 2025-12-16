@@ -8,7 +8,7 @@ import {
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
-import { RoleType } from './types';
+import { RoleType, CompanyAccessLevel } from './types';
 
 import type { Company } from './Company.entity';
 
@@ -46,6 +46,17 @@ export class Role {
   type: RoleType = RoleType.COMPANY;
 
   /**
+   * For PLATFORM roles: defines the access level within any company.
+   * - FULL: SuperUser-level access (can do everything)
+   * - READ_ONLY: Can view all data but cannot modify
+   * - CUSTOM: Uses specific permissions defined in this role
+   *
+   * Only applicable for roles with type=PLATFORM. Null for other role types.
+   */
+  @Enum({ items: () => CompanyAccessLevel, nullable: true })
+  companyAccessLevel?: CompanyAccessLevel;
+
+  /**
    * Company this role belongs to.
    * Null for system-wide roles that are available to all companies.
    */
@@ -79,5 +90,12 @@ export class Role {
    */
   get isSystemRole(): boolean {
     return this.type === RoleType.SYSTEM;
+  }
+
+  /**
+   * Check if this is a platform role (for internal users)
+   */
+  get isPlatformRole(): boolean {
+    return this.type === RoleType.PLATFORM;
   }
 }

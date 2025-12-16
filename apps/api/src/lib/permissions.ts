@@ -47,6 +47,17 @@ export const PERMISSIONS = {
   // Company (admin-level)
   COMPANY_READ: 'company:read',
   COMPANY_UPDATE: 'company:update',
+
+  // ==================================
+  // Platform Permissions (Internal Users Only)
+  // ==================================
+
+  // Platform administration
+  PLATFORM_ADMIN: 'platform:admin',
+  PLATFORM_VIEW_COMPANIES: 'platform:view_companies',
+  PLATFORM_SWITCH_COMPANY: 'platform:switch_company',
+  PLATFORM_VIEW_AUDIT_LOGS: 'platform:view_audit_logs',
+  PLATFORM_MANAGE_INTERNAL_USERS: 'platform:manage_internal_users',
 } as const;
 
 /**
@@ -202,6 +213,33 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     category: 'Company',
     description: 'Update company profile and subscription settings',
   },
+
+  // Platform (Internal Users Only)
+  'platform:admin': {
+    label: 'Platform Admin',
+    category: 'Platform',
+    description: 'Full platform administration access (internal users only)',
+  },
+  'platform:view_companies': {
+    label: 'View All Companies',
+    category: 'Platform',
+    description: 'View list of all companies in the platform',
+  },
+  'platform:switch_company': {
+    label: 'Switch Company',
+    category: 'Platform',
+    description: 'Switch active company context (internal users only)',
+  },
+  'platform:view_audit_logs': {
+    label: 'View Audit Logs',
+    category: 'Platform',
+    description: 'Access platform-wide audit and activity logs',
+  },
+  'platform:manage_internal_users': {
+    label: 'Manage Internal Users',
+    category: 'Platform',
+    description: 'Create, edit, and manage internal platform users',
+  },
 };
 
 /**
@@ -312,4 +350,40 @@ export function expandWildcard(pattern: string): Permission[] {
   }
 
   return [];
+}
+
+// ==================================
+// Platform Permission Helpers
+// ==================================
+
+/**
+ * Check if a permission is a platform-level permission.
+ * Platform permissions are prefixed with 'platform:'.
+ */
+export function isPlatformPermission(permission: string): boolean {
+  return permission.startsWith('platform:');
+}
+
+/**
+ * Get all platform permissions.
+ * These are only applicable to internal users.
+ */
+export function getPlatformPermissions(): Permission[] {
+  return getAllPermissions().filter(p => isPlatformPermission(p));
+}
+
+/**
+ * Get all company/resource permissions (non-platform).
+ * These are the permissions that apply to actions within a company.
+ */
+export function getCompanyPermissions(): Permission[] {
+  return getAllPermissions().filter(p => !isPlatformPermission(p));
+}
+
+/**
+ * Get all read-only permissions (all :read actions).
+ * Used for platform roles with READ_ONLY access level.
+ */
+export function getReadOnlyPermissions(): Permission[] {
+  return getCompanyPermissions().filter(p => p.endsWith(':read'));
 }

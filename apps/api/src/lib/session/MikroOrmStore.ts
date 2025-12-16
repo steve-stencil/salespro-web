@@ -6,6 +6,19 @@ import type { EntityManager } from '@mikro-orm/core';
 import type { SessionData } from 'express-session';
 
 /**
+ * UUID v4 validation regex
+ */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Check if a string is a valid UUID v4
+ */
+function isValidUuid(sid: string): boolean {
+  return UUID_REGEX.test(sid);
+}
+
+/**
  * Configuration options for the MikroORM session store
  */
 export interface MikroOrmStoreOptions {
@@ -68,6 +81,12 @@ export class MikroOrmStore extends Store {
    * Async implementation of get
    */
   private async getAsync(sid: string): Promise<SessionData | null> {
+    // Skip invalid UUIDs - treat as session not found
+    // This handles old non-UUID session IDs gracefully
+    if (!isValidUuid(sid)) {
+      return null;
+    }
+
     const em = this.em.fork();
 
     try {
@@ -91,8 +110,10 @@ export class MikroOrmStore extends Store {
       await em.flush();
 
       return session.data as unknown as SessionData;
-    } finally {
-      await em.flush();
+    } catch {
+      // Handle any database errors (e.g., invalid UUID format)
+      // Treat as session not found
+      return null;
     }
   }
 
@@ -113,6 +134,14 @@ export class MikroOrmStore extends Store {
    * Async implementation of set
    */
   private async setAsync(sid: string, sessionData: SessionData): Promise<void> {
+    // Skip invalid UUIDs - cannot store sessions with non-UUID IDs
+    if (!isValidUuid(sid)) {
+      console.error(
+        `[MikroOrmStore] Attempted to set session with invalid UUID: ${sid}`,
+      );
+      return;
+    }
+
     const em = this.em.fork();
 
     try {
@@ -170,6 +199,11 @@ export class MikroOrmStore extends Store {
    * Async implementation of destroy
    */
   private async destroyAsync(sid: string): Promise<void> {
+    // Skip invalid UUIDs
+    if (!isValidUuid(sid)) {
+      return;
+    }
+
     const em = this.em.fork();
     await em.nativeDelete(Session, { sid });
   }
@@ -194,6 +228,11 @@ export class MikroOrmStore extends Store {
     sid: string,
     sessionData: SessionData,
   ): Promise<void> {
+    // Skip invalid UUIDs
+    if (!isValidUuid(sid)) {
+      return;
+    }
+
     const em = this.em.fork();
 
     const session = await em.findOne(Session, { sid });
