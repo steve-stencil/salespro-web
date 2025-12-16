@@ -3,6 +3,7 @@ import { Router } from 'express';
 import authRoutes from './auth';
 import fileRoutes from './files';
 import internalUserRoutes from './internal-users';
+import inviteRoutes from './invites';
 import oauthRoutes from './oauth';
 import officeRoutes from './offices';
 import platformRoutes from './platform';
@@ -30,6 +31,12 @@ r.use('/roles', roleRoutes);
 
 // User management routes
 r.use('/users', userRoutes);
+
+// User invite management routes (protected)
+r.use('/users/invites', inviteRoutes);
+
+// Public invite routes (validate and accept)
+r.use('/invites', inviteRoutes);
 
 // Office management routes
 r.use('/offices', officeRoutes);

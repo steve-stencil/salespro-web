@@ -1,6 +1,6 @@
 /**
  * Users API service.
- * Provides methods for user management including office access.
+ * Provides methods for user management including office access and invites.
  */
 import { apiClient } from '../lib/api-client';
 
@@ -14,6 +14,14 @@ import type {
   SetCurrentOfficeResponse,
   UpdateUserRequest,
   UsersListParams,
+  InvitesListResponse,
+  InvitesListParams,
+  CreateInviteRequest,
+  CreateInviteResponse,
+  ResendInviteResponse,
+  ValidateInviteResponse,
+  AcceptInviteRequest,
+  AcceptInviteResponse,
 } from '../types/users';
 
 /**
@@ -109,5 +117,68 @@ export const usersApi = {
       `/users/${userId}/current-office`,
       { officeId },
     );
+  },
+
+  // ==========================================================================
+  // Invite Methods
+  // ==========================================================================
+
+  /**
+   * Get paginated list of pending invites for the company.
+   */
+  listInvites: async (
+    params?: InvitesListParams,
+  ): Promise<InvitesListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+
+    const query = searchParams.toString();
+    const endpoint = query ? `/users/invites?${query}` : '/users/invites';
+    return apiClient.get<InvitesListResponse>(endpoint);
+  },
+
+  /**
+   * Send a new user invitation.
+   */
+  sendInvite: async (data: CreateInviteRequest): Promise<CreateInviteResponse> => {
+    return apiClient.post<CreateInviteResponse>('/users/invites', data);
+  },
+
+  /**
+   * Revoke a pending invitation.
+   */
+  revokeInvite: async (inviteId: string): Promise<{ message: string }> => {
+    return apiClient.delete<{ message: string }>(`/users/invites/${inviteId}`);
+  },
+
+  /**
+   * Resend an invitation email with a new token.
+   */
+  resendInvite: async (inviteId: string): Promise<ResendInviteResponse> => {
+    return apiClient.post<ResendInviteResponse>(
+      `/users/invites/${inviteId}/resend`,
+    );
+  },
+};
+
+/**
+ * Public invite API methods (no authentication required).
+ */
+export const inviteApi = {
+  /**
+   * Validate an invitation token.
+   */
+  validateToken: async (token: string): Promise<ValidateInviteResponse> => {
+    return apiClient.get<ValidateInviteResponse>(
+      `/invites/validate?token=${encodeURIComponent(token)}`,
+    );
+  },
+
+  /**
+   * Accept an invitation and create user account.
+   */
+  accept: async (data: AcceptInviteRequest): Promise<AcceptInviteResponse> => {
+    return apiClient.post<AcceptInviteResponse>('/invites/accept', data);
   },
 };
