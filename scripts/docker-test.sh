@@ -19,7 +19,7 @@ docker compose -f docker-compose.test.yml up -d
 
 echo "✅ Test environment is ready!"
 echo "📝 Services available:"
-echo "  - Test MongoDB: localhost:27018"
+echo "  - Test PostgreSQL: localhost:5433"
 echo "  - Test API: localhost:4001"
 echo ""
 echo "🛑 To stop: docker compose -f docker-compose.test.yml down"

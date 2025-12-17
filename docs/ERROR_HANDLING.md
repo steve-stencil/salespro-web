@@ -1,6 +1,6 @@
 # Error Handling Guide
 
-This guide explains the comprehensive error handling system implemented in this MERN monorepo project, designed to provide user-friendly error messages and help AI agents understand and resolve issues effectively.
+This guide explains the comprehensive error handling system implemented in SalesPro Web, designed to provide user-friendly error messages and help AI agents understand and resolve issues effectively.
 
 ## Overview
 

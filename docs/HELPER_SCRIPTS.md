@@ -1,6 +1,6 @@
 # Helper Scripts Documentation
 
-This document describes the helper scripts available for AI agents and developers working with this MERN monorepo project.
+This document describes the helper scripts available for AI agents and developers working with SalesPro Web.
 
 ## Overview
 

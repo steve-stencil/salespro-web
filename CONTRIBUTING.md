@@ -1,6 +1,6 @@
-# Contributing to MERN Monorepo Skeleton
+# Contributing to SalesPro Web
 
-Thank you for your interest in contributing to this MERN monorepo skeleton! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to SalesPro Web! This document provides guidelines for contributing to the project.
 
 ## Development Setup
 
@@ -172,16 +172,19 @@ pnpm --filter @shared/core test
 
 ```typescript
 // Mock external dependencies
-vi.mock("mongoose", () => ({
-  connect: vi.fn(),
-  connection: { readyState: 0 },
+vi.mock('@mikro-orm/core', () => ({
+  MikroORM: {
+    init: vi.fn(),
+  },
 }));
 
 // Mock environment variables
-process.env.NODE_ENV = "test";
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL =
+  'postgresql://postgres:postgres@localhost:5433/salespro_test';
 
 // Mock API responses
-vi.mock("../api", () => ({
+vi.mock('../api', () => ({
   getUsers: vi.fn().mockResolvedValue([]),
 }));
 ```

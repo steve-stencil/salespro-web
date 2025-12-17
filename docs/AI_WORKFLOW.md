@@ -1,6 +1,6 @@
 # AI Agent Workflow
 
-This document defines the mandatory workflow for AI agents working on this MERN monorepo project to ensure consistent quality and prevent errors.
+This document defines the mandatory workflow for AI agents working on SalesPro Web to ensure consistent quality and prevent errors.
 
 ## Mandatory Workflow Steps
 
