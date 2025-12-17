@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { Role, RoleType, User, Company, UserRole } from '../entities';
+import { UserType } from '../entities/types';
 import { getORM } from '../lib/db';
 import {
   PERMISSIONS,
@@ -182,7 +183,13 @@ router.get(
       const em = orm.em.fork();
       const permissionService = new PermissionService(em);
 
-      const roles = await permissionService.getAvailableRoles(user.company.id);
+      let roles = await permissionService.getAvailableRoles(user.company.id);
+
+      // Filter out platform roles for non-internal users
+      // Platform roles should only be visible to internal platform users
+      if ((user.userType as UserType) !== UserType.INTERNAL) {
+        roles = roles.filter(r => (r.type as RoleType) !== RoleType.PLATFORM);
+      }
 
       // Get user counts for each role
       const roleCounts = await Promise.all(

@@ -312,6 +312,129 @@ Company (SalesPro Demo Company)
 - Use strong, unique passwords
 - Enable MFA for admin accounts
 
+---
+
+## Internal Platform User Seeding
+
+For development and testing of platform-level features (like managing platform roles), you can seed an internal platform user.
+
+### What is an Internal Platform User?
+
+Internal platform users (`userType: 'internal'`) are different from regular company users:
+
+- Can switch between and access multiple companies
+- Can view and manage **Platform Roles**
+- Have platform-level permissions (e.g., `platform:admin`, `platform:view_companies`)
+
+Regular company users (`userType: 'company'`) cannot see platform roles, even if they have superuser (`*`) permissions.
+
+### Quick Start
+
+```bash
+# From the monorepo root
+pnpm --filter api db:seed-internal-user
+
+# Or from apps/api directory
+pnpm db:seed-internal-user
+```
+
+### Default Internal User Data
+
+#### Company
+
+| Field             | Value               |
+| ----------------- | ------------------- |
+| Name              | Platform Operations |
+| Tier              | Enterprise          |
+| Max Seats         | 100                 |
+| Sessions per User | 10                  |
+
+#### Office
+
+| Field | Value       |
+| ----- | ----------- |
+| Name  | Platform HQ |
+
+#### Platform Role
+
+| Field        | Value                  |
+| ------------ | ---------------------- |
+| Name         | platformAdmin          |
+| Display Name | Platform Administrator |
+| Access Level | Full                   |
+| Type         | Platform               |
+
+#### Internal User
+
+| Field          | Value                   |
+| -------------- | ----------------------- |
+| Email          | `platform@salespro.dev` |
+| Password       | `PlatformAdmin123!`     |
+| Name           | Platform Admin          |
+| User Type      | `internal`              |
+| Email Verified | Yes                     |
+
+> ⚠️ **Security Warning**: Change the default password immediately in production environments!
+
+### Custom Internal User Credentials
+
+You can provide custom email and password:
+
+**Using CLI arguments:**
+
+```bash
+pnpm --filter api db:seed-internal-user --email admin@platform.dev --password MySecurePass123!
+```
+
+**Using environment variables:**
+
+```bash
+SEED_INTERNAL_EMAIL=admin@platform.dev SEED_INTERNAL_PASSWORD=MySecurePass123! pnpm --filter api db:seed-internal-user
+```
+
+**Priority order:** CLI args > Environment variables > Defaults
+
+| Method  | Email Variable        | Password Variable        |
+| ------- | --------------------- | ------------------------ |
+| CLI     | `--email`             | `--password`             |
+| Env Var | `SEED_INTERNAL_EMAIL` | `SEED_INTERNAL_PASSWORD` |
+
+### Force Reseed Internal User
+
+If internal user data already exists, you can force a reseed:
+
+```bash
+pnpm --filter api db:seed-internal-user:force
+```
+
+With custom credentials:
+
+```bash
+pnpm --filter api db:seed-internal-user:force --email newemail@platform.dev --password NewPass123!
+```
+
+### What Gets Created
+
+The seed script creates:
+
+```
+Company (Platform Operations)
+├── Office (Platform HQ)
+└── User (platform@salespro.dev)
+    ├── userType: internal
+    ├── Platform Role Assignment (platformAdmin)
+    └── Office Assignment (Platform HQ)
+```
+
+### Use Cases
+
+1. **Testing Platform Roles** - See and manage platform-level roles in the Roles page
+2. **Multi-Company Access** - Test switching between companies
+3. **Platform Administration** - Manage internal users and company access
+4. **Development** - Full platform access for debugging
+
+---
+
 ## Related Documentation
 
 - [Development Guide](./DEVELOPMENT.md)

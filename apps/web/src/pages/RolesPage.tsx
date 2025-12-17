@@ -30,6 +30,7 @@ import { RequirePermission } from '../components/PermissionGuard';
 import { RoleCard } from '../components/roles/RoleCard';
 import { RoleDetailDialog } from '../components/roles/RoleDetailDialog';
 import { RoleEditDialog } from '../components/roles/RoleEditDialog';
+import { useAuth } from '../hooks/useAuth';
 import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
 import { useRolesList, useDeleteRole } from '../hooks/useRoles';
 import { handleApiError } from '../lib/api-client';
@@ -87,12 +88,14 @@ export function RolesPage(): React.ReactElement {
   const { data: rolesData, isLoading, refetch } = useRolesList();
   const deleteRoleMutation = useDeleteRole();
   const { hasPermission } = useUserPermissions();
+  const { user } = useAuth();
 
   // Permission flags for UI rendering
   const canCreateRole = hasPermission(PERMISSIONS.ROLE_CREATE);
   const canUpdateRole = hasPermission(PERMISSIONS.ROLE_UPDATE);
   const canDeleteRole = hasPermission(PERMISSIONS.ROLE_DELETE);
-  const canViewPlatformRoles = hasPermission(PERMISSIONS.PLATFORM_ADMIN);
+  // Use user type instead of permission check - only internal users can view platform roles
+  const canViewPlatformRoles = user?.userType === 'internal';
 
   // Filter and sort roles
   const filteredRoles = useMemo(() => {
