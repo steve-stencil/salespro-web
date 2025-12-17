@@ -128,6 +128,34 @@ Before marking any task complete, verify:
 - [ ] Error handling is implemented
 - [ ] Tests pass (if applicable)
 
+## Documentation Quality Gate
+
+**In addition to code quality, verify documentation is complete:**
+
+### Documentation Checklist
+
+- [ ] **New folders** have README.md files
+- [ ] **Changed folders** have updated README.md files
+- [ ] **New entities** documented in `apps/api/src/entities/README.md`
+- [ ] **New routes** documented in `apps/api/src/routes/README.md`
+- [ ] **New components** documented in `apps/web/src/components/README.md`
+- [ ] **New hooks** documented in `apps/web/src/hooks/README.md`
+- [ ] **Environment changes** documented in README.md files
+- [ ] **Complex code** has inline explanatory comments
+- [ ] **Public functions** have JSDoc comments
+- [ ] **API changes** have updated documentation
+
+### When to Create ADRs
+
+Create an Architecture Decision Record (`docs/adr/ADR-XXX-*.md`) when:
+
+- Choosing between competing technologies
+- Making significant architectural changes
+- Implementing new patterns or conventions
+- Making breaking changes to existing patterns
+
+See `.cursor/rules/self-improvement.mdc` for complete documentation guidelines.
+
 ### Consequences of Skipping
 
 **NEVER skip linting checks because**:
@@ -142,3 +170,5 @@ Before marking any task complete, verify:
 ### Remember
 
 **Quality is not negotiable. Every line of code must meet the project's standards before task completion.**
+
+**Good documentation is part of the deliverable. Code without documentation is incomplete.**
