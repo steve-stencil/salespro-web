@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { SESSION_DURATIONS } from '../../config/session';
 import { getORM } from '../../lib/db';
 import {
   sendMfaCode,
@@ -191,19 +192,43 @@ router.post('/mfa/verify', async (req: Request, res: Response) => {
       return;
     }
 
-    // Clear pending MFA from database session and mark as verified
+    // Clear pending MFA from database session, mark as verified, and extend expiration
+    let cookieMaxAge = SESSION_DURATIONS.DEFAULT;
     if (sessionId) {
       const em = orm.em.fork();
       const { Session } = await import('../../entities');
       const session = await em.findOne(Session, { sid: sessionId });
       if (session) {
         const data = { ...session.data };
+        const rememberMe = data['rememberMe'] === true;
         delete data['pendingMfaUserId'];
+        delete data['rememberMe'];
         session.data = data;
         session.mfaVerified = true;
+
+        // Extend session expiration based on rememberMe flag
+        const now = new Date();
+        const sessionDuration = rememberMe
+          ? SESSION_DURATIONS.REMEMBER_ME
+          : SESSION_DURATIONS.DEFAULT;
+        session.expiresAt = new Date(now.getTime() + sessionDuration);
+        session.absoluteExpiresAt = new Date(
+          now.getTime() + SESSION_DURATIONS.ABSOLUTE_MAX,
+        );
+        cookieMaxAge = sessionDuration;
+
         await em.flush();
       }
     }
+
+    // Set updated session cookie with correct expiration
+    res.cookie('sid', sessionId, {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'lax',
+      maxAge: cookieMaxAge,
+      path: '/',
+    });
 
     res.status(200).json({
       message: 'MFA verification successful',
@@ -268,19 +293,43 @@ router.post('/mfa/verify-recovery', async (req: Request, res: Response) => {
       return;
     }
 
-    // Clear pending MFA from database session and mark as verified
+    // Clear pending MFA from database session, mark as verified, and extend expiration
+    let cookieMaxAge = SESSION_DURATIONS.DEFAULT;
     if (sessionId) {
       const em = orm.em.fork();
       const { Session } = await import('../../entities');
       const session = await em.findOne(Session, { sid: sessionId });
       if (session) {
         const data = { ...session.data };
+        const rememberMe = data['rememberMe'] === true;
         delete data['pendingMfaUserId'];
+        delete data['rememberMe'];
         session.data = data;
         session.mfaVerified = true;
+
+        // Extend session expiration based on rememberMe flag
+        const now = new Date();
+        const sessionDuration = rememberMe
+          ? SESSION_DURATIONS.REMEMBER_ME
+          : SESSION_DURATIONS.DEFAULT;
+        session.expiresAt = new Date(now.getTime() + sessionDuration);
+        session.absoluteExpiresAt = new Date(
+          now.getTime() + SESSION_DURATIONS.ABSOLUTE_MAX,
+        );
+        cookieMaxAge = sessionDuration;
+
         await em.flush();
       }
     }
+
+    // Set updated session cookie with correct expiration
+    res.cookie('sid', sessionId, {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'lax',
+      maxAge: cookieMaxAge,
+      path: '/',
+    });
 
     res.status(200).json({
       message: 'Recovery code verification successful',

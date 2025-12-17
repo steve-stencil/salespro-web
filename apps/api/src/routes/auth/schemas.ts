@@ -9,6 +9,8 @@ declare module 'express-session' {
     userId?: string | undefined;
     companyId?: string | undefined;
     pendingMfaUserId?: string | undefined;
+    /** Used to extend session after MFA verification */
+    rememberMe?: boolean | undefined;
   }
 }
 

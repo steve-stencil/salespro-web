@@ -1041,4 +1041,335 @@ describe('MFA Routes Integration Tests', () => {
       expect(sessionAfter?.mfaVerified).toBe(true);
     });
   });
+
+  describe('Session Expiration After MFA Verification', () => {
+    /**
+     * Helper to parse session ID from cookie
+     */
+    function parseSessionId(cookies: string[]): string | undefined {
+      const sessionCookie = cookies.find((c: string) => c.startsWith('sid='));
+      if (!sessionCookie) return undefined;
+
+      const sidMatch = sessionCookie.match(/sid=([^;]+)/);
+      let sidValue = sidMatch?.[1];
+
+      // Handle URL-encoded signed cookies (s%3AUUID.signature)
+      if (sidValue?.startsWith('s%3A')) {
+        sidValue = decodeURIComponent(sidValue).slice(2).split('.')[0];
+      } else if (sidValue?.startsWith('s:')) {
+        sidValue = sidValue.slice(2).split('.')[0];
+      }
+
+      return sidValue;
+    }
+
+    /**
+     * Helper to extract max-age from cookie
+     */
+    function parseCookieMaxAge(cookies: string[]): number | undefined {
+      const sessionCookie = cookies.find((c: string) => c.startsWith('sid='));
+      if (!sessionCookie) return undefined;
+
+      const maxAgeMatch = sessionCookie.match(/max-age=(\d+)/i);
+      const maxAgeValue = maxAgeMatch?.[1];
+      return maxAgeValue ? parseInt(maxAgeValue, 10) * 1000 : undefined;
+    }
+
+    it('should extend session expiration to 7 days after MFA verification (default)', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login without rememberMe
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+        rememberMe: false,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+      const sessionId = parseSessionId(loginCookies);
+      expect(sessionId).toBeDefined();
+
+      // Verify MFA
+      if (code) {
+        const verifyResponse = await makeRequest()
+          .post('/api/auth/mfa/verify')
+          .set('Cookie', loginCookies)
+          .send({ code });
+
+        expect(verifyResponse.status).toBe(200);
+
+        // Check session expiration was extended to 7 days
+        const emAfter = orm.em.fork();
+        const sessionAfter = await emAfter.findOne(Session, { sid: sessionId });
+        expect(sessionAfter).toBeDefined();
+
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const expiryDiff = sessionAfter!.expiresAt.getTime() - now;
+
+        // Should be approximately 7 days (with some tolerance)
+        expect(expiryDiff).toBeGreaterThan(sevenDays - 60000); // Within 1 minute
+        expect(expiryDiff).toBeLessThanOrEqual(sevenDays + 1000);
+
+        // Check cookie max-age was updated
+        const verifyCookies = Array.isArray(
+          verifyResponse.headers['set-cookie'],
+        )
+          ? verifyResponse.headers['set-cookie']
+          : [];
+        const cookieMaxAge = parseCookieMaxAge(verifyCookies);
+        expect(cookieMaxAge).toBe(sevenDays);
+      }
+    });
+
+    it('should extend session expiration to 30 days after MFA verification with rememberMe', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login with rememberMe
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+        rememberMe: true,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+      const sessionId = parseSessionId(loginCookies);
+
+      // Verify MFA
+      if (code) {
+        const verifyResponse = await makeRequest()
+          .post('/api/auth/mfa/verify')
+          .set('Cookie', loginCookies)
+          .send({ code });
+
+        expect(verifyResponse.status).toBe(200);
+
+        // Check session expiration was extended to 30 days
+        const emAfter = orm.em.fork();
+        const sessionAfter = await emAfter.findOne(Session, { sid: sessionId });
+        expect(sessionAfter).toBeDefined();
+
+        const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const expiryDiff = sessionAfter!.expiresAt.getTime() - now;
+
+        // Should be approximately 30 days (with some tolerance)
+        expect(expiryDiff).toBeGreaterThan(thirtyDays - 60000); // Within 1 minute
+        expect(expiryDiff).toBeLessThanOrEqual(thirtyDays + 1000);
+
+        // Check cookie max-age was updated to 30 days
+        const verifyCookies = Array.isArray(
+          verifyResponse.headers['set-cookie'],
+        )
+          ? verifyResponse.headers['set-cookie']
+          : [];
+        const cookieMaxAge = parseCookieMaxAge(verifyCookies);
+        expect(cookieMaxAge).toBe(thirtyDays);
+      }
+    });
+
+    it('should set absoluteExpiresAt to 30 days after MFA verification', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+      const sessionId = parseSessionId(loginCookies);
+
+      // Verify MFA
+      if (code) {
+        await makeRequest()
+          .post('/api/auth/mfa/verify')
+          .set('Cookie', loginCookies)
+          .send({ code });
+
+        // Check absoluteExpiresAt was set to 30 days
+        const emAfter = orm.em.fork();
+        const sessionAfter = await emAfter.findOne(Session, { sid: sessionId });
+        expect(sessionAfter).toBeDefined();
+
+        const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const absoluteExpiryDiff =
+          sessionAfter!.absoluteExpiresAt.getTime() - now;
+
+        // Should be approximately 30 days
+        expect(absoluteExpiryDiff).toBeGreaterThan(thirtyDays - 60000);
+        expect(absoluteExpiryDiff).toBeLessThanOrEqual(thirtyDays + 1000);
+      }
+    });
+
+    it('should extend session expiration with recovery code verification', async () => {
+      // Enable MFA for the user and create recovery codes
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (!user) return;
+
+      // First login without MFA to enable it
+      const setupCookies = await loginAndGetCookies();
+
+      // Enable MFA
+      const enableResponse = await makeRequest()
+        .post('/api/auth/mfa/enable')
+        .set('Cookie', setupCookies);
+
+      if (enableResponse.status !== 200) {
+        // If MFA is already enabled or setup fails, skip test
+        return;
+      }
+
+      const recoveryCodes = enableResponse.body.recoveryCodes;
+      expect(recoveryCodes).toBeDefined();
+      expect(recoveryCodes.length).toBeGreaterThan(0);
+
+      // Logout
+      await makeRequest().post('/api/auth/logout').set('Cookie', setupCookies);
+
+      // Login with MFA required and rememberMe
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+        rememberMe: true,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const sessionId = parseSessionId(loginCookies);
+
+      // Verify with recovery code
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify-recovery')
+        .set('Cookie', loginCookies)
+        .send({ recoveryCode: recoveryCodes[0] });
+
+      expect(verifyResponse.status).toBe(200);
+
+      // Check session expiration was extended to 30 days
+      const emAfter = orm.em.fork();
+      const sessionAfter = await emAfter.findOne(Session, { sid: sessionId });
+      expect(sessionAfter).toBeDefined();
+
+      const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const expiryDiff = sessionAfter!.expiresAt.getTime() - now;
+
+      // Should be approximately 30 days
+      expect(expiryDiff).toBeGreaterThan(thirtyDays - 60000);
+      expect(expiryDiff).toBeLessThanOrEqual(thirtyDays + 1000);
+
+      // Check cookie max-age was updated
+      const verifyCookies = Array.isArray(verifyResponse.headers['set-cookie'])
+        ? verifyResponse.headers['set-cookie']
+        : [];
+      const cookieMaxAge = parseCookieMaxAge(verifyCookies);
+      expect(cookieMaxAge).toBe(thirtyDays);
+    });
+
+    it('should remove rememberMe flag from session data after verification', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login with rememberMe
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+        rememberMe: true,
+      });
+
+      expect(loginResponse.status).toBe(200);
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+      const sessionId = parseSessionId(loginCookies);
+
+      // Check session has rememberMe flag before verification
+      const emBefore = orm.em.fork();
+      const sessionBefore = await emBefore.findOne(Session, { sid: sessionId });
+      expect(sessionBefore?.data['rememberMe']).toBe(true);
+
+      // Verify MFA
+      if (code) {
+        await makeRequest()
+          .post('/api/auth/mfa/verify')
+          .set('Cookie', loginCookies)
+          .send({ code });
+
+        // Check rememberMe flag was removed from session data
+        const emAfter = orm.em.fork();
+        const sessionAfter = await emAfter.findOne(Session, { sid: sessionId });
+        expect(sessionAfter?.data['rememberMe']).toBeUndefined();
+        expect(sessionAfter?.data['pendingMfaUserId']).toBeUndefined();
+      }
+    });
+  });
 });

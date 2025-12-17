@@ -117,31 +117,36 @@ router.post('/login', async (req: Request, res: Response) => {
       const { Session } = await import('../../entities');
       const em = orm.em.fork();
 
-      // Check if session already exists (shouldn't, but just in case)
+      const now = new Date();
+      const mfaSessionExpiry = 10 * 60 * 1000; // 10 minutes for MFA verification
+
+      // Check if session already exists (created by express-session middleware)
       let session = await em.findOne(Session, { sid: sessionId });
       if (!session) {
-        const now = new Date();
-        const mfaSessionExpiry = 10 * 60 * 1000; // 10 minutes for MFA verification
-
         session = new Session();
         session.sid = sessionId;
-        session.expiresAt = new Date(now.getTime() + mfaSessionExpiry);
-        session.absoluteExpiresAt = new Date(now.getTime() + mfaSessionExpiry);
-        session.user = result.user;
-        session.company = result.user.company;
-        session.source = source; // source is already SessionSource enum from Zod
-        session.ipAddress = getClientIp(req);
-        session.userAgent = getUserAgent(req);
-        session.mfaVerified = false;
         session.createdAt = now;
-        session.lastActivityAt = now;
         em.persist(session);
       }
 
-      // Store pendingMfaUserId in session data (MikroORM entity)
+      // Always set MFA session properties (whether new or existing)
+      // This ensures short expiry even if express-session created the session first
+      session.expiresAt = new Date(now.getTime() + mfaSessionExpiry);
+      session.absoluteExpiresAt = new Date(now.getTime() + mfaSessionExpiry);
+      session.user = result.user;
+      session.company = result.user.company;
+      session.source = source;
+      session.ipAddress = getClientIp(req);
+      session.userAgent = getUserAgent(req);
+      session.mfaVerified = false;
+      session.lastActivityAt = now;
+
+      // Store pendingMfaUserId and rememberMe in session data (MikroORM entity)
+      // rememberMe is needed to extend session expiration after MFA verification
       session.data = {
         ...session.data,
         pendingMfaUserId: result.user.id,
+        rememberMe,
       };
       await em.flush();
 
@@ -149,6 +154,7 @@ router.post('/login', async (req: Request, res: Response) => {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (req.session) {
         req.session.pendingMfaUserId = result.user.id;
+        req.session.rememberMe = rememberMe;
       }
 
       // Send MFA code via email
