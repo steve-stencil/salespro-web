@@ -357,7 +357,7 @@ router.post(
         if (!userCompany) {
           res
             .status(403)
-            .json({ error: 'You do not have access to this company' });
+            .json({ error: 'No active membership for this company' });
           return;
         }
 
