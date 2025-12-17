@@ -102,8 +102,13 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     if (!result.success) {
-      const status =
-        result.errorCode === LoginErrorCode.ACCOUNT_LOCKED ? 423 : 401;
+      // Map error codes to appropriate HTTP status codes
+      let status = 401;
+      if (result.errorCode === LoginErrorCode.ACCOUNT_LOCKED) {
+        status = 423;
+      } else if (result.errorCode === LoginErrorCode.NO_ACTIVE_COMPANIES) {
+        status = 403;
+      }
       res.status(status).json({
         error: result.error,
         errorCode: result.errorCode,
@@ -183,11 +188,15 @@ router.post('/login', async (req: Request, res: Response) => {
         message: string;
         expiresIn?: number;
         code?: string;
+        activeCompany?: { id: string; name: string };
+        canSwitchCompanies?: boolean;
       } = {
         requiresMfa: true,
         message:
           'MFA verification required. A code has been sent to your email.',
         expiresIn: mfaResult.expiresIn,
+        activeCompany: result.activeCompany,
+        canSwitchCompanies: result.canSwitchCompanies,
       };
 
       // Include code in development mode for testing
@@ -204,7 +213,8 @@ router.post('/login', async (req: Request, res: Response) => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (result.user && req.session) {
       req.session.userId = result.user.id;
-      req.session.companyId = result.user.company?.id;
+      req.session.companyId =
+        result.activeCompany?.id ?? result.user.company?.id;
     }
 
     // Set session cookie manually since we created the session directly in DB
@@ -225,8 +235,11 @@ router.post('/login', async (req: Request, res: Response) => {
             email: result.user.email,
             nameFirst: result.user.nameFirst,
             nameLast: result.user.nameLast,
+            userType: result.user.userType,
           }
         : undefined,
+      activeCompany: result.activeCompany,
+      canSwitchCompanies: result.canSwitchCompanies,
     });
   } catch (err) {
     req.log.error({ err }, 'Login error');

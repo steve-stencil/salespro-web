@@ -5,6 +5,7 @@ import {
   LoginAttempt,
   LoginEventType,
   UserType,
+  UserCompany,
 } from '../../entities';
 import { verifyPassword } from '../../lib/crypto';
 
@@ -12,8 +13,8 @@ import { LOCKOUT_CONFIG } from './config';
 import { logLoginEvent } from './events';
 import { LoginErrorCode } from './types';
 
-import type { LoginParams, LoginResult } from './types';
-import type { SessionSource } from '../../entities';
+import type { LoginParams, LoginResult, ActiveCompanyInfo } from './types';
+import type { Company, SessionSource } from '../../entities';
 import type { EntityManager } from '@mikro-orm/core';
 
 /**
@@ -108,11 +109,59 @@ export async function login(
     };
   }
 
-  if (user.mfaEnabled || user.company?.mfaRequired) {
+  // For company users, check for active company memberships
+  const userType = user.userType as UserType;
+  let activeCompany: Company | undefined;
+  let canSwitchCompanies = false;
+
+  if (userType === UserType.COMPANY) {
+    // Fetch active UserCompany memberships ordered by lastAccessedAt (most recent first)
+    const activeUserCompanies = await em.find(
+      UserCompany,
+      { user: user.id, isActive: true },
+      {
+        orderBy: { lastAccessedAt: 'DESC' },
+        populate: ['company'],
+      },
+    );
+
+    const firstMembership = activeUserCompanies[0];
+    if (!firstMembership) {
+      attempt.success = false;
+      attempt.failureReason = 'no_active_companies';
+      em.persist(attempt);
+      await em.flush();
+      return {
+        success: false,
+        error: 'No active company memberships',
+        errorCode: LoginErrorCode.NO_ACTIVE_COMPANIES,
+      };
+    }
+
+    // Auto-select the most recently accessed company
+    activeCompany = firstMembership.company;
+    canSwitchCompanies = activeUserCompanies.length > 1;
+
+    // Update lastAccessedAt for the selected company
+    firstMembership.lastAccessedAt = new Date();
+  } else {
+    // For internal users, use their home company if set
+    activeCompany = user.company;
+  }
+
+  if (user.mfaEnabled || activeCompany?.mfaRequired) {
     attempt.success = true;
     em.persist(attempt);
     await em.flush();
-    return { success: true, user, requiresMfa: true };
+    return {
+      success: true,
+      user,
+      requiresMfa: true,
+      activeCompany: activeCompany
+        ? { id: activeCompany.id, name: activeCompany.name }
+        : undefined,
+      canSwitchCompanies,
+    };
   }
 
   await handleSuccessfulLogin(em, user, sessionId, {
@@ -121,13 +170,23 @@ export async function login(
     userAgent,
     deviceId,
     rememberMe: params.rememberMe,
+    activeCompany,
   });
 
   attempt.success = true;
   em.persist(attempt);
   await em.flush();
 
-  return { success: true, user };
+  const activeCompanyInfo: ActiveCompanyInfo | undefined = activeCompany
+    ? { id: activeCompany.id, name: activeCompany.name }
+    : undefined;
+
+  return {
+    success: true,
+    user,
+    activeCompany: activeCompanyInfo,
+    canSwitchCompanies,
+  };
 }
 
 /**
@@ -144,9 +203,11 @@ export async function handleSuccessfulLogin(
     userAgent: string;
     deviceId?: string | undefined;
     rememberMe?: boolean | undefined;
+    activeCompany?: Company | undefined;
   },
 ): Promise<Session> {
-  const { source, ipAddress, userAgent, deviceId, rememberMe } = params;
+  const { source, ipAddress, userAgent, deviceId, rememberMe, activeCompany } =
+    params;
 
   await em.nativeDelete(Session, { user: user.id, source });
 
@@ -204,11 +265,11 @@ export async function handleSuccessfulLogin(
   }
   session.mfaVerified = !user.mfaEnabled;
 
-  // For internal users, auto-set activeCompany to their home company on login
-  // This provides a default company context so they can access company resources immediately
-  const userType = user.userType as UserType;
-  if (userType === UserType.INTERNAL && user.company) {
-    session.activeCompany = user.company;
+  // Set activeCompany on session for both company and internal users
+  // For company users, this is the most recently accessed company from UserCompany
+  // For internal users, this is their home company or the company passed during login
+  if (activeCompany) {
+    session.activeCompany = activeCompany;
   }
 
   user.failedLoginAttempts = 0;

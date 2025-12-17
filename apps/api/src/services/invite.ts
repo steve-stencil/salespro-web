@@ -1,6 +1,7 @@
 /**
  * Invite service for managing user invitations.
  * Handles creating, validating, accepting, revoking, and resending invites.
+ * Supports both new user invites and existing user invites (multi-company access).
  */
 import { env } from '../config/env';
 import {
@@ -9,9 +10,11 @@ import {
   Company,
   Office,
   UserOffice,
+  UserCompany,
   InviteStatus,
   LoginEventType,
   SessionSource,
+  UserType,
 } from '../entities';
 import { hashPassword, generateSecureToken, hashToken } from '../lib/crypto';
 import { emailService } from '../lib/email';
@@ -34,6 +37,8 @@ export type CreateInviteResult = {
   token?: string;
   /** Existing invite ID when duplicate detected */
   existingInviteId?: string;
+  /** True if the invite is for an existing user to join another company */
+  isExistingUserInvite?: boolean;
 };
 
 /** Result type for invite acceptance */
@@ -50,6 +55,8 @@ export type ValidateInviteResult = {
   companyName?: string;
   email?: string;
   error?: string;
+  /** True if this is an invite for an existing user to join an additional company */
+  isExistingUserInvite?: boolean;
 };
 
 /** Options for creating an invite */
@@ -80,7 +87,10 @@ export type AcceptInviteOptions = {
 };
 
 /**
- * Create and send a user invitation
+ * Create and send a user invitation.
+ * Supports two scenarios:
+ * 1. New user invite: User doesn't exist, will create account when accepting
+ * 2. Existing user invite: User already has account, will be added to new company
  */
 export async function createInvite(
   em: EntityManager,
@@ -109,14 +119,49 @@ export async function createInvite(
   }
 
   // Check if user already exists
-  const existingUser = await em.findOne(User, { email: normalizedEmail });
+  const existingUser = await em.findOne(User, {
+    email: normalizedEmail,
+    deletedAt: null,
+  });
+
+  // If user exists, check if they're already in this company
   if (existingUser) {
-    return { success: false, error: 'A user with this email already exists' };
+    // Only company users can be invited to additional companies
+    const userType = existingUser.userType as UserType;
+    if (userType !== UserType.COMPANY) {
+      return {
+        success: false,
+        error: 'Internal platform users cannot be invited to companies',
+      };
+    }
+
+    // Check if user is already a member of this company
+    const existingMembership = await em.findOne(UserCompany, {
+      user: existingUser.id,
+      company: companyId,
+    });
+
+    if (existingMembership) {
+      if (existingMembership.isActive) {
+        return {
+          success: false,
+          error: 'User is already a member of this company',
+        };
+      } else {
+        // User was previously deactivated in this company
+        return {
+          success: false,
+          error:
+            'User was previously deactivated in this company. Reactivate their access instead.',
+        };
+      }
+    }
   }
 
-  // Check for existing pending invite
+  // Check for existing pending invite for the same email AND company
   const existingInvite = await em.findOne(UserInvite, {
     email: normalizedEmail,
+    company: companyId,
     status: InviteStatus.PENDING,
   });
   if (existingInvite && existingInvite.isValid) {
@@ -175,6 +220,7 @@ export async function createInvite(
     roles,
     currentOffice,
     allowedOfficeIds,
+    existingUser: existingUser ?? undefined,
   });
 
   await em.persistAndFlush(invite);
@@ -191,15 +237,34 @@ export async function createInvite(
     );
   }
 
-  // Send email
-  await sendInviteEmailSafe(normalizedEmail, token, company.name, inviterName);
+  // Send email - different message for existing users
+  if (existingUser) {
+    await sendExistingUserInviteEmailSafe(
+      normalizedEmail,
+      token,
+      company.name,
+      inviterName,
+    );
+  } else {
+    await sendInviteEmailSafe(
+      normalizedEmail,
+      token,
+      company.name,
+      inviterName,
+    );
+  }
 
   // Return token in development for testing
   if (process.env['NODE_ENV'] === 'development') {
-    return { success: true, invite, token };
+    return {
+      success: true,
+      invite,
+      token,
+      isExistingUserInvite: !!existingUser,
+    };
   }
 
-  return { success: true, invite };
+  return { success: true, invite, isExistingUserInvite: !!existingUser };
 }
 
 /**
@@ -263,6 +328,7 @@ function createInviteEntity(
     roles: string[];
     currentOffice: Office;
     allowedOfficeIds: string[];
+    existingUser?: User;
   },
 ): UserInvite {
   const invite = new UserInvite();
@@ -277,6 +343,13 @@ function createInviteEntity(
     Date.now() + INVITE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000,
   );
   invite.status = InviteStatus.PENDING;
+
+  // Set existing user fields for multi-company invites
+  if (opts.existingUser) {
+    invite.isExistingUserInvite = true;
+    invite.existingUser = opts.existingUser;
+  }
+
   return invite;
 }
 
@@ -320,29 +393,66 @@ async function sendInviteEmailSafe(
       expiresInDays: INVITE_EXPIRATION_DAYS,
     });
   } catch (error) {
-    // Detect AWS SES sandbox mode errors and provide helpful guidance
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const isSandboxError =
-      errorMessage.includes('not verified') ||
-      errorMessage.includes('MessageRejected') ||
-      errorMessage.includes('failed the check');
+    handleEmailError(error, email);
+  }
+}
 
-    if (isSandboxError) {
-      console.error(
-        'AWS SES Error: Email addresses must be verified in SES sandbox mode.',
-        '\nSender:',
-        env.SES_FROM_EMAIL,
-        '\nRecipient:',
-        email,
-        '\nError:',
-        errorMessage,
-        '\n\nTo fix:',
-        '\n1. Verify both sender and recipient emails in AWS SES Console',
-        '\n2. Or request production access from AWS SES to exit sandbox mode',
-      );
-    } else {
-      console.error('Failed to send invite email:', error);
-    }
+/**
+ * Send invite email to an existing user (for joining an additional company)
+ */
+async function sendExistingUserInviteEmailSafe(
+  email: string,
+  token: string,
+  companyName: string,
+  inviterName: string,
+): Promise<void> {
+  if (!emailService.isConfigured()) {
+    return;
+  }
+
+  try {
+    // Use the same email template but with different subject/content indicating
+    // they're being invited to an additional company (not creating a new account)
+    await emailService.sendInviteEmail({
+      email,
+      token,
+      companyName,
+      inviterName,
+      expiresInDays: INVITE_EXPIRATION_DAYS,
+      // Pass additional context for existing users
+      isExistingUser: true,
+    });
+  } catch (error) {
+    handleEmailError(error, email);
+  }
+}
+
+/**
+ * Handle email sending errors with helpful error messages
+ */
+function handleEmailError(error: unknown, email: string): void {
+  // Detect AWS SES sandbox mode errors and provide helpful guidance
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const isSandboxError =
+    errorMessage.includes('not verified') ||
+    errorMessage.includes('MessageRejected') ||
+    errorMessage.includes('failed the check');
+
+  if (isSandboxError) {
+    console.error(
+      'AWS SES Error: Email addresses must be verified in SES sandbox mode.',
+      '\nSender:',
+      env.SES_FROM_EMAIL,
+      '\nRecipient:',
+      email,
+      '\nError:',
+      errorMessage,
+      '\n\nTo fix:',
+      '\n1. Verify both sender and recipient emails in AWS SES Console',
+      '\n2. Or request production access from AWS SES to exit sandbox mode',
+    );
+  } else {
+    console.error('Failed to send invite email:', error);
   }
 }
 
@@ -357,7 +467,7 @@ export async function validateInviteToken(
   const invite = await em.findOne(
     UserInvite,
     { tokenHash },
-    { populate: ['company', 'currentOffice', 'invitedBy'] },
+    { populate: ['company', 'currentOffice', 'invitedBy', 'existingUser'] },
   );
 
   if (!invite) {
@@ -382,11 +492,15 @@ export async function validateInviteToken(
     invite,
     companyName: invite.company.name,
     email: invite.email,
+    isExistingUserInvite: invite.isExistingUserInvite,
   };
 }
 
 /**
- * Accept an invite and create the user account
+ * Accept an invite and create the user account or add to company.
+ * Handles two scenarios:
+ * 1. New user invite: Creates new user account + UserCompany + roles + offices
+ * 2. Existing user invite: Creates UserCompany + roles + offices (no new user)
  */
 export async function acceptInvite(
   em: EntityManager,
@@ -402,24 +516,74 @@ export async function acceptInvite(
   }
 
   const invite = validation.invite;
+  let user: User;
 
-  // Double-check user doesn't exist
-  const existingUser = await em.findOne(User, { email: invite.email });
-  if (existingUser) {
-    return { success: false, error: 'A user with this email already exists' };
+  if (invite.isExistingUserInvite) {
+    // Existing user invite: Add user to new company
+    if (!invite.existingUser) {
+      return {
+        success: false,
+        error: 'Invalid invite: missing existing user reference',
+      };
+    }
+
+    // Verify the user still exists and is active
+    const existingUser = await em.findOne(User, {
+      id: invite.existingUser.id,
+      deletedAt: null,
+    });
+
+    if (!existingUser) {
+      return { success: false, error: 'User account no longer exists' };
+    }
+
+    if (!existingUser.isActive) {
+      return { success: false, error: 'User account is deactivated' };
+    }
+
+    // Create UserCompany record for the new company membership
+    const userCompany = new UserCompany();
+    userCompany.user = existingUser;
+    userCompany.company = invite.company;
+    userCompany.joinedAt = new Date();
+    userCompany.lastAccessedAt = new Date();
+    em.persist(userCompany);
+
+    // Assign roles for the new company
+    await assignInviteRoles(em, existingUser, invite);
+
+    // Assign office access for the new company
+    assignInviteOfficeAccess(em, existingUser, invite);
+
+    user = existingUser;
+  } else {
+    // New user invite: Create account
+    // Double-check user doesn't exist
+    const existingUser = await em.findOne(User, { email: invite.email });
+    if (existingUser) {
+      return { success: false, error: 'A user with this email already exists' };
+    }
+
+    // Create user
+    user = await createUserFromInvite(em, invite, password, {
+      nameFirst,
+      nameLast,
+    });
+
+    // Assign roles
+    await assignInviteRoles(em, user, invite);
+
+    // Assign office access
+    assignInviteOfficeAccess(em, user, invite);
+
+    // Create UserCompany record for the initial company membership
+    const userCompany = new UserCompany();
+    userCompany.user = user;
+    userCompany.company = invite.company;
+    userCompany.joinedAt = new Date();
+    userCompany.lastAccessedAt = new Date();
+    em.persist(userCompany);
   }
-
-  // Create user
-  const user = await createUserFromInvite(em, invite, password, {
-    nameFirst,
-    nameLast,
-  });
-
-  // Assign roles
-  await assignInviteRoles(em, user, invite);
-
-  // Assign office access
-  assignInviteOfficeAccess(em, user, invite);
 
   // Mark invite as accepted
   invite.status = InviteStatus.ACCEPTED;
@@ -430,6 +594,11 @@ export async function acceptInvite(
     ipAddress,
     userAgent,
     source: SessionSource.WEB,
+    metadata: {
+      companyId: invite.company.id,
+      companyName: invite.company.name,
+      isExistingUserInvite: invite.isExistingUserInvite,
+    },
   });
 
   await em.flush();
