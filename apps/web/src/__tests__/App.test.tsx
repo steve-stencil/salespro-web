@@ -83,6 +83,7 @@ describe('App', () => {
           nameLast: 'User',
           emailVerified: true,
           mfaEnabled: false,
+          userType: 'company',
           company: {
             id: 'company-1',
             name: 'Test Company',
@@ -144,6 +145,7 @@ describe('App', () => {
           nameLast: 'User',
           emailVerified: true,
           mfaEnabled: false,
+          userType: 'company',
           company: {
             id: 'company-1',
             name: 'Test Company',

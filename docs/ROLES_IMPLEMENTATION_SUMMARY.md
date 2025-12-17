@@ -14,6 +14,7 @@ This document summarizes the implementation of all high-priority and core featur
 ### Phase 1: Core Functionality
 
 #### 1. Frontend Permission-Based UI Rendering ✅
+
 - **Status:** Already implemented
 - **Details:**
   - `RequirePermission` component hides UI elements based on permissions
@@ -23,6 +24,7 @@ This document summarizes the implementation of all high-priority and core featur
   - Sidebar link hidden when user lacks `role:read` permission
 
 #### 2. Route Protection ✅
+
 - **Status:** Implemented
 - **Files Modified:**
   - `apps/web/src/router.tsx`
@@ -33,6 +35,7 @@ This document summarizes the implementation of all high-priority and core featur
   - Also protected `/users` route with `USER_READ` permission
 
 #### 3. View Role Details Dialog ✅
+
 - **Status:** Implemented
 - **Files Created:**
   - `apps/web/src/components/roles/RoleDetailDialog.tsx`
@@ -46,6 +49,7 @@ This document summarizes the implementation of all high-priority and core featur
   - Read-only view with proper formatting
 
 #### 4. Role Cloning ✅
+
 - **Status:** Implemented
 - **Backend:**
   - New endpoint: `POST /roles/:id/clone`
@@ -61,13 +65,14 @@ This document summarizes the implementation of all high-priority and core featur
 ### Phase 2: Backend Enhancements
 
 #### 1. Input Validation ✅
+
 - **Status:** Implemented
 - **Files Modified:**
   - `apps/api/src/routes/roles.ts`
 - **Enhancements:**
   - **Permission Validation:** Validates all permission strings against known permissions
   - **Role Name Format:** Regex validation (`/^[a-zA-Z][a-zA-Z0-9_-]*$/`)
-  - **Length Validation:** 
+  - **Length Validation:**
     - displayName: max 255 characters
     - description: max 500 characters
     - name: max 100 characters
@@ -76,6 +81,7 @@ This document summarizes the implementation of all high-priority and core featur
   - **Better Error Messages:** Structured error responses with field-level details
 
 #### 2. Role Deletion Safety ✅
+
 - **Status:** Implemented
 - **Features:**
   - Checks for assigned users before allowing deletion
@@ -85,6 +91,7 @@ This document summarizes the implementation of all high-priority and core featur
   - Prevents deletion of system roles
 
 #### 3. New Endpoints ✅
+
 - **Status:** Implemented
 - **Endpoints Added:**
   1. `GET /roles/:id/users` - List users with a specific role (paginated)
@@ -96,6 +103,7 @@ This document summarizes the implementation of all high-priority and core featur
   - `DELETE /roles/:id` - Now supports `?force=true` parameter
 
 #### 4. Audit Logging ✅
+
 - **Status:** Implemented
 - **Details:**
   - Structured logging for all role operations:
@@ -110,6 +118,7 @@ This document summarizes the implementation of all high-priority and core featur
 ### Phase 3: UX Enhancements
 
 #### 1. Search & Filter ✅
+
 - **Status:** Implemented
 - **Files Modified:**
   - `apps/web/src/pages/RolesPage.tsx`
@@ -125,6 +134,7 @@ This document summarizes the implementation of all high-priority and core featur
   - **URL Query Params:** (Future enhancement - can be added)
 
 #### 2. Loading States ✅
+
 - **Status:** Implemented
 - **Features:**
   - Skeleton loaders for role cards while loading
@@ -132,6 +142,7 @@ This document summarizes the implementation of all high-priority and core featur
   - Proper loading states in dialogs during save operations
 
 #### 3. Role Card Enhancements ✅
+
 - **Status:** Implemented
 - **Files Modified:**
   - `apps/web/src/components/roles/RoleCard.tsx`
@@ -144,6 +155,7 @@ This document summarizes the implementation of all high-priority and core featur
   - **View Details Button:** Alternative to clicking card
 
 #### 4. Enhanced Empty States ✅
+
 - **Status:** Implemented
 - **Features:**
   - Contextual empty state messages based on filters
@@ -155,6 +167,7 @@ This document summarizes the implementation of all high-priority and core featur
 ### Phase 4: E2E Tests
 
 #### 1. Authentication Helpers ✅
+
 - **Status:** Implemented
 - **Files Created:**
   - `apps/web/e2e/fixtures/auth.ts`
@@ -165,6 +178,7 @@ This document summarizes the implementation of all high-priority and core featur
   - API-based authentication (faster than UI login)
 
 #### 2. E2E Test Implementation ✅
+
 - **Status:** Implemented
 - **Files Modified:**
   - `apps/web/e2e/roles.spec.ts`
@@ -185,10 +199,12 @@ This document summarizes the implementation of all high-priority and core featur
 ## 📊 Implementation Statistics
 
 ### Files Created
+
 - `apps/web/src/components/roles/RoleDetailDialog.tsx` (300+ lines)
 - `apps/web/e2e/fixtures/auth.ts` (100+ lines)
 
 ### Files Modified
+
 - `apps/web/src/router.tsx` - Added route protection
 - `apps/web/src/pages/RolesPage.tsx` - Added search, filter, sorting, detail dialog integration
 - `apps/web/src/components/roles/RoleCard.tsx` - Made clickable, added permission preview
@@ -200,6 +216,7 @@ This document summarizes the implementation of all high-priority and core featur
 - `apps/web/e2e/roles.spec.ts` - Complete E2E test suite
 
 ### Lines of Code
+
 - **Frontend:** ~1,500+ lines added/modified
 - **Backend:** ~800+ lines added/modified
 - **Tests:** ~400+ lines added
@@ -209,12 +226,14 @@ This document summarizes the implementation of all high-priority and core featur
 ## 🎯 Feature Completeness
 
 ### High Priority Tasks: ✅ 100% Complete
+
 - ✅ Frontend permission-based UI rendering
 - ✅ Route protection
 - ✅ View role details
 - ✅ Enable E2E tests
 
 ### Backend Tasks: ✅ 90% Complete
+
 - ✅ Input validation
 - ✅ Role deletion safety
 - ✅ User-role relationship endpoints
@@ -224,6 +243,7 @@ This document summarizes the implementation of all high-priority and core featur
 - ⚠️ Soft delete (future enhancement)
 
 ### Frontend Tasks: ✅ 85% Complete
+
 - ✅ RolesPage improvements (search, filter, sorting)
 - ✅ RoleCard enhancements
 - ✅ RoleEditDialog improvements (clone support)
@@ -232,6 +252,7 @@ This document summarizes the implementation of all high-priority and core featur
 - ⚠️ Role assignment UI improvements (basic implementation exists)
 
 ### Testing: ✅ 80% Complete
+
 - ✅ E2E tests implemented
 - ⚠️ Unit tests (components and hooks) - Recommended but not critical
 - ✅ Integration tests (already existed, maintained)
@@ -256,6 +277,7 @@ The following features are **production-ready**:
 ## 📝 Remaining Work (Optional Enhancements)
 
 ### Nice-to-Have Features
+
 1. **Unit Tests** - Component and hook unit tests (not blocking)
 2. **Documentation** - API docs, user guides (can be done incrementally)
 3. **Performance Optimizations** - Database indexes, caching improvements
@@ -263,11 +285,55 @@ The following features are **production-ready**:
 5. **Role Comparison View** - Compare multiple roles side-by-side
 
 ### Future Considerations
+
 - Role templates
 - Role inheritance
 - Time-based roles
 - Context-based permissions
 - Office-specific roles
+
+---
+
+---
+
+### Phase 5: Platform Role Security
+
+#### Platform Role Visibility ✅
+
+- **Status:** Implemented
+- **Date:** December 2024
+- **Files Modified:**
+  - `apps/api/src/routes/roles.ts` - Backend filtering
+  - `apps/api/src/routes/auth/login.routes.ts` - Added userType to /auth/me
+  - `apps/web/src/types/auth.ts` - Added userType to User type
+  - `apps/web/src/pages/RolesPage.tsx` - Frontend filtering
+  - `apps/api/src/__tests__/integration/roles.test.ts` - Added integration tests
+
+**Problem Solved:**
+Previously, company users with superuser (`*`) permissions could see Platform Roles in the Roles page. This was because the frontend was checking for `PLATFORM_ADMIN` permission, which the `*` wildcard matched.
+
+**Solution:**
+Platform roles are now filtered based on `userType`, not permissions:
+
+- **Backend:** `GET /roles` endpoint filters out platform roles for company users
+- **Frontend:** Uses `userType === 'internal'` check instead of permission check
+- **API:** `/auth/me` now returns `userType` field (`'company'` or `'internal'`)
+
+**Behavior:**
+
+| User Type  | Can See Platform Roles | Description                                     |
+| ---------- | ---------------------- | ----------------------------------------------- |
+| `company`  | ❌ No                  | Regular company users, even with `*` permission |
+| `internal` | ✅ Yes                 | Internal platform users only                    |
+
+**New Seed Script:**
+A new seed script was added to create internal platform users for testing:
+
+```bash
+pnpm --filter api db:seed-internal-user
+```
+
+See [Database Seeding](./DATABASE_SEEDING.md#internal-platform-user-seeding) for details.
 
 ---
 
@@ -281,6 +347,6 @@ The Roles management feature is **feature-complete** and **production-ready**. A
 - ✅ Safe operations with user count checks
 - ✅ Complete E2E test coverage
 - ✅ Audit logging for compliance
+- ✅ Platform role visibility restricted to internal users only
 
 The remaining items are optional enhancements that can be added incrementally based on user feedback and business needs.
-
