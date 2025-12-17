@@ -23,9 +23,10 @@ mkdir -p apps/api apps/web
 
 if [ ! -f "apps/api/.env" ]; then
   cat > apps/api/.env <<'EOF'
-MONGODB_URI=mongodb://127.0.0.1:27017/mern_monorepo
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/salespro_dev
 PORT=4000
 NODE_ENV=development
+SESSION_SECRET=dev-session-secret-change-in-production
 EOF
   echo "[init-latest] Created apps/api/.env"
 else

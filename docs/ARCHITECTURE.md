@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document describes the architecture and design patterns used in this MERN monorepo skeleton.
+This document describes the architecture and design patterns used in SalesPro Web.
 
 ## Monorepo Structure
 
@@ -21,7 +21,7 @@ This document describes the architecture and design patterns used in this MERN m
 
 - **Runtime**: Node.js (>= 20.11.0)
 - **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
+- **Database**: PostgreSQL with MikroORM
 - **Language**: TypeScript (strict mode)
 - **Validation**: Zod schemas
 - **Logging**: Pino
@@ -305,7 +305,7 @@ Storage is controlled by environment variables:
 ### API Performance
 
 - **Database indexing** for query optimization
-- **Connection pooling** for MongoDB
+- **Connection pooling** for PostgreSQL
 - **Response compression** with Express
 - **Caching strategies** for frequently accessed data
 
@@ -332,4 +332,4 @@ Storage is controlled by environment variables:
 - **Database connectivity** verification
 - **Dependency health** monitoring
 
-This architecture provides a solid foundation for building scalable MERN applications with modern development practices and AI-assisted development support.
+This architecture provides a solid foundation for building scalable web applications with modern development practices and AI-assisted development support.

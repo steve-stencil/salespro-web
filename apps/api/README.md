@@ -1,6 +1,6 @@
-## API app (Express + MongoDB + TypeScript)
+## API app (Express + PostgreSQL + TypeScript)
 
-This is the `apps/api` workspace of the monorepo. It exposes an Express server with routes under `/api` and connects to MongoDB.
+This is the `apps/api` workspace of the monorepo. It exposes an Express server with routes under `/api` and connects to PostgreSQL.
 
 ### Run (recommended from repo root)
 
@@ -167,9 +167,10 @@ import { someSharedType } from '@shared/core';
 
 ### Troubleshooting
 
-- Mongo connection errors: ensure `mongod` is running, or use a valid `MONGODB_URI`.
+- PostgreSQL connection errors: ensure PostgreSQL is running, or use a valid `DATABASE_URL`.
 - Port in use: change `PORT` in `.env`.
 - Type issues: run `pnpm typecheck` at the root to see cross-workspace errors.
+- Migration issues: run `pnpm db:migrate` to apply pending migrations.
 
 ### More info
 

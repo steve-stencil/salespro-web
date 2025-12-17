@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers development practices, patterns, and conventions for working with this MERN monorepo skeleton.
+This guide covers development practices, patterns, and conventions for working with SalesPro Web.
 
 ## Development Environment Setup
 
@@ -9,14 +9,14 @@ This guide covers development practices, patterns, and conventions for working w
 - **Node.js**: >= 20.11.0
 - **pnpm**: >= 10.18.1
 - **Git**: Latest version
-- **MongoDB**: Local installation or MongoDB Atlas
+- **PostgreSQL**: >= 16 (local installation or cloud)
 
 ### Initial Setup
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd mern-monorepo-skeleton
+cd salespro-web
 
 # Install dependencies
 pnpm install
@@ -24,6 +24,12 @@ pnpm install
 # Set up environment files
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
+
+# Run database migrations
+pnpm db:migrate
+
+# Seed the database
+pnpm db:seed
 
 # Start development servers
 pnpm dev
@@ -128,32 +134,37 @@ export const handleError = (error: unknown, res: Response) => {
 };
 ```
 
-### 3. Database Model Pattern
+### 3. Database Entity Pattern
 
 ```typescript
-// apps/api/src/models/User.ts
-import { Schema, model, Document } from 'mongoose';
-import { z } from 'zod';
+// apps/api/src/entities/User.entity.ts
+import { Entity, PrimaryKey, Property, ManyToOne } from '@mikro-orm/core';
+import { v4 as uuid } from 'uuid';
+import { Company } from './Company.entity';
 
-const userSchema = new Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  createdAt: { type: Date, default: Date.now },
-});
+@Entity()
+export class User {
+  @PrimaryKey({ type: 'uuid' })
+  id: string = uuid();
 
-export interface IUser extends Document {
-  name: string;
-  email: string;
-  createdAt: Date;
+  @Property()
+  email!: string;
+
+  @Property()
+  firstName!: string;
+
+  @Property()
+  lastName!: string;
+
+  @ManyToOne(() => Company)
+  company!: Company;
+
+  @Property()
+  createdAt: Date = new Date();
+
+  @Property({ onUpdate: () => new Date() })
+  updatedAt: Date = new Date();
 }
-
-export const User = model<IUser>('User', userSchema);
-
-// Zod schema for validation
-export const userSchemaZod = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-});
 ```
 
 ## Frontend Development Patterns
@@ -487,7 +498,7 @@ pnpm --filter @shared/core test
 
 ```typescript
 // Mock external dependencies (Vitest)
-vi.mock('mongoose', () => ({
+vi.mock('@mikro-orm/core', () => ({
   connect: vi.fn(),
   connection: {
     readyState: 0,
@@ -496,7 +507,8 @@ vi.mock('mongoose', () => ({
 
 // Mock environment variables
 process.env.NODE_ENV = 'test';
-process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
+process.env.DATABASE_URL =
+  'postgresql://postgres:postgres@localhost:5433/salespro_test';
 
 // Mock API responses
 vi.mock('../api', () => ({
@@ -562,7 +574,8 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
   PORT: z.string().transform(Number).default('4000'),
-  MONGODB_URI: z.string().url(),
+  DATABASE_URL: z.string().url(),
+  SESSION_SECRET: z.string().min(32),
 });
 
 export const env = envSchema.parse(process.env);
@@ -585,7 +598,7 @@ export { env };
 ### 1. API Performance
 
 - **Database indexing** for frequently queried fields
-- **Connection pooling** for MongoDB
+- **Connection pooling** for PostgreSQL
 - **Response compression** with Express
 - **Caching** for expensive operations
 
@@ -643,4 +656,4 @@ export { env };
 - **Asset optimization** for images and fonts
 - **Caching strategies** for static assets
 
-This development guide provides comprehensive patterns and practices for building robust MERN applications with this monorepo skeleton.
+This development guide provides comprehensive patterns and practices for building robust applications with SalesPro Web.
