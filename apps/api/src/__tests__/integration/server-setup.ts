@@ -21,6 +21,39 @@ vi.mock('../../lib/email', () => ({
   EmailServiceError: class EmailServiceError extends Error {},
 }));
 
+// Mock storage service to enable S3 presigned URL tests without actual S3 config
+vi.mock('../../lib/storage', async importOriginal => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    isS3Configured: vi.fn(() => true),
+    getStorageAdapter: vi.fn(() => ({
+      upload: vi.fn().mockResolvedValue({
+        key: 'test-key',
+        size: 1000,
+        etag: '"abc123"',
+      }),
+      download: vi.fn().mockResolvedValue({
+        // eslint-disable-next-line @typescript-eslint/require-await
+        [Symbol.asyncIterator]: async function* () {
+          yield Buffer.from('test content');
+        },
+      }),
+      delete: vi.fn().mockResolvedValue(undefined),
+      exists: vi.fn().mockResolvedValue(true),
+      getSignedDownloadUrl: vi
+        .fn()
+        .mockResolvedValue('https://example.com/signed-url'),
+      generatePresignedUpload: vi.fn().mockResolvedValue({
+        url: 'https://example.com/upload-url',
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/pdf' },
+        expiresAt: new Date(Date.now() + 900000),
+      }),
+    })),
+  };
+});
+
 import { initORM, closeORM, getORM } from '../../lib/db';
 import { createServer } from '../../server';
 
