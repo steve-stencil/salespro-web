@@ -378,6 +378,72 @@ async function assignPlatformRole(
 }
 
 /**
+ * Get or create the admin system role (for company-level access)
+ */
+async function getOrCreateAdminRole(orm: MikroORM): Promise<Role> {
+  const em = orm.em.fork();
+
+  // Check if admin role already exists
+  let role = await em.findOne(Role, {
+    name: 'admin',
+    type: RoleType.SYSTEM,
+  });
+
+  if (!role) {
+    // Create the admin role with full company permissions
+    role = new Role();
+    role.name = 'admin';
+    role.displayName = 'Administrator';
+    role.description =
+      'Company administrator with full access to manage users, roles, and settings.';
+    role.type = RoleType.SYSTEM;
+    role.permissions = [
+      'customer:*',
+      'user:*',
+      'office:*',
+      'role:*',
+      'settings:*',
+      'company:*',
+      'report:read',
+      'report:export',
+    ];
+    role.isDefault = false;
+
+    await em.persistAndFlush(role);
+    log('Created admin system role', 'success');
+  } else {
+    log('Found existing admin system role', 'info');
+  }
+
+  return role;
+}
+
+/**
+ * Assign company role to user (with company context)
+ */
+async function assignCompanyRole(
+  orm: MikroORM,
+  user: User,
+  role: Role,
+  company: Company,
+): Promise<UserRole> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const roleRef = em.getReference(Role, role.id);
+  const companyRef = em.getReference(Company, company.id);
+
+  const userRole = new UserRole();
+  userRole.user = userRef;
+  userRole.role = roleRef;
+  userRole.company = companyRef; // Company context for company-level roles
+  userRole.assignedAt = new Date();
+
+  await em.persistAndFlush(userRole);
+  return userRole;
+}
+
+/**
  * Assign user to office
  */
 async function assignUserToOffice(
@@ -406,7 +472,8 @@ function printSummary(
   company: Company,
   office: Office,
   user: User,
-  role: Role,
+  platformRole: Role,
+  adminRole: Role,
   seedConfig: ReturnType<typeof getSeedConfig>,
 ): void {
   console.log('');
@@ -429,11 +496,26 @@ function printSummary(
   console.log(`  Name: ${office.name}`);
   console.log(`  ID: ${office.id}`);
   console.log('');
-  console.log(`${colors.cyan}Platform Role:${colors.reset}`);
-  console.log(`  Name: ${role.displayName}`);
-  console.log(`  Type: ${role.type}`);
-  console.log(`  Access Level: ${role.companyAccessLevel}`);
-  console.log(`  Permissions: ${role.permissions.length} permission(s)`);
+  console.log(`${colors.cyan}Assigned Roles:${colors.reset}`);
+  console.log('');
+  console.log(
+    `  ${colors.green}1. Platform Role (for platform operations):${colors.reset}`,
+  );
+  console.log(`     Name: ${platformRole.displayName}`);
+  console.log(`     Type: ${platformRole.type}`);
+  console.log(`     Access Level: ${platformRole.companyAccessLevel}`);
+  console.log(
+    `     Permissions: ${platformRole.permissions.length} permission(s)`,
+  );
+  console.log('');
+  console.log(
+    `  ${colors.green}2. Company Role (for company-level access):${colors.reset}`,
+  );
+  console.log(`     Name: ${adminRole.displayName}`);
+  console.log(`     Type: ${adminRole.type}`);
+  console.log(
+    `     Permissions: ${adminRole.permissions.length} permission(s)`,
+  );
   console.log('');
   console.log(`${colors.cyan}Internal Platform User:${colors.reset}`);
   console.log(
@@ -503,6 +585,10 @@ async function seed(): Promise<void> {
     log('Setting up platform admin role...', 'info');
     const platformRole = await getOrCreatePlatformAdminRole(orm);
 
+    // Get or create admin system role (for company-level access)
+    log('Setting up admin system role...', 'info');
+    const adminRole = await getOrCreateAdminRole(orm);
+
     // Create company
     log('Creating platform company...', 'info');
     const company = await createCompany(orm, seedConfig);
@@ -518,10 +604,15 @@ async function seed(): Promise<void> {
     const user = await createInternalUser(orm, company, seedConfig);
     log(`Internal user created: ${user.email}`, 'success');
 
-    // Assign platform role to user
+    // Assign platform role to user (for platform operations)
     log('Assigning platform admin role...', 'info');
     await assignPlatformRole(orm, user, platformRole);
     log('Platform role assigned', 'success');
+
+    // Assign admin role to user within their company (for company-level access)
+    log('Assigning admin role for company access...', 'info');
+    await assignCompanyRole(orm, user, adminRole, company);
+    log('Admin role assigned for company', 'success');
 
     // Assign user to office
     log('Assigning user to office...', 'info');
@@ -529,7 +620,7 @@ async function seed(): Promise<void> {
     log('User assigned to office', 'success');
 
     // Print summary
-    printSummary(company, office, user, platformRole, seedConfig);
+    printSummary(company, office, user, platformRole, adminRole, seedConfig);
   } catch (error) {
     log(
       `Seeding failed: ${error instanceof Error ? error.message : String(error)}`,
