@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { UserInvite, InviteStatus } from '../../entities';
+import { UserInvite, InviteStatus, UserType } from '../../entities';
 import {
   createInvite,
   validateInviteToken,
@@ -242,8 +242,10 @@ describe('InviteService', () => {
       );
     });
 
-    it('should fail if email already exists', async () => {
-      vi.mocked(mockEm.findOne).mockResolvedValueOnce(createMockUser());
+    it('should fail if internal user already exists', async () => {
+      vi.mocked(mockEm.findOne).mockResolvedValueOnce(
+        createMockUser({ userType: UserType.INTERNAL }),
+      );
 
       const result = await createInvite(mockEm as unknown as EntityManager, {
         email: 'existing@example.com',
@@ -258,7 +260,9 @@ describe('InviteService', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe('A user with this email already exists');
+      expect(result.error).toBe(
+        'Internal platform users cannot be invited to companies',
+      );
     });
 
     it('should fail if pending invite exists', async () => {
