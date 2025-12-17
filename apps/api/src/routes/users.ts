@@ -78,9 +78,10 @@ router.get(
       const em = orm.em.fork();
       const permissionService = new PermissionService(em);
 
-      // Build query filters
+      // Build query filters - exclude soft-deleted users
       const where: Record<string, unknown> = {
         company: user.company.id,
+        deletedAt: null,
       };
 
       // Filter by active status
@@ -201,10 +202,10 @@ router.get(
       const em = orm.em.fork();
       const permissionService = new PermissionService(em);
 
-      // Find user in the same company
+      // Find user in the same company (exclude soft-deleted)
       const targetUser = await em.findOne(
         User,
-        { id, company: user.company.id },
+        { id, company: user.company.id, deletedAt: null },
         { populate: ['currentOffice'] },
       );
 
@@ -298,6 +299,7 @@ router.patch(
       const targetUser = await em.findOne(User, {
         id,
         company: user.company.id,
+        deletedAt: null,
       });
 
       if (!targetUser) {
@@ -370,6 +372,7 @@ router.post(
       const targetUser = await em.findOne(User, {
         id,
         company: user.company.id,
+        deletedAt: null,
       });
 
       if (!targetUser) {
@@ -391,6 +394,63 @@ router.post(
       });
     } catch (err) {
       req.log.error({ err }, 'Activate user error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * DELETE /users/:id
+ * Soft delete a user from the company
+ */
+router.delete(
+  '/:id',
+  requireAuth(),
+  requirePermission(PERMISSIONS.USER_DELETE),
+  async (req: Request, res: Response) => {
+    try {
+      const user = (req as AuthenticatedRequest).user;
+      if (!user?.company) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'User ID is required' });
+        return;
+      }
+
+      // Prevent self-deletion
+      if (id === user.id) {
+        res.status(400).json({ error: 'Cannot delete your own account' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const targetUser = await em.findOne(User, {
+        id,
+        company: user.company.id,
+        deletedAt: null,
+      });
+
+      if (!targetUser) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      // Soft delete by setting deletedAt timestamp
+      targetUser.deletedAt = new Date();
+      targetUser.isActive = false;
+      await em.flush();
+
+      req.log.info({ userId: id, deletedBy: user.id }, 'Soft deleted user');
+
+      res.status(204).send();
+    } catch (err) {
+      req.log.error({ err }, 'Delete user error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },
@@ -425,10 +485,11 @@ router.get(
       const orm = getORM();
       const em = orm.em.fork();
 
-      // Verify user belongs to the same company
+      // Verify user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(User, {
         id,
         company: user.company.id,
+        deletedAt: null,
       });
 
       if (!targetUser) {
@@ -501,10 +562,11 @@ router.post(
       const orm = getORM();
       const em = orm.em.fork();
 
-      // Verify target user belongs to the same company
+      // Verify target user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(User, {
         id,
         company: user.company.id,
+        deletedAt: null,
       });
 
       if (!targetUser) {
@@ -585,10 +647,10 @@ router.delete(
       const orm = getORM();
       const em = orm.em.fork();
 
-      // Verify target user belongs to the same company
+      // Verify target user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(
         User,
-        { id, company: user.company.id },
+        { id, company: user.company.id, deletedAt: null },
         { populate: ['currentOffice'] },
       );
 
@@ -660,10 +722,11 @@ router.patch(
       const orm = getORM();
       const em = orm.em.fork();
 
-      // Verify target user belongs to the same company
+      // Verify target user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(User, {
         id,
         company: user.company.id,
+        deletedAt: null,
       });
 
       if (!targetUser) {

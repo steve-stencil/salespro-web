@@ -60,7 +60,7 @@ router.get(
 
       const internalUsers = await em.find(
         User,
-        { userType: UserType.INTERNAL },
+        { userType: UserType.INTERNAL, deletedAt: null },
         {
           orderBy: { email: 'asc' },
           fields: [
@@ -177,6 +177,7 @@ router.get(
       const user = await em.findOne(User, {
         id,
         userType: UserType.INTERNAL,
+        deletedAt: null,
       });
 
       if (!user) {
@@ -359,6 +360,7 @@ router.patch(
       const user = await em.findOne(User, {
         id,
         userType: UserType.INTERNAL,
+        deletedAt: null,
       });
 
       if (!user) {
@@ -436,7 +438,7 @@ router.patch(
 
 /**
  * DELETE /internal-users/:id
- * Delete an internal platform user.
+ * Soft delete an internal platform user.
  * Requires internal user with platform:manage_internal_users permission.
  */
 router.delete(
@@ -459,6 +461,7 @@ router.delete(
       const user = await em.findOne(User, {
         id,
         userType: UserType.INTERNAL,
+        deletedAt: null,
       });
 
       if (!user) {
@@ -466,16 +469,12 @@ router.delete(
         return;
       }
 
-      // Remove associated UserRole entries first
-      const userRoles = await em.find(UserRole, { user: user.id });
-      for (const ur of userRoles) {
-        em.remove(ur);
-      }
-
-      em.remove(user);
+      // Soft delete by setting deletedAt timestamp
+      user.deletedAt = new Date();
+      user.isActive = false;
       await em.flush();
 
-      req.log.info({ userId: id }, 'Deleted internal user');
+      req.log.info({ userId: id }, 'Soft deleted internal user');
 
       res.status(204).send();
     } catch (err) {

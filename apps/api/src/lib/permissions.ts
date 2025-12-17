@@ -127,7 +127,7 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
   'user:delete': {
     label: 'Delete Users',
     category: 'Users',
-    description: 'Remove users from the company',
+    description: 'Soft delete users from the company (preserves data for audit)',
   },
   'user:activate': {
     label: 'Activate/Deactivate Users',
