@@ -42,13 +42,18 @@ export type RoleBasic = {
   displayName: string;
 };
 
+/** Role type enum values */
+export type RoleType = 'system' | 'company' | 'platform';
+
 /** Full role details */
 export type Role = {
   description?: string;
-  type: 'system' | 'company';
+  type: RoleType;
   permissions: string[];
   isDefault: boolean;
   isSystemRole: boolean;
+  /** Whether this is a platform role (for internal users) */
+  isPlatformRole?: boolean;
   createdAt: string;
   updatedAt?: string;
   /** Number of users assigned to this role (optional) */

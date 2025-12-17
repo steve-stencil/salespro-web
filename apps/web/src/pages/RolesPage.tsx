@@ -38,7 +38,7 @@ import type { Role, CreateRoleRequest } from '../types/users';
 import type { SelectChangeEvent } from '@mui/material/Select';
 
 /** Filter options for role type */
-type RoleTypeFilter = 'all' | 'system' | 'company';
+type RoleTypeFilter = 'all' | 'system' | 'company' | 'platform';
 
 /** Sort options for roles */
 type RoleSortOption = 'name-asc' | 'name-desc' | 'created-desc' | 'permissions';
@@ -92,12 +92,18 @@ export function RolesPage(): React.ReactElement {
   const canCreateRole = hasPermission(PERMISSIONS.ROLE_CREATE);
   const canUpdateRole = hasPermission(PERMISSIONS.ROLE_UPDATE);
   const canDeleteRole = hasPermission(PERMISSIONS.ROLE_DELETE);
+  const canViewPlatformRoles = hasPermission(PERMISSIONS.PLATFORM_ADMIN);
 
   // Filter and sort roles
   const filteredRoles = useMemo(() => {
     if (!rolesData?.roles) return [];
 
     let roles = [...rolesData.roles];
+
+    // Filter out platform roles for non-platform admins
+    if (!canViewPlatformRoles) {
+      roles = roles.filter(role => role.type !== 'platform');
+    }
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -115,8 +121,16 @@ export function RolesPage(): React.ReactElement {
       roles = roles.filter(role => role.type === typeFilter);
     }
 
-    // Apply sorting
+    // Apply sorting (platform roles always last)
     roles.sort((a, b) => {
+      // Platform roles go to the end
+      const aIsPlatform = a.type === 'platform' ? 1 : 0;
+      const bIsPlatform = b.type === 'platform' ? 1 : 0;
+      if (aIsPlatform !== bIsPlatform) {
+        return aIsPlatform - bIsPlatform;
+      }
+
+      // Secondary sort by selected option
       switch (sortOption) {
         case 'name-asc':
           return a.displayName.localeCompare(b.displayName);
@@ -134,21 +148,13 @@ export function RolesPage(): React.ReactElement {
     });
 
     return roles;
-  }, [rolesData?.roles, searchQuery, typeFilter, sortOption]);
-
-  // Separate filtered roles by type
-  const systemRoles = useMemo(
-    () => filteredRoles.filter(r => r.type === 'system'),
-    [filteredRoles],
-  );
-  const companyRoles = useMemo(
-    () => filteredRoles.filter(r => r.type === 'company'),
-    [filteredRoles],
-  );
-
-  // Show sections based on filter
-  const showSystemRoles = typeFilter === 'all' || typeFilter === 'system';
-  const showCompanyRoles = typeFilter === 'all' || typeFilter === 'company';
+  }, [
+    rolesData?.roles,
+    searchQuery,
+    typeFilter,
+    sortOption,
+    canViewPlatformRoles,
+  ]);
 
   /**
    * Clear all filters.
@@ -321,8 +327,11 @@ export function RolesPage(): React.ReactElement {
             data-testid="roles-type-filter"
           >
             <MenuItem value="all">All Types</MenuItem>
-            <MenuItem value="custom">Custom Only</MenuItem>
+            <MenuItem value="company">Custom Only</MenuItem>
             <MenuItem value="system">System Only</MenuItem>
+            {canViewPlatformRoles && (
+              <MenuItem value="platform">Platform Only</MenuItem>
+            )}
           </Select>
         </FormControl>
 
@@ -377,78 +386,16 @@ export function RolesPage(): React.ReactElement {
           </Grid>
         </Box>
       ) : (
-        <>
-          {/* Custom Roles */}
-          {showCompanyRoles && (
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h3" component="h2" gutterBottom>
-                Custom Roles ({companyRoles.length})
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Roles created for your company. Click a card to view details.
-              </Typography>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h3" component="h2" gutterBottom>
+            All Roles ({filteredRoles.length})
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Manage custom and system roles. Click a card to view details.
+          </Typography>
 
-              {companyRoles.length === 0 ? (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  {searchQuery.trim()
-                    ? 'No custom roles match your search.'
-                    : canCreateRole
-                      ? 'No custom roles created yet. Click "Create Role" to add one.'
-                      : 'No custom roles have been created for your company yet.'}
-                </Alert>
-              ) : (
-                <Grid container spacing={2}>
-                  {companyRoles.map(role => (
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={role.id}>
-                      <RoleCard
-                        role={role}
-                        onClick={handleViewRole}
-                        onEdit={canUpdateRole ? handleEditRole : undefined}
-                        onDelete={canDeleteRole ? handleDeleteClick : undefined}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
-            </Box>
-          )}
-
-          {/* System Roles */}
-          {showSystemRoles && (
-            <Box>
-              <Typography variant="h3" component="h2" gutterBottom>
-                System Roles ({systemRoles.length})
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Built-in roles that cannot be modified. Click to view details.
-              </Typography>
-
-              {systemRoles.length === 0 ? (
-                <Alert severity="info">
-                  {searchQuery.trim()
-                    ? 'No system roles match your search.'
-                    : 'No system roles available.'}
-                </Alert>
-              ) : (
-                <Grid container spacing={2}>
-                  {systemRoles.map(role => (
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={role.id}>
-                      <RoleCard
-                        role={role}
-                        onClick={handleViewRole}
-                        onEdit={canUpdateRole ? handleEditRole : undefined}
-                        onDelete={canDeleteRole ? handleDeleteClick : undefined}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
-            </Box>
-          )}
-
-          {/* No results message */}
-          {filteredRoles.length === 0 && (
-            <Alert severity="info" sx={{ mt: 2 }}>
+          {filteredRoles.length === 0 ? (
+            <Alert severity="info">
               No roles found matching your criteria.{' '}
               {hasActiveFilters && (
                 <Button size="small" onClick={handleClearFilters}>
@@ -456,8 +403,21 @@ export function RolesPage(): React.ReactElement {
                 </Button>
               )}
             </Alert>
+          ) : (
+            <Grid container spacing={2}>
+              {filteredRoles.map(role => (
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={role.id}>
+                  <RoleCard
+                    role={role}
+                    onClick={handleViewRole}
+                    onEdit={canUpdateRole ? handleEditRole : undefined}
+                    onDelete={canDeleteRole ? handleDeleteClick : undefined}
+                  />
+                </Grid>
+              ))}
+            </Grid>
           )}
-        </>
+        </Box>
       )}
 
       {/* View Role Details Dialog */}

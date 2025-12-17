@@ -38,6 +38,8 @@ export function RoleCard({
   onDelete,
 }: RoleCardProps): React.ReactElement {
   const isSystemRole = role.type === 'system';
+  const isPlatformRole = role.type === 'platform';
+  const isProtectedRole = isSystemRole || isPlatformRole;
 
   // Get preview of permissions (first 3)
   const previewPermissions = role.permissions.slice(0, 3);
@@ -80,8 +82,14 @@ export function RoleCard({
             <Typography variant="h3" component="h3">
               {role.displayName}
             </Typography>
-            {isSystemRole && (
-              <Tooltip title="System role - cannot be modified">
+            {isProtectedRole && (
+              <Tooltip
+                title={
+                  isPlatformRole
+                    ? 'Platform role - internal use only'
+                    : 'System role - cannot be modified'
+                }
+              >
                 <LockIcon fontSize="small" color="action" />
               </Tooltip>
             )}
@@ -93,13 +101,22 @@ export function RoleCard({
 
         {/* Badges */}
         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {isSystemRole && (
+          {isPlatformRole ? (
+            <Chip
+              label="Platform"
+              size="small"
+              color="secondary"
+              variant="outlined"
+            />
+          ) : isSystemRole ? (
             <Chip
               label="System"
               size="small"
               color="default"
               variant="outlined"
             />
+          ) : (
+            <Chip label="Custom" size="small" color="info" variant="outlined" />
           )}
           {role.isDefault && (
             <Chip
@@ -176,7 +193,7 @@ export function RoleCard({
         flexDirection: 'column',
         position: 'relative',
         transition: 'box-shadow 0.2s, border-color 0.2s',
-        ...(isSystemRole && {
+        ...(isProtectedRole && {
           borderColor: 'action.disabled',
           bgcolor: 'action.hover',
         }),
@@ -226,13 +243,21 @@ export function RoleCard({
           )}
           {onEdit && (
             <Tooltip
-              title={isSystemRole ? 'Cannot edit system roles' : 'Edit role'}
+              title={
+                isPlatformRole
+                  ? 'Cannot edit platform roles'
+                  : isSystemRole
+                    ? 'Cannot edit system roles'
+                    : 'Edit role'
+              }
             >
               <span>
                 <IconButton
                   size="small"
-                  onClick={e => !isSystemRole && handleActionClick(e, onEdit)}
-                  disabled={isSystemRole}
+                  onClick={e =>
+                    !isProtectedRole && handleActionClick(e, onEdit)
+                  }
+                  disabled={isProtectedRole}
                   aria-label={`Edit ${role.displayName}`}
                   data-testid={`edit-role-${role.name}`}
                 >
@@ -244,14 +269,20 @@ export function RoleCard({
           {onDelete && (
             <Tooltip
               title={
-                isSystemRole ? 'Cannot delete system roles' : 'Delete role'
+                isPlatformRole
+                  ? 'Cannot delete platform roles'
+                  : isSystemRole
+                    ? 'Cannot delete system roles'
+                    : 'Delete role'
               }
             >
               <span>
                 <IconButton
                   size="small"
-                  onClick={e => !isSystemRole && handleActionClick(e, onDelete)}
-                  disabled={isSystemRole}
+                  onClick={e =>
+                    !isProtectedRole && handleActionClick(e, onDelete)
+                  }
+                  disabled={isProtectedRole}
                   color="error"
                   aria-label={`Delete ${role.displayName}`}
                   data-testid={`delete-role-${role.name}`}
