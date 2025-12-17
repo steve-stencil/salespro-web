@@ -12,6 +12,10 @@ import {
   regenerateRecoveryCodes,
   MfaErrorCode,
 } from '../../services/auth/mfa';
+import {
+  createTrustedDevice,
+  TRUSTED_DEVICE_CONFIG,
+} from '../../services/auth/trusted-device';
 
 import { mfaVerifySchema, mfaRecoverySchema } from './schemas';
 import { getClientIp, getUserAgent } from './utils';
@@ -172,7 +176,7 @@ router.post('/mfa/verify', async (req: Request, res: Response) => {
       return;
     }
 
-    const { code } = validation.data;
+    const { code, trustDevice } = validation.data;
     const orm = getORM();
     const result = await verifyMfaCode(
       orm.em.fork(),
@@ -229,6 +233,33 @@ router.post('/mfa/verify', async (req: Request, res: Response) => {
       maxAge: cookieMaxAge,
       path: '/',
     });
+
+    // If trustDevice is requested, create trusted device and set cookie
+    if (trustDevice) {
+      const em = orm.em.fork();
+      const { device, token } = await createTrustedDevice(
+        em,
+        pendingMfaUserId,
+        getUserAgent(req),
+        getClientIp(req),
+      );
+
+      req.log.info(
+        { deviceId: device.id, deviceName: device.deviceName },
+        'Trusted device created',
+      );
+
+      // Set device trust cookie
+      const trustDurationMs =
+        TRUSTED_DEVICE_CONFIG.TRUST_DURATION_DAYS * 24 * 60 * 60 * 1000;
+      res.cookie(TRUSTED_DEVICE_CONFIG.COOKIE_NAME, token, {
+        httpOnly: true,
+        secure: process.env['NODE_ENV'] === 'production',
+        sameSite: 'lax',
+        maxAge: trustDurationMs,
+        path: '/',
+      });
+    }
 
     res.status(200).json({
       message: 'MFA verification successful',

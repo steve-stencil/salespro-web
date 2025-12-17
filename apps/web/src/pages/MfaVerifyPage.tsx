@@ -8,8 +8,10 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
@@ -37,6 +39,7 @@ export function MfaVerifyPage(): React.ReactElement {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [trustDevice, setTrustDevice] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Get the intended destination from navigation state
@@ -201,7 +204,7 @@ export function MfaVerifyPage(): React.ReactElement {
     setError(null);
 
     try {
-      await verifyMfa(codeToVerify);
+      await verifyMfa(codeToVerify, trustDevice);
       // Success - redirect handled by useEffect
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -351,6 +354,19 @@ export function MfaVerifyPage(): React.ReactElement {
                 />
               ))}
             </Box>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={trustDevice}
+                  onChange={e => setTrustDevice(e.target.checked)}
+                  disabled={isSubmitting}
+                  color="primary"
+                />
+              }
+              label="Trust this device for 30 days"
+              sx={{ justifyContent: 'center' }}
+            />
 
             <Button
               type="submit"

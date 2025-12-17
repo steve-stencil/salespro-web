@@ -42,6 +42,8 @@ export const passwordChangeSchema = z.object({
 /** MFA code verification schema */
 export const mfaVerifySchema = z.object({
   code: z.string().length(6, 'MFA code must be 6 digits'),
+  /** Whether to trust this device for future logins (skip MFA for 30 days) */
+  trustDevice: z.boolean().optional().default(false),
 });
 
 /** MFA recovery code verification schema */
