@@ -1,4 +1,25 @@
-import { beforeAll, afterAll } from 'vitest';
+import { beforeAll, afterAll, vi } from 'vitest';
+
+// Mock email service BEFORE any imports that use it to prevent SES API calls
+vi.mock('../../lib/email', () => ({
+  isEmailServiceConfigured: vi.fn(() => true),
+  emailService: {
+    sendEmail: vi
+      .fn()
+      .mockResolvedValue({ messageId: 'test-id', success: true }),
+    sendPasswordResetEmail: vi
+      .fn()
+      .mockResolvedValue({ messageId: 'test-id', success: true }),
+    sendMfaCodeEmail: vi
+      .fn()
+      .mockResolvedValue({ messageId: 'test-id', success: true }),
+    sendInviteEmail: vi
+      .fn()
+      .mockResolvedValue({ messageId: 'test-id', success: true }),
+    isConfigured: vi.fn(() => true),
+  },
+  EmailServiceError: class EmailServiceError extends Error {},
+}));
 
 import { initORM, closeORM, getORM } from '../../lib/db';
 import { createServer } from '../../server';

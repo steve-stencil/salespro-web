@@ -1265,9 +1265,8 @@ describe('Roles Routes Integration Tests', () => {
       });
     });
 
-    // TODO: The /api/roles endpoint requires user.company but internal users use companyContext
-    // These tests need the route to be updated to support internal users
-    describe.skip('Internal user', () => {
+    // Route handlers have been updated to use companyContext to support internal users
+    describe('Internal user', () => {
       let internalUser: User;
       let internalUserCookie: string;
       let internalCompany: Company;

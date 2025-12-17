@@ -223,15 +223,12 @@ describe('Internal User CompanyAccessLevel Tests', () => {
   // ============================================================================
   // FULL Access Level Tests
   // ============================================================================
-  // NOTE: Tests that expect 200 on company routes (users, offices, roles) are
-  // currently skipped because the route handlers check `user.company` instead of
-  // `companyContext`. Internal users don't have a direct company - they use
-  // `companyContext` from their active company selection. The route handlers
-  // need to be updated to use `companyContext` to support internal users.
+  // Route handlers have been updated to use `companyContext` to support
+  // internal users with company context from their active company selection.
   // ============================================================================
 
   describe('CompanyAccessLevel.FULL (Superuser)', () => {
-    it.skip('should allow all read operations in company context', async () => {
+    it('should allow all read operations in company context', async () => {
       const { cookie } = await createInternalUserWithRole(platformAdminRole);
 
       // Can read users
@@ -253,7 +250,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
       expect(rolesResponse.status).toBe(200);
     });
 
-    it.skip('should allow all write operations in company context', async () => {
+    it('should allow all write operations in company context', async () => {
       const { cookie } = await createInternalUserWithRole(platformAdminRole);
 
       // Can update users
@@ -271,7 +268,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
       expect(activateResponse.status).toBe(200);
     });
 
-    it.skip('should allow role management in company context', async () => {
+    it('should allow role management in company context', async () => {
       const { cookie } = await createInternalUserWithRole(platformAdminRole);
 
       // Can create roles
@@ -317,8 +314,8 @@ describe('Internal User CompanyAccessLevel Tests', () => {
   // ============================================================================
 
   describe('CompanyAccessLevel.READ_ONLY', () => {
-    // Skipped: Route handlers check user.company instead of companyContext
-    it.skip('should allow all read operations in company context', async () => {
+    // Route handlers now use companyContext
+    it('should allow all read operations in company context', async () => {
       const { cookie } = await createInternalUserWithRole(platformReadOnlyRole);
 
       // Can read users
@@ -413,8 +410,8 @@ describe('Internal User CompanyAccessLevel Tests', () => {
   // ============================================================================
 
   describe('CompanyAccessLevel.CUSTOM', () => {
-    // Skipped: Route handlers check user.company instead of companyContext
-    it.skip('should allow explicitly granted permissions', async () => {
+    // Route handlers now use companyContext
+    it('should allow explicitly granted permissions', async () => {
       const { cookie } = await createInternalUserWithRole(platformCustomRole);
 
       // Custom role has user:read - should work
@@ -572,8 +569,8 @@ describe('Internal User CompanyAccessLevel Tests', () => {
   // ============================================================================
 
   describe('Mixed Access Scenarios', () => {
-    // Skipped: Route handlers check user.company instead of companyContext
-    it.skip('should combine platform and company permissions correctly for FULL access', async () => {
+    // Route handlers now use companyContext
+    it('should combine platform and company permissions correctly for FULL access', async () => {
       const { cookie } = await createInternalUserWithRole(platformAdminRole);
 
       // Platform operations
@@ -596,8 +593,8 @@ describe('Internal User CompanyAccessLevel Tests', () => {
       expect(updateResponse.status).toBe(200);
     });
 
-    // Skipped: Route handlers check user.company instead of companyContext
-    it.skip('should combine platform and company permissions correctly for READ_ONLY access', async () => {
+    // Route handlers now use companyContext
+    it('should combine platform and company permissions correctly for READ_ONLY access', async () => {
       const { cookie } = await createInternalUserWithRole(platformReadOnlyRole);
 
       // Platform operations still work

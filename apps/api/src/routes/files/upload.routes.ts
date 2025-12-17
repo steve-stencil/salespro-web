@@ -44,9 +44,10 @@ router.post(
     try {
       const authReq = req as Request & AuthenticatedFileRequest;
       const user = authReq.user;
+      const company = authReq.companyContext;
       const file = authReq.file;
 
-      if (!user?.company) {
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -75,7 +76,7 @@ router.post(
         filename: file.originalname,
         mimeType: file.mimetype,
         user,
-        company: user.company,
+        company,
         ...(visibility && { visibility }),
         ...(description && { description }),
       });
@@ -105,8 +106,11 @@ router.post(
   requirePermission(PERMISSIONS.FILE_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -139,7 +143,7 @@ router.post(
         mimeType,
         size,
         user,
-        company: user.company,
+        company,
         ...(visibility && { visibility }),
         ...(description && { description }),
       });
@@ -172,8 +176,11 @@ router.post(
   requirePermission(PERMISSIONS.FILE_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
