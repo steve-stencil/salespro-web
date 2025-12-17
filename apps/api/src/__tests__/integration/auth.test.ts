@@ -202,7 +202,7 @@ describe('Auth Routes Integration Tests', () => {
         });
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Not authenticated');
+      expect(response.body.error).toBe('Unauthorized');
     });
 
     it('should return 400 for short new password', async () => {

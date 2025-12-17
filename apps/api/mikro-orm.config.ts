@@ -21,6 +21,7 @@ import {
   TrustedDevice,
   RememberMeToken,
   ApiKey,
+  File,
 } from './src/entities';
 
 /**
@@ -52,6 +53,7 @@ export default defineConfig({
     TrustedDevice,
     RememberMeToken,
     ApiKey,
+    File,
   ],
   migrations: {
     path: './src/migrations',

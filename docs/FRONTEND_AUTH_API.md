@@ -186,12 +186,33 @@ Retrieve the currently authenticated user's profile.
   "nameLast": "Doe",
   "emailVerified": true,
   "mfaEnabled": false,
+  "userType": "company",
   "company": {
     "id": "company-123-...",
     "name": "Acme Corp"
   }
 }
 ```
+
+**Response Fields:**
+
+| Field           | Type    | Description                                                      |
+| --------------- | ------- | ---------------------------------------------------------------- |
+| `id`            | string  | User's unique identifier                                         |
+| `email`         | string  | User's email address                                             |
+| `nameFirst`     | string  | User's first name                                                |
+| `nameLast`      | string  | User's last name                                                 |
+| `emailVerified` | boolean | Whether the user's email is verified                             |
+| `mfaEnabled`    | boolean | Whether MFA is enabled for this user                             |
+| `userType`      | string  | User type: `"company"` (regular) or `"internal"` (platform user) |
+| `company`       | object  | User's company information                                       |
+
+**User Types:**
+
+| Value      | Description                                                                    |
+| ---------- | ------------------------------------------------------------------------------ |
+| `company`  | Regular company user - belongs to one company, cannot see platform roles       |
+| `internal` | Internal platform user - can access multiple companies, can see platform roles |
 
 **Error Response (401 Unauthorized):**
 
@@ -593,6 +614,7 @@ type User = {
   nameLast: string;
   emailVerified: boolean;
   mfaEnabled: boolean;
+  userType: 'company' | 'internal';
   company: {
     id: string;
     name: string;
@@ -621,6 +643,7 @@ type User = {
   nameLast: string;
   emailVerified: boolean;
   mfaEnabled: boolean;
+  userType: 'company' | 'internal';
   company: {
     id: string;
     name: string;
@@ -777,6 +800,9 @@ type LoginErrorCode =
   | 'password_expired'
   | 'mfa_required';
 
+/** User type - company user vs internal platform user */
+type UserType = 'company' | 'internal';
+
 /** Current user response */
 type CurrentUserResponse = {
   id: string;
@@ -785,6 +811,7 @@ type CurrentUserResponse = {
   nameLast: string;
   emailVerified: boolean;
   mfaEnabled: boolean;
+  userType: UserType;
   company: {
     id: string;
     name: string;

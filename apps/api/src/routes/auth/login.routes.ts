@@ -339,6 +339,7 @@ router.get('/me', async (req: Request, res: Response) => {
       nameLast: user.nameLast,
       emailVerified: user.emailVerified,
       mfaEnabled: user.mfaEnabled,
+      userType: user.userType,
       company: user.company
         ? {
             id: user.company.id,

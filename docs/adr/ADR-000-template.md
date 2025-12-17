@@ -1,45 +1,118 @@
-# ADR-000: [Title]
+# ADR-XXX: [Title]
 
 ## Status
 
-**[Proposed | Accepted | Deprecated | Superseded]**
+**Proposed** | Accepted | Deprecated | Superseded by [ADR-XXX](ADR-XXX-link.md)
+
+## Date
+
+YYYY-MM-DD
 
 ## Context
 
-What is the issue that we're seeing that is motivating this decision or change?
+<!--
+Describe the situation that requires a decision. Include:
+- What is the issue or problem we're facing?
+- What are the forces at play (technical, business, organizational)?
+- What constraints exist?
+- What is the current state?
+-->
+
+[Describe the context and problem statement here]
+
+## Decision Drivers
+
+<!--
+List the key factors that influence this decision:
+- Performance requirements
+- Security considerations
+- Developer experience
+- Maintenance burden
+- Cost implications
+- Team expertise
+-->
+
+- [Driver 1]
+- [Driver 2]
+- [Driver 3]
+
+## Considered Options
+
+<!--
+List the options that were considered, including the chosen option.
+For each option, briefly describe what it is.
+-->
+
+1. **[Option 1]** - Brief description
+2. **[Option 2]** - Brief description
+3. **[Option 3]** - Brief description
 
 ## Decision
 
-What is the change that we're proposing and/or doing?
+<!--
+State the decision that was made. Be clear and specific.
+Explain why this option was chosen over the alternatives.
+-->
+
+We will use **[chosen option]** because [rationale].
+
+### Pros
+
+- [Advantage 1]
+- [Advantage 2]
+- [Advantage 3]
+
+### Cons
+
+- [Disadvantage 1]
+- [Disadvantage 2]
 
 ## Consequences
 
+<!--
+Describe the resulting context after applying the decision.
+Include both positive and negative consequences.
+-->
+
 ### Positive
 
-- Benefit 1
-- Benefit 2
+- [Positive consequence 1]
+- [Positive consequence 2]
 
 ### Negative
 
-- Drawback 1
-- Drawback 2
+- [Negative consequence 1]
+- [Negative consequence 2]
 
-### Neutral
+### Risks
 
-- Side effect 1
+- [Risk 1 and mitigation strategy]
+- [Risk 2 and mitigation strategy]
 
-## Alternatives Considered
+## Implementation Notes
 
-### Alternative 1: [Name]
+<!--
+Optional: Include any implementation details, migration steps,
+or technical notes that will help when implementing this decision.
+-->
 
-Description of the alternative and why it wasn't chosen.
+[Implementation notes if applicable]
 
-### Alternative 2: [Name]
+## Related ADRs
 
-Description of the alternative and why it wasn't chosen.
+<!--
+Link to related ADRs that influence or are influenced by this decision.
+-->
 
-## Related
+- [ADR-XXX](ADR-XXX-link.md) - Related decision
+- None
 
-- Link to related ADRs
-- Link to relevant documentation
-- Link to implementation PRs
+## References
+
+<!--
+Include links to external resources, documentation, or discussions
+that informed this decision.
+-->
+
+- [Reference 1](url)
+- [Reference 2](url)

@@ -1,7 +1,13 @@
 import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 
-import { Company, User, SessionSource } from '../../entities';
+import {
+  Company,
+  User,
+  Session,
+  SessionSource,
+  UserType,
+} from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 
@@ -143,6 +149,29 @@ describe('Authentication E2E Tests', () => {
       expect(meResponse.status).toBe(200);
       expect(meResponse.body.email).toBe(testEmail);
       expect(meResponse.body.nameFirst).toBe('E2E');
+    });
+
+    it('should return userType field for company user', async () => {
+      // Login first
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const cookies = loginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+      expect(cookies).toBeDefined();
+
+      // Get current user
+      const meResponse = await makeRequest()
+        .get('/api/auth/me')
+        .set('Cookie', cookies ?? []);
+
+      expect(meResponse.status).toBe(200);
+      // Default user is a company user
+      expect(meResponse.body.userType).toBe('company');
     });
 
     it('should list active sessions after login', async () => {
@@ -427,7 +456,8 @@ describe('Authentication E2E Tests', () => {
           newPassword: 'NewPassword789!',
         });
 
-      expect(response.status).toBe(401);
+      // 400 because user is authenticated but provided wrong input
+      expect(response.status).toBe(400);
       expect(response.body.error).toBe('Current password is incorrect');
     });
 
@@ -477,7 +507,7 @@ describe('Authentication E2E Tests', () => {
 
       // Should reject because it's in password history
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('recently used');
+      expect(response.body.error).toContain('Cannot reuse');
     });
 
     it('should reject new password that does not meet policy', async () => {
@@ -523,6 +553,114 @@ describe('Authentication E2E Tests', () => {
         : [setCookieHeader].filter(Boolean);
       const sessionCookie = cookies.find(c => c?.startsWith('sid='));
       expect(sessionCookie).toBeDefined();
+    });
+  });
+
+  describe('Internal Platform User', () => {
+    let internalUserId: string;
+    let internalCompanyId: string;
+    const internalEmail = `internal-e2e-${Date.now()}@platform.example.com`;
+    const internalPassword = 'InternalPassword123!';
+
+    beforeEach(async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Create company for internal user
+      const company = new Company();
+      company.id = uuid();
+      company.name = `Internal E2E Company ${Date.now()}`;
+      company.maxSessionsPerUser = 10;
+      company.mfaRequired = false;
+      company.passwordPolicy = {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumbers: true,
+        requireSpecialChars: false,
+        historyCount: 3,
+        maxAgeDays: 90,
+      };
+      internalCompanyId = company.id;
+
+      // Create internal platform user
+      const internalUser = new User();
+      internalUser.id = uuid();
+      internalUser.email = internalEmail;
+      internalUser.passwordHash = await hashPassword(internalPassword);
+      internalUser.nameFirst = 'Internal';
+      internalUser.nameLast = 'Admin';
+      internalUser.company = company;
+      internalUser.isActive = true;
+      internalUser.emailVerified = true;
+      internalUser.userType = UserType.INTERNAL;
+      internalUserId = internalUser.id;
+
+      em.persist(company);
+      em.persist(internalUser);
+      await em.flush();
+    });
+
+    afterEach(async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+      await em.nativeDelete(Session, { user: internalUserId });
+      await em.nativeDelete(User, { id: internalUserId });
+      await em.nativeDelete(Company, { id: internalCompanyId });
+    });
+
+    it('should return userType as internal for platform user', async () => {
+      // Login as internal user
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: internalEmail,
+        password: internalPassword,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const cookies = loginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+      expect(cookies).toBeDefined();
+
+      // Get current user
+      const meResponse = await makeRequest()
+        .get('/api/auth/me')
+        .set('Cookie', cookies ?? []);
+
+      expect(meResponse.status).toBe(200);
+      expect(meResponse.body.email).toBe(internalEmail);
+      expect(meResponse.body.userType).toBe('internal');
+    });
+
+    it('should include all expected fields in /auth/me response', async () => {
+      // Login as internal user
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: internalEmail,
+        password: internalPassword,
+      });
+
+      const cookies = loginResponse.headers['set-cookie'] as
+        | string[]
+        | undefined;
+
+      const meResponse = await makeRequest()
+        .get('/api/auth/me')
+        .set('Cookie', cookies ?? []);
+
+      expect(meResponse.status).toBe(200);
+
+      // Verify all expected fields are present
+      expect(meResponse.body).toHaveProperty('id');
+      expect(meResponse.body).toHaveProperty('email');
+      expect(meResponse.body).toHaveProperty('nameFirst');
+      expect(meResponse.body).toHaveProperty('nameLast');
+      expect(meResponse.body).toHaveProperty('emailVerified');
+      expect(meResponse.body).toHaveProperty('mfaEnabled');
+      expect(meResponse.body).toHaveProperty('userType');
+      expect(meResponse.body).toHaveProperty('company');
+
+      // Verify userType is correct
+      expect(meResponse.body.userType).toBe('internal');
     });
   });
 });

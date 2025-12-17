@@ -1,0 +1,225 @@
+---
+description: Self-improvement rules for proactive documentation and code clarity
+globs:
+  - '**/*'
+alwaysApply: false
+---
+
+# Self-Improvement Protocol
+
+This rule defines proactive documentation and code clarity standards. AI agents should follow these guidelines to continuously improve the codebase's maintainability and explainability.
+
+## Proactive Documentation Triggers
+
+After completing ANY coding task, evaluate if documentation updates are needed:
+
+### 1. Folder Documentation
+
+- **New folder created?** → Add `README.md` explaining purpose, structure, and patterns
+- **Significant folder changes?** → Update existing `README.md` to reflect changes
+- **New subdirectory pattern?** → Document the organizational decision
+
+### 2. Entity/Model Documentation
+
+When adding or modifying database entities:
+
+- Update `apps/api/src/entities/README.md` with:
+  - Entity name and purpose
+  - Key relationships
+  - Important fields and their meanings
+- Add JSDoc comments to all entity properties
+- Document any business rules or constraints
+
+### 3. Route/API Documentation
+
+When adding or modifying API routes:
+
+- Update `apps/api/src/routes/README.md` with endpoint summary
+- Document request/response schemas with examples
+- Update relevant API documentation in `docs/`
+- Add OpenAPI/Swagger annotations if applicable
+
+### 4. Component Documentation
+
+When adding or modifying React components:
+
+- Update `apps/web/src/components/README.md` with component purpose
+- Add JSDoc comments describing props and usage
+- Include usage examples for complex components
+- Document any context dependencies
+
+### 5. Hook Documentation
+
+When adding custom hooks:
+
+- Update `apps/web/src/hooks/README.md` with hook purpose
+- Document parameters, return values, and side effects
+- Include usage examples
+- Note any dependencies on contexts or other hooks
+
+### 6. Service Documentation
+
+When adding or modifying services:
+
+- Update relevant `services/README.md` (API or Web)
+- Document public methods and their purposes
+- Include error handling patterns
+- Note any external dependencies
+
+### 7. Environment Variable Changes
+
+When modifying environment variables:
+
+- Update root `README.md` with new variables
+- Update app-specific READMEs (`apps/api/README.md`, `apps/web/README.md`)
+- Document defaults, required values, and examples
+- Update `.env.example` files
+
+### 8. Permission Changes
+
+When adding new permissions:
+
+- Update `.cursor/rules/permissions.mdc` with new permission
+- Add permission metadata (label, category, description)
+- Document in `apps/api/src/lib/permissions.ts`
+- Update system roles if needed
+
+## Architecture Decision Records (ADRs)
+
+When making significant architectural decisions, create an ADR in `docs/adr/`:
+
+### When to Create an ADR
+
+- Choosing between competing technologies/patterns
+- Significant refactoring decisions
+- New integration patterns
+- Security-related architectural choices
+- Performance optimization strategies
+- Breaking changes to existing patterns
+
+### ADR Process
+
+1. Check existing ADRs in `docs/adr/` for related decisions
+2. Use the template at `docs/adr/ADR-000-template.md`
+3. Number sequentially (ADR-001, ADR-002, etc.)
+4. Include: Context, Decision, Consequences
+5. Link related ADRs when applicable
+
+## README Standards for Folders
+
+Every significant folder should have a `README.md` containing:
+
+```markdown
+# [Folder Name]
+
+## Purpose
+[What this folder contains and why it exists]
+
+## Structure
+[Key files/subfolders and their roles]
+
+## Patterns
+[Common usage patterns with code examples]
+
+## Dependencies
+[What this folder depends on or exports to other parts of the codebase]
+
+## Related
+[Links to related folders, docs, or external resources]
+```
+
+## Code Explanation Requirements
+
+### When to Add Inline Comments
+
+Add explanatory comments for:
+
+- **Complex algorithms** - Explain the approach and why it was chosen
+- **Business rules** - Document non-obvious business logic
+- **Workarounds** - Explain why a workaround is needed
+- **Integration points** - Document external system interactions
+- **Performance optimizations** - Explain why optimization is needed
+- **Security measures** - Document security-related code decisions
+
+### Comment Style Guide
+
+```typescript
+// Good: Explains "why"
+// We use a sliding window here because the dataset can be very large
+// and loading everything into memory would cause OOM errors
+const processInChunks = ...
+
+// Bad: Explains "what" (obvious from code)
+// Loop through the array
+for (const item of items) ...
+```
+
+## Self-Improvement Checklist
+
+Before marking any task complete, verify:
+
+### Documentation
+
+- [ ] New folders have README.md files
+- [ ] Changed folders have updated README.md files
+- [ ] New entities are documented in entities README
+- [ ] New routes are documented in routes README
+- [ ] New components are documented in components README
+- [ ] New hooks are documented in hooks README
+- [ ] Environment variable changes are documented
+- [ ] Permission changes are documented
+
+### Code Clarity
+
+- [ ] Complex logic has explanatory comments
+- [ ] Public functions have JSDoc comments
+- [ ] Non-obvious patterns are documented
+- [ ] Workarounds are explained
+
+### Architecture
+
+- [ ] Significant decisions have ADRs
+- [ ] Existing ADRs are updated if patterns change
+
+## Continuous Improvement Mindset
+
+### Opportunistic Documentation
+
+When reading code during a task, if you notice:
+
+- Missing documentation → Add it
+- Outdated documentation → Update it
+- Unclear code → Add clarifying comments
+- Missing README → Create it
+
+### Knowledge Capture
+
+When solving a tricky problem:
+
+- Document the solution approach
+- Add to troubleshooting docs if applicable
+- Consider if an ADR is warranted
+- Update related README files
+
+### Pattern Recognition
+
+When implementing similar functionality multiple times:
+
+- Consider extracting to shared utilities
+- Document the pattern for future reference
+- Add examples to relevant README files
+
+## Integration with Other Rules
+
+This rule works alongside:
+
+- **core.mdc** - General documentation coupling requirements
+- **quality-assurance.mdc** - Quality gates including documentation
+- **permissions.mdc** - Permission documentation requirements
+- **backend.mdc** / **frontend.mdc** - Domain-specific documentation
+
+## Remember
+
+**Good documentation is not optional - it's part of the deliverable.**
+
+Every piece of code you write will be read many more times than it was written. Invest in clarity now to save time later.

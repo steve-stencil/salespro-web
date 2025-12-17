@@ -1,41 +1,84 @@
-# API Library Utilities
+# Library Utilities
 
-This folder contains shared utility modules used throughout the API application.
+## Purpose
 
-## Modules
+This folder contains shared utility libraries, helpers, and core infrastructure code used throughout the API. These are low-level building blocks that services and routes depend on.
 
-### `crypto.ts` - Password Hashing
+## Structure
 
-Argon2-based password hashing utilities.
+### Root Files
+
+| File                 | Purpose                                                   |
+| -------------------- | --------------------------------------------------------- |
+| `crypto.ts`          | Cryptographic utilities (hashing, token generation, TOTP) |
+| `db.ts`              | Database connection and MikroORM initialization           |
+| `email.ts`           | Email sending service (AWS SES integration)               |
+| `email-templates.ts` | HTML email templates for various notifications            |
+| `encryption.ts`      | AES-256-GCM encryption for use with KMS data keys         |
+| `errors.ts`          | Custom error classes and error handling utilities         |
+| `kms.ts`             | AWS Key Management Service for envelope encryption        |
+| `permissions.ts`     | RBAC permission constants and metadata                    |
+
+### Subfolders
+
+#### `oauth/`
+
+OAuth 2.0 implementation utilities:
+
+| File        | Purpose                                      |
+| ----------- | -------------------------------------------- |
+| `index.ts`  | OAuth server setup and exports               |
+| `model.ts`  | OAuth2Server model implementation            |
+| `pkce.ts`   | PKCE (Proof Key for Code Exchange) utilities |
+| `scopes.ts` | OAuth scope definitions and validation       |
+
+#### `session/`
+
+Session management utilities:
+
+| File               | Purpose                             |
+| ------------------ | ----------------------------------- |
+| `index.ts`         | Session configuration and exports   |
+| `middleware.ts`    | Express session middleware setup    |
+| `MikroOrmStore.ts` | Custom session store using MikroORM |
+
+#### `storage/`
+
+File storage abstraction layer:
+
+| File                     | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| `index.ts`               | Storage adapter factory and exports       |
+| `types.ts`               | Storage interface definitions             |
+| `LocalStorageAdapter.ts` | Local filesystem storage (development)    |
+| `S3StorageAdapter.ts`    | AWS S3 storage (production)               |
+| `utils.ts`               | File type detection, validation utilities |
+
+## Patterns
+
+### Using Crypto Utilities
 
 ```typescript
-import { hashPassword, verifyPassword } from './crypto';
+import {
+  hashPassword,
+  verifyPassword,
+  generateSecureToken,
+} from '../lib/crypto';
 
+// Hash a password
 const hash = await hashPassword('user-password');
+
+// Verify a password
 const isValid = await verifyPassword('user-password', hash);
+
+// Generate secure tokens
+const token = generateSecureToken(32); // 32 bytes of entropy
 ```
 
-### `db.ts` - Database Connection
-
-MikroORM database connection management.
+### Using KMS Encryption
 
 ```typescript
-import { getORM, initORM } from './db';
-
-// Initialize on startup
-await initORM();
-
-// Get ORM instance in routes/services
-const orm = getORM();
-const em = orm.em.fork();
-```
-
-### `kms.ts` - AWS KMS Integration
-
-AWS Key Management Service for envelope encryption.
-
-```typescript
-import { generateDataKey, decryptDataKey, isKmsConfigured } from './kms';
+import { generateDataKey, decryptDataKey, isKmsConfigured } from '../lib/kms';
 
 // Generate a new data key for encryption
 const { plaintextKey, encryptedKey } = await generateDataKey();
@@ -51,12 +94,10 @@ const plaintextKey = await decryptDataKey(encryptedKey);
 - Full audit trail in CloudTrail
 - IAM-based access control
 
-### `encryption.ts` - Local AES Encryption
-
-AES-256-GCM encryption for use with KMS data keys.
+### Using Local AES Encryption
 
 ```typescript
-import { encrypt, decrypt, generateRandomKey } from './encryption';
+import { encrypt, decrypt, generateRandomKey } from '../lib/encryption';
 
 // Encrypt with a data key from KMS
 const ciphertext = encrypt(plaintext, dataKey);
@@ -67,87 +108,77 @@ const plaintext = decrypt(ciphertext, dataKey);
 
 See [ADR-001](../../../docs/adr/ADR-001-credential-encryption.md) for architecture details.
 
-### `email.ts` - Email Sending
-
-AWS SES email sending utilities.
-
-```typescript
-import { sendEmail } from './email';
-
-await sendEmail({
-  to: 'user@example.com',
-  subject: 'Welcome',
-  html: '<p>Welcome to SalesPro!</p>',
-});
-```
-
-### `email-templates.ts` - Email Templates
-
-Pre-built email templates for common scenarios.
+### Using the Permission System
 
 ```typescript
 import {
-  getPasswordResetEmailTemplate,
-  getWelcomeEmailTemplate,
-  getInviteEmailTemplate,
-} from './email-templates';
+  PERMISSIONS,
+  PERMISSION_META,
+  matchesPermission,
+} from '../lib/permissions';
+
+// Check permission
+const hasAccess = matchesPermission(userPermissions, PERMISSIONS.USER_READ);
+
+// Get permission metadata
+const meta = PERMISSION_META['user:read'];
+console.log(meta.label); // "View Users"
 ```
 
-### `errors.ts` - Error Classes
-
-Typed error classes for consistent error handling.
+### Using Storage Adapters
 
 ```typescript
-import { AppError, NotFoundError, ValidationError } from './errors';
+import { getStorageAdapter } from '../lib/storage';
 
-throw new NotFoundError('User not found');
+const storage = getStorageAdapter();
+
+// Upload a file
+const { key, url } = await storage.upload(
+  buffer,
+  'path/to/file.pdf',
+  'application/pdf',
+);
+
+// Get download URL
+const downloadUrl = await storage.getSignedUrl(key, 3600); // 1 hour expiry
+
+// Delete a file
+await storage.delete(key);
+```
+
+### Custom Error Classes
+
+```typescript
+import {
+  AppError,
+  ValidationError,
+  NotFoundError,
+  UnauthorizedError,
+} from '../lib/errors';
+
+// Throw typed errors
 throw new ValidationError('Invalid email format');
+throw new NotFoundError('User not found');
+throw new UnauthorizedError('Invalid credentials');
+
+// Catch and handle
+if (error instanceof AppError) {
+  res.status(error.statusCode).json({ error: error.message });
+}
 ```
 
-### `permissions.ts` - RBAC Permissions
-
-Permission constants and utilities for role-based access control.
+### Sending Emails
 
 ```typescript
-import { PERMISSIONS, hasPermission, matchPermission } from './permissions';
+import { sendEmail } from '../lib/email';
+import { getPasswordResetTemplate } from '../lib/email-templates';
 
-// Check if user has permission
-if (hasPermission('customer:read', userPermissions)) {
-  // Allow access
-}
-
-// Wildcard matching
-matchPermission('customer:read', 'customer:*'); // true
-matchPermission('customer:read', '*'); // true
+await sendEmail({
+  to: 'user@example.com',
+  subject: 'Reset Your Password',
+  html: getPasswordResetTemplate({ resetLink, userName }),
+});
 ```
-
-## Subfolders
-
-### `oauth/` - OAuth 2.0 Implementation
-
-OAuth server implementation with PKCE support.
-
-- `model.ts` - OAuth data model
-- `pkce.ts` - PKCE utilities
-- `scopes.ts` - Scope definitions
-
-### `session/` - Session Management
-
-Express session with MikroORM store.
-
-- `index.ts` - Session configuration
-- `middleware.ts` - Session middleware
-- `MikroOrmStore.ts` - Custom session store
-
-### `storage/` - File Storage
-
-Pluggable file storage adapters.
-
-- `index.ts` - Storage factory
-- `LocalStorageAdapter.ts` - Local filesystem storage
-- `S3StorageAdapter.ts` - AWS S3 storage
-- `types.ts` - Storage interfaces
-- `utils.ts` - File utilities
 
 ## Environment Variables
 
@@ -161,7 +192,19 @@ Pluggable file storage adapters.
 | `SES_FROM_EMAIL` | Verified sender email               | For email      |
 | `S3_BUCKET`      | S3 bucket name                      | For S3 storage |
 
+## Dependencies
+
+- **argon2** - Password hashing
+- **otplib** - TOTP generation and verification
+- **@aws-sdk/client-kms** - KMS encryption
+- **@aws-sdk/client-ses** - Email sending
+- **@aws-sdk/client-s3** - File storage
+- **express-session** - Session middleware
+- **oauth2-server** - OAuth 2.0 implementation
+
 ## Related
 
-- [Architecture Documentation](../../../docs/ARCHITECTURE.md)
+- [Middleware](../middleware/README.md) - Uses lib utilities
+- [Services](../services/README.md) - Uses lib utilities
+- [Configuration](../config/) - Environment-based configuration
 - [ADR-001: Credential Encryption](../../../docs/adr/ADR-001-credential-encryption.md)
