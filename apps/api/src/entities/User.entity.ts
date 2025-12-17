@@ -26,7 +26,7 @@ import type { UserOffice } from './UserOffice.entity';
 @Entity()
 export class User {
   /** Computed properties excluded from RequiredEntityData */
-  [OptionalProps]?: 'isLocked' | 'fullName';
+  [OptionalProps]?: 'isLocked' | 'fullName' | 'isDeleted';
   @PrimaryKey({ type: 'uuid' })
   id: Opt<string> = uuid();
 
@@ -123,8 +123,20 @@ export class User {
   @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Opt<Date> = new Date();
 
+  /** Timestamp when the user was soft deleted (null if active) */
+  @Property({ type: 'Date', nullable: true })
+  @Index()
+  deletedAt?: Date;
+
   @OneToMany('Session', 'user')
   sessions = new Collection<Session>(this);
+
+  /**
+   * Check if the user has been soft deleted.
+   */
+  get isDeleted(): boolean {
+    return this.deletedAt != null;
+  }
 
   /**
    * Check if the user account is currently locked
