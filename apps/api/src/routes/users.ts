@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { User,  Office, UserOffice } from '../entities';
+import { User, Office, UserOffice } from '../entities';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import { requireAuth, requirePermission } from '../middleware';
 import { PermissionService } from '../services/PermissionService';
 
-import type {Company} from '../entities';
+import type { Company } from '../entities';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();

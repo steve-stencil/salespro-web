@@ -95,9 +95,13 @@ export const authApi = {
    * Verifies MFA code after login when MFA is enabled.
    *
    * @param code - 6-digit MFA code
+   * @param trustDevice - Whether to trust this device for 30 days (skip MFA)
    */
-  verifyMfa: async (code: string): Promise<MfaVerifyResponse> => {
-    const request: MfaVerifyRequest = { code };
+  verifyMfa: async (
+    code: string,
+    trustDevice = false,
+  ): Promise<MfaVerifyResponse> => {
+    const request: MfaVerifyRequest = { code, trustDevice };
     return apiClient.post<MfaVerifyResponse>('/auth/mfa/verify', request);
   },
 };

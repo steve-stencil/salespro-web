@@ -91,10 +91,13 @@ export function AuthProvider({
 
   /**
    * Verifies MFA code after login.
+   *
+   * @param code - 6-digit MFA code
+   * @param trustDevice - Whether to trust this device for 30 days (skip MFA)
    */
   const verifyMfa = useCallback(
-    async (code: string): Promise<void> => {
-      await authApi.verifyMfa(code);
+    async (code: string, trustDevice = false): Promise<void> => {
+      await authApi.verifyMfa(code, trustDevice);
       setRequiresMfa(false);
       // Fetch full user data after MFA verification
       await checkAuth();

@@ -106,6 +106,8 @@ export type ResetPasswordResponse = {
 /** MFA verification request */
 export type MfaVerifyRequest = {
   code: string;
+  /** Whether to trust this device for future logins (skip MFA for 30 days) */
+  trustDevice?: boolean;
 };
 
 /** MFA verification response */
@@ -131,6 +133,6 @@ export type AuthContextType = AuthState & {
   ) => Promise<{ requiresMfa?: boolean }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  verifyMfa: (code: string) => Promise<void>;
+  verifyMfa: (code: string, trustDevice?: boolean) => Promise<void>;
   clearMfaState: () => void;
 };
