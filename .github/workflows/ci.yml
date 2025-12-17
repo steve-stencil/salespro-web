@@ -70,6 +70,14 @@ jobs:
           done
         timeout-minutes: 2
 
+      - name: Run database migrations
+        run: |
+          cd apps/api
+          pnpm run migration:up
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/salespro_test
+          NODE_ENV: test
+
       - name: Run integration tests
         run: |
           cd apps/api

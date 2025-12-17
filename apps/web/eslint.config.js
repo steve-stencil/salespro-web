@@ -32,6 +32,16 @@ export default [
   },
   reactHooks.configs['recommended-latest'],
   reactRefresh.configs.vite,
+  // Allow hooks and contexts to be exported alongside components (common pattern)
+  {
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true, allowExportNames: ['AuthContext'] },
+      ],
+    },
+  },
   // Disable React rules for E2E tests (Playwright's `use` fixture API is not a React hook)
   {
     files: ['e2e/**/*.{ts,tsx}'],
