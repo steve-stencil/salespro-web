@@ -1,5 +1,11 @@
 import { SESSION_DURATIONS } from '../../config/session';
-import { User, Session, LoginAttempt, LoginEventType } from '../../entities';
+import {
+  User,
+  Session,
+  LoginAttempt,
+  LoginEventType,
+  UserType,
+} from '../../entities';
 import { verifyPassword } from '../../lib/crypto';
 
 import { LOCKOUT_CONFIG } from './config';
@@ -239,6 +245,13 @@ export async function handleSuccessfulLogin(
     session.deviceId = deviceId;
   }
   session.mfaVerified = !user.mfaEnabled;
+
+  // For internal users, auto-set activeCompany to their home company on login
+  // This provides a default company context so they can access company resources immediately
+  const userType = user.userType as UserType;
+  if (userType === UserType.INTERNAL && user.company) {
+    session.activeCompany = user.company;
+  }
 
   user.failedLoginAttempts = 0;
   delete user.lockedUntil;

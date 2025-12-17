@@ -40,6 +40,9 @@ export type LoginErrorCode =
   | 'password_expired'
   | 'mfa_required';
 
+/** User type - company user vs internal platform user */
+export type UserType = 'company' | 'internal';
+
 /** Full user profile from /auth/me */
 export type User = {
   id: string;
@@ -48,6 +51,7 @@ export type User = {
   nameLast: string;
   emailVerified: boolean;
   mfaEnabled: boolean;
+  userType: UserType;
   company: {
     id: string;
     name: string;

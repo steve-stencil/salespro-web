@@ -41,7 +41,7 @@ describe('Invite Routes Integration Tests', () => {
         });
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Not authenticated');
+      expect(response.body.error).toBe('Unauthorized');
     });
 
     it('should return 400 when currentOfficeId is missing', async () => {
@@ -203,7 +203,7 @@ describe('Invite Routes Integration Tests', () => {
       const response = await makeRequest().get('/api/users/invites');
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Not authenticated');
+      expect(response.body.error).toBe('Unauthorized');
     });
   });
 
@@ -214,7 +214,7 @@ describe('Invite Routes Integration Tests', () => {
       );
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Not authenticated');
+      expect(response.body.error).toBe('Unauthorized');
     });
   });
 
@@ -225,7 +225,7 @@ describe('Invite Routes Integration Tests', () => {
       );
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toBe('Not authenticated');
+      expect(response.body.error).toBe('Unauthorized');
     });
   });
 

@@ -1,45 +1,102 @@
 # Architecture Decision Records (ADRs)
 
-This folder contains Architecture Decision Records for significant technical decisions made in this project.
+This directory contains Architecture Decision Records (ADRs) for the SalesPro Dashboard project. ADRs document significant architectural decisions made during development, providing context and rationale for future reference.
 
 ## What is an ADR?
 
-An ADR is a document that captures an important architectural decision made along with its context and consequences. ADRs help future developers understand:
+An Architecture Decision Record captures an important architectural decision along with its context and consequences. ADRs help:
 
-- **Why** a decision was made
-- **What** alternatives were considered
-- **What** trade-offs were accepted
+- **Document the "why"** behind technical decisions
+- **Preserve institutional knowledge** when team members change
+- **Enable informed decisions** about whether to change existing patterns
+- **Reduce repeated discussions** about previously decided topics
 
-## Index
+## When to Create an ADR
 
-| ADR                                         | Title               | Status   | Date    |
-| ------------------------------------------- | ------------------- | -------- | ------- |
-| [ADR-001](./ADR-001-mfa-trusted-devices.md) | MFA Trusted Devices | Accepted | 2024-12 |
+Create an ADR when making decisions about:
+
+- **Technology choices** - Selecting frameworks, libraries, or tools
+- **Architectural patterns** - Choosing design patterns or architectural styles
+- **Integration approaches** - How systems communicate with each other
+- **Security decisions** - Authentication, authorization, encryption strategies
+- **Performance strategies** - Caching, optimization, scaling approaches
+- **Breaking changes** - Changes that affect existing patterns or APIs
+- **Development practices** - Testing strategies, code organization, conventions
+
+## ADR Format
+
+Each ADR follows a standard format (see `ADR-000-template.md`):
+
+1. **Title** - Short descriptive title with sequential number
+2. **Status** - Current state (Proposed, Accepted, Deprecated, Superseded)
+3. **Context** - The situation and factors driving the decision
+4. **Decision** - What was decided and why
+5. **Consequences** - The resulting effects (positive and negative)
+
+## ADR Lifecycle
+
+```
+Proposed → Accepted → [Deprecated | Superseded]
+```
+
+- **Proposed**: Decision is being discussed
+- **Accepted**: Decision has been approved and implemented
+- **Deprecated**: Decision is no longer valid but kept for history
+- **Superseded**: Replaced by a newer ADR (link to replacement)
+
+## Naming Convention
+
+ADRs are numbered sequentially:
+
+```
+ADR-001-short-title.md
+ADR-002-another-decision.md
+ADR-003-yet-another.md
+```
+
+Use lowercase with hyphens for the title portion.
+
+## Index of ADRs
+
+| ADR                                         | Title               | Status   | Date       |
+| ------------------------------------------- | ------------------- | -------- | ---------- |
+| [ADR-000](ADR-000-template.md)              | ADR Template        | Accepted | 2024-12-16 |
+| [ADR-001](./ADR-001-mfa-trusted-devices.md) | MFA Trusted Devices | Accepted | 2024-12-16 |
+
+<!-- Add new ADRs to this table as they are created -->
 
 ## Creating a New ADR
 
-1. Copy `ADR-000-template.md` to `ADR-XXX-title.md`
-2. Fill in all sections
-3. Add an entry to the index above
-4. Submit for review
+1. Copy `ADR-000-template.md` to a new file with the next sequential number
+2. Fill in all sections with relevant details
+3. Set status to "Proposed" for team discussion
+4. Update status to "Accepted" once approved
+5. Add entry to the index table above
+6. Commit with message: `docs: add ADR-XXX for [topic]`
 
-## ADR Statuses
+## Best Practices
 
-- **Proposed**: Under discussion, not yet accepted
-- **Accepted**: Decision has been made and implemented
-- **Deprecated**: No longer relevant or applicable
-- **Superseded**: Replaced by a newer ADR (link to the replacement)
+### Do
 
-## When to Write an ADR
+- Keep ADRs concise but complete
+- Focus on the "why" not just the "what"
+- Include alternatives that were considered
+- Document both positive and negative consequences
+- Link to related ADRs when applicable
+- Update status when decisions change
 
-Write an ADR when making decisions about:
+### Don't
 
-- Choosing between competing technologies or patterns
-- Significant refactoring or architectural changes
-- New integration patterns with external systems
-- Security-related architectural choices
-- Performance optimization strategies
-- Breaking changes to existing patterns
+- Don't delete ADRs - mark them as deprecated/superseded
+- Don't modify accepted ADRs - create new ones instead
+- Don't use ADRs for implementation details - focus on architecture
+- Don't skip the consequences section - it's the most valuable part
+
+## Related Documentation
+
+- [Architecture Overview](../ARCHITECTURE.md)
+- [Development Guide](../DEVELOPMENT.md)
+- [Contributing Guidelines](../../CONTRIBUTING.md)
 
 ## References
 

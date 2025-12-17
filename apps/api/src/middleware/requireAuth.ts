@@ -112,11 +112,21 @@ export function requireAuth(): RequestHandler {
       );
 
       if (!user) {
-        // User no longer exists or is deactivated
+        // User no longer exists
         req.session.destroy(() => {});
         res.status(401).json({
           error: 'Unauthorized',
           message: 'User not found',
+        });
+        return;
+      }
+
+      // Check if user has been soft deleted
+      if (user.isDeleted) {
+        req.session.destroy(() => {});
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Account has been deleted',
         });
         return;
       }

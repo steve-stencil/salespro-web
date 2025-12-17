@@ -1,9 +1,9 @@
-import bcrypt from 'bcrypt';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { Company, User, Role, UserRole, Session } from '../../entities';
 import { UserType, RoleType, CompanyAccessLevel } from '../../entities/types';
+import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 
@@ -59,10 +59,10 @@ describe('Internal Users Routes', () => {
     em.persist([platformAdminRole, platformSupportRole]);
 
     // Create admin internal user
-    const passwordHash = await bcrypt.hash('adminpass123', 10);
+    const pwHash = await hashPassword('adminpass123');
     adminUser = em.create(User, {
       email: 'admin-internal@test.com',
-      passwordHash,
+      passwordHash: pwHash,
       userType: UserType.INTERNAL,
       isActive: true,
       emailVerified: true,
