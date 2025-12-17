@@ -23,6 +23,7 @@ import {
   TrustedDevice,
   RememberMeToken,
   ApiKey,
+  File,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -51,6 +52,7 @@ const entities = [
   TrustedDevice,
   RememberMeToken,
   ApiKey,
+  File,
 ];
 
 /**

@@ -1,9 +1,9 @@
-import bcrypt from 'bcrypt';
 import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { Company, User, Role, UserRole, Session } from '../../entities';
 import { UserType, RoleType, CompanyAccessLevel } from '../../entities/types';
+import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 
@@ -64,20 +64,20 @@ describe('Platform Routes', () => {
     em.persist([platformAdminRole, platformSupportRole]);
 
     // Create internal user
-    const passwordHash = await bcrypt.hash('testpass123', 10);
+    const pwHash = await hashPassword('testpass123');
     internalUser = em.create(User, {
       email: 'internal@test.com',
-      passwordHash,
+      passwordHash: pwHash,
       userType: UserType.INTERNAL,
       isActive: true,
       emailVerified: true,
     });
     em.persist(internalUser);
 
-    // Create company user
+    // Create company user (reuse the same password hash)
     companyUser = em.create(User, {
       email: 'company@test.com',
-      passwordHash,
+      passwordHash: pwHash,
       userType: UserType.COMPANY,
       company: testCompany1,
       isActive: true,

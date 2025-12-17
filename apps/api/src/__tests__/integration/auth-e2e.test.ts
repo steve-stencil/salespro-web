@@ -1,7 +1,13 @@
 import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 
-import { Company, User, SessionSource, UserType } from '../../entities';
+import {
+  Company,
+  User,
+  Session,
+  SessionSource,
+  UserType,
+} from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 
@@ -450,7 +456,8 @@ describe('Authentication E2E Tests', () => {
           newPassword: 'NewPassword789!',
         });
 
-      expect(response.status).toBe(401);
+      // 400 because user is authenticated but provided wrong input
+      expect(response.status).toBe(400);
       expect(response.body.error).toBe('Current password is incorrect');
     });
 
@@ -500,7 +507,7 @@ describe('Authentication E2E Tests', () => {
 
       // Should reject because it's in password history
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('recently used');
+      expect(response.body.error).toContain('Cannot reuse');
     });
 
     it('should reject new password that does not meet policy', async () => {
@@ -597,9 +604,9 @@ describe('Authentication E2E Tests', () => {
     afterEach(async () => {
       const orm = getORM();
       const em = orm.em.fork();
-      await em.nativeDelete('session', { user: internalUserId });
-      await em.nativeDelete('user', { id: internalUserId });
-      await em.nativeDelete('company', { id: internalCompanyId });
+      await em.nativeDelete(Session, { user: internalUserId });
+      await em.nativeDelete(User, { id: internalUserId });
+      await em.nativeDelete(Company, { id: internalCompanyId });
     });
 
     it('should return userType as internal for platform user', async () => {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { getORM } from '../../lib/db';
+import { requireAuth } from '../../middleware';
 import { AuthService } from '../../services';
 
 import {
@@ -10,6 +11,7 @@ import {
 } from './schemas';
 import { getClientIp, getUserAgent } from './utils';
 
+import type { AuthenticatedRequest } from '../../middleware/requireAuth';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
@@ -97,46 +99,49 @@ router.post('/password/reset', async (req: Request, res: Response) => {
  * POST /auth/password/change
  * Change password (authenticated)
  */
-router.post('/password/change', async (req: Request, res: Response) => {
-  try {
-    const userId = req.session.userId;
+router.post(
+  '/password/change',
+  requireAuth(),
+  async (req: Request, res: Response) => {
+    try {
+      const user = (req as AuthenticatedRequest).user;
+      if (!user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
 
-    if (!userId) {
-      res.status(401).json({ error: 'Not authenticated' });
-      return;
+      const validation = passwordChangeSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          error: 'Validation error',
+          details: validation.error.flatten(),
+        });
+        return;
+      }
+
+      const { currentPassword, newPassword } = validation.data;
+      const orm = getORM();
+      const authService = new AuthService(orm.em);
+
+      const result = await authService.changePassword(
+        user.id,
+        currentPassword,
+        newPassword,
+        getClientIp(req),
+        getUserAgent(req),
+      );
+
+      if (!result.success) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+
+      res.status(200).json({ message: 'Password changed successfully' });
+    } catch (err) {
+      req.log.error({ err }, 'Password change error');
+      res.status(500).json({ error: 'Internal server error' });
     }
-
-    const validation = passwordChangeSchema.safeParse(req.body);
-    if (!validation.success) {
-      res.status(400).json({
-        error: 'Validation error',
-        details: validation.error.flatten(),
-      });
-      return;
-    }
-
-    const { currentPassword, newPassword } = validation.data;
-    const orm = getORM();
-    const authService = new AuthService(orm.em);
-
-    const result = await authService.changePassword(
-      userId,
-      currentPassword,
-      newPassword,
-      getClientIp(req),
-      getUserAgent(req),
-    );
-
-    if (!result.success) {
-      res.status(400).json({ error: result.error });
-      return;
-    }
-
-    res.status(200).json({ message: 'Password changed successfully' });
-  } catch (err) {
-    req.log.error({ err }, 'Password change error');
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  },
+);
 
 export default router;
