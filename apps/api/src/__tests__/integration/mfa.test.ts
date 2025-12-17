@@ -1,9 +1,16 @@
 import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 
-import { Company, User, Session, SessionSource } from '../../entities';
+import {
+  Company,
+  User,
+  Session,
+  SessionSource,
+  TrustedDevice,
+} from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
+import { TRUSTED_DEVICE_CONFIG } from '../../services/auth/trusted-device';
 
 import { makeRequest, waitForDatabase } from './helpers';
 
@@ -65,6 +72,7 @@ describe('MFA Routes Integration Tests', () => {
     // Clean up test data
     const orm = getORM();
     const em = orm.em.fork();
+    await em.nativeDelete('trusted_device', {});
     await em.nativeDelete('mfa_recovery_code', {});
     await em.nativeDelete('login_event', {});
     await em.nativeDelete('login_attempt', {});
@@ -1045,6 +1053,587 @@ describe('MFA Routes Integration Tests', () => {
       const emAfter = orm.em.fork();
       const sessionAfter = await emAfter.findOne(Session, { sid: sessionId });
       expect(sessionAfter?.mfaVerified).toBe(true);
+    });
+  });
+
+  describe('Trusted Device Flow', () => {
+    /**
+     * Helper to extract device_trust cookie from response
+     */
+    function extractDeviceTrustCookie(cookies: string[]): string | undefined {
+      const deviceTrustCookie = cookies.find((c: string) =>
+        c.startsWith('device_trust='),
+      );
+      if (!deviceTrustCookie) return undefined;
+
+      const match = deviceTrustCookie.match(/device_trust=([^;]+)/);
+      return match?.[1];
+    }
+
+    it('should set device_trust cookie when trustDevice=true on MFA verify', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - get MFA code
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+
+      if (!code) return;
+
+      // Verify MFA with trustDevice=true
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', loginCookies)
+        .send({ code, trustDevice: true });
+
+      expect(verifyResponse.status).toBe(200);
+
+      // Check device_trust cookie is set
+      const verifyCookies = Array.isArray(verifyResponse.headers['set-cookie'])
+        ? verifyResponse.headers['set-cookie']
+        : [];
+      const deviceTrustToken = extractDeviceTrustCookie(verifyCookies);
+
+      expect(deviceTrustToken).toBeDefined();
+      expect(deviceTrustToken!.length).toBeGreaterThan(0);
+
+      // Check cookie attributes
+      const deviceTrustCookie = verifyCookies.find((c: string) =>
+        c.startsWith('device_trust='),
+      );
+      expect(deviceTrustCookie).toContain('HttpOnly');
+      expect(deviceTrustCookie).toContain('Path=/');
+    });
+
+    it('should NOT set device_trust cookie when trustDevice=false', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - get MFA code
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+
+      if (!code) return;
+
+      // Verify MFA with trustDevice=false (default)
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', loginCookies)
+        .send({ code, trustDevice: false });
+
+      expect(verifyResponse.status).toBe(200);
+
+      // Check device_trust cookie is NOT set
+      const verifyCookies = Array.isArray(verifyResponse.headers['set-cookie'])
+        ? verifyResponse.headers['set-cookie']
+        : [];
+      const deviceTrustToken = extractDeviceTrustCookie(verifyCookies);
+
+      expect(deviceTrustToken).toBeUndefined();
+    });
+
+    it('should skip MFA on subsequent login when device is trusted', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // First login - get MFA code
+      const firstLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      expect(firstLoginResponse.status).toBe(200);
+      expect(firstLoginResponse.body.requiresMfa).toBe(true);
+
+      const firstLoginCookies: string[] = Array.isArray(
+        firstLoginResponse.headers['set-cookie'],
+      )
+        ? (firstLoginResponse.headers['set-cookie'] as string[])
+        : [];
+      const code = firstLoginResponse.body.code;
+
+      if (!code) return;
+
+      // Verify MFA with trustDevice=true
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', firstLoginCookies)
+        .send({ code, trustDevice: true });
+
+      expect(verifyResponse.status).toBe(200);
+
+      // Get device_trust cookie
+      const verifyCookies: string[] = Array.isArray(
+        verifyResponse.headers['set-cookie'],
+      )
+        ? (verifyResponse.headers['set-cookie'] as string[])
+        : [];
+      const deviceTrustCookie = verifyCookies.find((c: string) =>
+        c.startsWith('device_trust='),
+      );
+
+      expect(deviceTrustCookie).toBeDefined();
+
+      // Logout
+      await makeRequest()
+        .post('/api/auth/logout')
+        .set('Cookie', [...firstLoginCookies, ...verifyCookies]);
+
+      // Second login - should skip MFA because device is trusted
+      const secondLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .set('Cookie', deviceTrustCookie ? [deviceTrustCookie] : [])
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      expect(secondLoginResponse.status).toBe(200);
+      expect(secondLoginResponse.body.requiresMfa).toBeUndefined();
+      expect(secondLoginResponse.body.message).toBe('Login successful');
+      expect(secondLoginResponse.body.user).toBeDefined();
+    });
+
+    it('should require MFA when device_trust cookie is missing', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login without device_trust cookie
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+    });
+
+    it('should require MFA when device_trust cookie is invalid', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login with invalid device_trust cookie
+      const loginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .set('Cookie', ['device_trust=invalid-token-12345'])
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      expect(loginResponse.status).toBe(200);
+      expect(loginResponse.body.requiresMfa).toBe(true);
+    });
+
+    it('should require MFA when device trust has expired', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // First login - get MFA code
+      const firstLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      const firstLoginCookies: string[] = Array.isArray(
+        firstLoginResponse.headers['set-cookie'],
+      )
+        ? (firstLoginResponse.headers['set-cookie'] as string[])
+        : [];
+      const code = firstLoginResponse.body.code;
+
+      if (!code) return;
+
+      // Verify MFA with trustDevice=true
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', firstLoginCookies)
+        .send({ code, trustDevice: true });
+
+      const verifyCookies: string[] = Array.isArray(
+        verifyResponse.headers['set-cookie'],
+      )
+        ? (verifyResponse.headers['set-cookie'] as string[])
+        : [];
+      const deviceTrustCookie = verifyCookies.find((c: string) =>
+        c.startsWith('device_trust='),
+      );
+
+      expect(deviceTrustCookie).toBeDefined();
+
+      // Manually expire the trusted device in DB
+      const emUpdate = orm.em.fork();
+      await emUpdate.nativeUpdate(
+        TrustedDevice,
+        { user: { id: testUserId } },
+        { trustExpiresAt: new Date(Date.now() - 1000) }, // Expired 1 second ago
+      );
+
+      // Logout
+      await makeRequest()
+        .post('/api/auth/logout')
+        .set('Cookie', [...firstLoginCookies, ...verifyCookies]);
+
+      // Second login - should require MFA because device trust expired
+      const secondLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .set('Cookie', deviceTrustCookie ? [deviceTrustCookie] : [])
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      expect(secondLoginResponse.status).toBe(200);
+      expect(secondLoginResponse.body.requiresMfa).toBe(true);
+    });
+
+    it('should update lastSeenAt when trusted device is used', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // First login - get MFA code
+      const firstLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      const firstLoginCookies: string[] = Array.isArray(
+        firstLoginResponse.headers['set-cookie'],
+      )
+        ? (firstLoginResponse.headers['set-cookie'] as string[])
+        : [];
+      const code = firstLoginResponse.body.code;
+
+      if (!code) return;
+
+      // Verify MFA with trustDevice=true
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', firstLoginCookies)
+        .send({ code, trustDevice: true });
+
+      const verifyCookies: string[] = Array.isArray(
+        verifyResponse.headers['set-cookie'],
+      )
+        ? (verifyResponse.headers['set-cookie'] as string[])
+        : [];
+      const deviceTrustCookie = verifyCookies.find((c: string) =>
+        c.startsWith('device_trust='),
+      );
+
+      // Get initial lastSeenAt
+      const emBefore = orm.em.fork();
+      const deviceBefore = await emBefore.findOne(TrustedDevice, {
+        user: { id: testUserId },
+      });
+      const initialLastSeenAt = deviceBefore?.lastSeenAt;
+
+      expect(initialLastSeenAt).toBeDefined();
+
+      // Wait a small amount to ensure time difference
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Logout
+      await makeRequest()
+        .post('/api/auth/logout')
+        .set('Cookie', [...firstLoginCookies, ...verifyCookies]);
+
+      // Second login with trusted device
+      await makeRequest()
+        .post('/api/auth/login')
+        .set('Cookie', deviceTrustCookie ? [deviceTrustCookie] : [])
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      // Check lastSeenAt was updated
+      const emAfter = orm.em.fork();
+      const deviceAfter = await emAfter.findOne(TrustedDevice, {
+        user: { id: testUserId },
+      });
+
+      expect(deviceAfter?.lastSeenAt.getTime()).toBeGreaterThanOrEqual(
+        initialLastSeenAt!.getTime(),
+      );
+    });
+
+    it('should create TrustedDevice record in database', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Verify no trusted devices exist initially
+      const emInitial = orm.em.fork();
+      const initialDevices = await emInitial.find(TrustedDevice, {
+        user: { id: testUserId },
+      });
+      expect(initialDevices.length).toBe(0);
+
+      // Login - get MFA code
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+
+      if (!code) return;
+
+      // Verify MFA with trustDevice=true
+      await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', loginCookies)
+        .send({ code, trustDevice: true });
+
+      // Verify trusted device was created
+      const emAfter = orm.em.fork();
+      const devices = await emAfter.find(TrustedDevice, {
+        user: { id: testUserId },
+      });
+
+      expect(devices.length).toBe(1);
+      const device = devices[0];
+      expect(device).toBeDefined();
+      expect(device?.deviceName).toBeDefined();
+      expect(device?.deviceFingerprint).toBeDefined();
+      expect(device?.trustExpiresAt).toBeDefined();
+
+      // Verify trust expires in ~30 days
+      const thirtyDays =
+        TRUSTED_DEVICE_CONFIG.TRUST_DURATION_DAYS * 24 * 60 * 60 * 1000;
+      const expiryDiff = device!.trustExpiresAt!.getTime() - Date.now();
+      expect(expiryDiff).toBeGreaterThan(thirtyDays - 60000);
+      expect(expiryDiff).toBeLessThanOrEqual(thirtyDays + 1000);
+    });
+
+    it('should not leak device token in response body', async () => {
+      // Enable MFA for the user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const user = await em.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await em.flush();
+      }
+
+      // Login - get MFA code
+      const loginResponse = await makeRequest().post('/api/auth/login').send({
+        email: testEmail,
+        password: testPassword,
+        source: SessionSource.WEB,
+      });
+
+      const loginCookies = Array.isArray(loginResponse.headers['set-cookie'])
+        ? loginResponse.headers['set-cookie']
+        : [];
+      const code = loginResponse.body.code;
+
+      if (!code) return;
+
+      // Verify MFA with trustDevice=true
+      const verifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', loginCookies)
+        .send({ code, trustDevice: true });
+
+      // Response should not contain deviceToken or deviceFingerprint
+      expect(verifyResponse.body.deviceToken).toBeUndefined();
+      expect(verifyResponse.body.deviceFingerprint).toBeUndefined();
+      expect(verifyResponse.body.device_trust).toBeUndefined();
+    });
+
+    it('should require MFA when using another user device_trust cookie', async () => {
+      // Create another user
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const company = await em.findOne(Company, { id: testCompanyId });
+      if (!company) return;
+
+      const otherUser = new User();
+      otherUser.id = uuid();
+      otherUser.email = `other-${Date.now()}@example.com`;
+      otherUser.passwordHash = await hashPassword(testPassword);
+      otherUser.nameFirst = 'Other';
+      otherUser.nameLast = 'User';
+      otherUser.company = company;
+      otherUser.isActive = true;
+      otherUser.emailVerified = true;
+      otherUser.mfaEnabled = true;
+      otherUser.mfaEnabledAt = new Date();
+
+      em.persist(otherUser);
+      await em.flush();
+
+      // Enable MFA for the test user
+      const emTest = orm.em.fork();
+      const user = await emTest.findOne(User, { id: testUserId });
+      if (user) {
+        user.mfaEnabled = true;
+        user.mfaEnabledAt = new Date();
+        await emTest.flush();
+      }
+
+      // Login as other user and get device_trust cookie
+      const otherLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .send({
+          email: otherUser.email,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      const otherLoginCookies: string[] = Array.isArray(
+        otherLoginResponse.headers['set-cookie'],
+      )
+        ? (otherLoginResponse.headers['set-cookie'] as string[])
+        : [];
+      const otherCode = otherLoginResponse.body.code;
+
+      if (!otherCode) {
+        // Clean up and skip
+        await em.nativeDelete('user', { id: otherUser.id });
+        return;
+      }
+
+      const otherVerifyResponse = await makeRequest()
+        .post('/api/auth/mfa/verify')
+        .set('Cookie', otherLoginCookies)
+        .send({ code: otherCode, trustDevice: true });
+
+      const otherVerifyCookies: string[] = Array.isArray(
+        otherVerifyResponse.headers['set-cookie'],
+      )
+        ? (otherVerifyResponse.headers['set-cookie'] as string[])
+        : [];
+      const otherDeviceTrustCookie = otherVerifyCookies.find((c: string) =>
+        c.startsWith('device_trust='),
+      );
+
+      // Try to login as test user with other user's device_trust cookie
+      const testLoginResponse = await makeRequest()
+        .post('/api/auth/login')
+        .set('Cookie', otherDeviceTrustCookie ? [otherDeviceTrustCookie] : [])
+        .send({
+          email: testEmail,
+          password: testPassword,
+          source: SessionSource.WEB,
+        });
+
+      // Should still require MFA - device is not trusted for this user
+      expect(testLoginResponse.status).toBe(200);
+      expect(testLoginResponse.body.requiresMfa).toBe(true);
+
+      // Clean up other user
+      await em.nativeDelete('trusted_device', { user: { id: otherUser.id } });
+      await em.nativeDelete('session', { user: { id: otherUser.id } });
+      await em.nativeDelete('login_event', {});
+      await em.nativeDelete('login_attempt', {});
+      await em.nativeDelete('user', { id: otherUser.id });
     });
   });
 

@@ -8,9 +8,7 @@ export class Migration20251215000005_UserSoftDelete extends Migration {
   // eslint-disable-next-line @typescript-eslint/require-await
   override async up(): Promise<void> {
     // Add deleted_at column (nullable timestamp)
-    this.addSql(
-      `alter table "user" add column "deleted_at" timestamptz null;`,
-    );
+    this.addSql(`alter table "user" add column "deleted_at" timestamptz null;`);
 
     // Add index for efficient filtering of non-deleted users
     this.addSql(

@@ -1,6 +1,6 @@
 # Integration Testing Guide
 
-This document explains how to run and write integration tests for the MERN monorepo project.
+This document explains how to run and write integration tests for SalesPro Web.
 
 ## Overview
 
@@ -12,7 +12,7 @@ Integration tests verify that different parts of the application work together c
 
 - **Location**: `apps/api/src/__tests__/integration/`
 - **Configuration**: `apps/api/vitest.integration.config.ts`
-- **Setup**: Uses MongoDB Memory Server for real database testing
+- **Setup**: Uses PostgreSQL test container for real database testing
 - **Scope**: Tests API endpoints with real database connections
 
 ### Web Integration Tests
@@ -61,22 +61,22 @@ cd apps/web && pnpm vitest run --config vitest.integration.config.ts src/__tests
 
 #### Setup
 
-API integration tests use MongoDB Memory Server to provide a real database connection:
+API integration tests use a PostgreSQL test container to provide a real database connection:
 
 ```typescript
-import { describe, it, expect, beforeEach } from "vitest";
-import { getTestApp, makeRequest } from "./helpers";
+import { describe, it, expect, beforeEach } from 'vitest';
+import { getTestApp, makeRequest } from './helpers';
 
-describe("API Integration Tests", () => {
+describe('API Integration Tests', () => {
   beforeEach(async () => {
     const app = await getTestApp();
     // Database is automatically connected via setup.ts
   });
 
-  it("should return health status", async () => {
-    const response = await makeRequest().get("/api/healthz").expect(200);
+  it('should return health status', async () => {
+    const response = await makeRequest().get('/api/healthz').expect(200);
 
-    expect(response.body).toEqual({ status: "ok" });
+    expect(response.body).toEqual({ status: 'ok' });
   });
 });
 ```
@@ -147,7 +147,7 @@ describe("App Integration Tests", () => {
 
 ### 2. Use Real Dependencies
 
-- API tests use real database (MongoDB Memory Server)
+- API tests use real database (PostgreSQL test container)
 - Web tests mock API calls but test real component interactions
 - Avoid over-mocking
 
@@ -178,9 +178,9 @@ describe("App Integration Tests", () => {
 export default defineConfig({
   test: {
     globals: true,
-    environment: "node",
-    setupFiles: ["./src/__tests__/integration/setup.ts"],
-    include: ["src/__tests__/integration/**/*.test.ts"],
+    environment: 'node',
+    setupFiles: ['./src/__tests__/integration/setup.ts'],
+    include: ['src/__tests__/integration/**/*.test.ts'],
     testTimeout: 30000, // 30 seconds
     hookTimeout: 30000,
   },
@@ -195,9 +195,9 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    environment: "jsdom",
-    setupFiles: ["./src/__tests__/integration/setup.ts"],
-    include: ["src/__tests__/integration/**/*.test.tsx"],
+    environment: 'jsdom',
+    setupFiles: ['./src/__tests__/integration/setup.ts'],
+    include: ['src/__tests__/integration/**/*.test.tsx'],
     testTimeout: 30000, // 30 seconds
     hookTimeout: 30000,
   },
@@ -209,8 +209,8 @@ export default defineConfig({
 ### Common Issues
 
 1. **Database Connection Timeout**
-   - Ensure MongoDB Memory Server is properly installed
-   - Check that no other MongoDB instance is running on the same port
+   - Ensure PostgreSQL test container is running: `docker-compose -f docker-compose.test.yml up -d`
+   - Check that no other PostgreSQL instance is using port 5433
 
 2. **Test Timeouts**
    - Increase timeout values in vitest config

@@ -100,6 +100,34 @@ sequenceDiagram
     API->>Frontend: Success + session
 ```
 
+### MFA with Trusted Device Flow
+
+When a user checks "Trust this device for 30 days", subsequent logins from that device will skip MFA.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant API
+    participant Database
+
+    Note over User,Database: First Login (new device)
+    User->>Frontend: Enter email & password
+    Frontend->>API: POST /auth/login
+    API->>Frontend: { requiresMfa: true }
+    Frontend->>User: Show MFA input + Trust checkbox
+    User->>Frontend: Enter code + check "Trust device"
+    Frontend->>API: POST /auth/mfa/verify { trustDevice: true }
+    API->>Database: Store TrustedDevice
+    API->>Frontend: Success + Set-Cookie: device_trust
+
+    Note over User,Database: Subsequent Login (trusted device)
+    User->>Frontend: Enter email & password
+    Frontend->>API: POST /auth/login + Cookie: device_trust
+    API->>Database: Verify TrustedDevice
+    API->>Frontend: Success (MFA skipped)
+```
+
 ---
 
 ## API Endpoints
@@ -843,6 +871,92 @@ If running the frontend on a different port/domain than the API, ensure the API'
 
 ---
 
+## MFA Endpoints
+
+### Verify MFA Code
+
+Verify the MFA code sent to the user's email after login.
+
+**Endpoint:** `POST /auth/mfa/verify`
+
+**Request Body:**
+
+| Field         | Type    | Required | Description                                            |
+| ------------- | ------- | -------- | ------------------------------------------------------ |
+| `code`        | string  | Yes      | 6-digit MFA code from email                            |
+| `trustDevice` | boolean | No       | Trust this device for 30 days (skip MFA on next login) |
+
+**Request Example:**
+
+```json
+{
+  "code": "123456",
+  "trustDevice": true
+}
+```
+
+**Success Response (200 OK):**
+
+```json
+{
+  "message": "MFA verification successful",
+  "user": {
+    "id": "abc123-def456-...",
+    "email": "user@example.com",
+    "nameFirst": "John",
+    "nameLast": "Doe"
+  }
+}
+```
+
+When `trustDevice: true`, the response also sets a `device_trust` cookie that will be used to skip MFA on subsequent logins from this device.
+
+**Error Responses:**
+
+| Status | Response                                                                    | Description           |
+| ------ | --------------------------------------------------------------------------- | --------------------- |
+| 400    | `{ "error": "No pending MFA verification", "errorCode": "no_pending_mfa" }` | No MFA session exists |
+| 401    | `{ "error": "Invalid MFA code", "errorCode": "mfa_code_invalid" }`          | Wrong code            |
+| 410    | `{ "error": "MFA code has expired", "errorCode": "code_expired" }`          | Code expired (5 min)  |
+
+---
+
+### Resend MFA Code
+
+Request a new MFA code to be sent via email.
+
+**Endpoint:** `POST /auth/mfa/send`
+
+**Request:** No body required (uses pending MFA session)
+
+**Success Response (200 OK):**
+
+```json
+{
+  "message": "Verification code sent",
+  "expiresIn": 5
+}
+```
+
+---
+
+## Trusted Device Cookie
+
+When `trustDevice: true` is passed to `/auth/mfa/verify`, a `device_trust` cookie is set with the following properties:
+
+| Property | Value                  |
+| -------- | ---------------------- |
+| Name     | `device_trust`         |
+| Max-Age  | 30 days                |
+| HttpOnly | true                   |
+| Secure   | true (production only) |
+| SameSite | lax                    |
+| Path     | /                      |
+
+This cookie is automatically sent with login requests. If valid and not expired, the user will skip MFA verification.
+
+---
+
 ## Quick Reference
 
 | Action              | Method | Endpoint                | Auth Required |
@@ -852,6 +966,8 @@ If running the frontend on a different port/domain than the API, ensure the API'
 | Get Current User    | GET    | `/auth/me`              | Yes           |
 | Forgot Password     | POST   | `/auth/password/forgot` | No            |
 | Reset Password      | POST   | `/auth/password/reset`  | No            |
+| MFA Verify          | POST   | `/auth/mfa/verify`      | MFA Session   |
+| MFA Resend          | POST   | `/auth/mfa/send`        | MFA Session   |
 | Get Sessions        | GET    | `/auth/sessions`        | Yes           |
 | Revoke Session      | DELETE | `/auth/sessions/:sid`   | Yes           |
 | Revoke All Sessions | DELETE | `/auth/sessions/all`    | Yes           |

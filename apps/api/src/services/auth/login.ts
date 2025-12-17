@@ -11,6 +11,10 @@ import { verifyPassword } from '../../lib/crypto';
 
 import { LOCKOUT_CONFIG } from './config';
 import { logLoginEvent } from './events';
+import {
+  verifyTrustedDevice,
+  updateTrustedDeviceLastSeen,
+} from './trusted-device';
 import { LoginErrorCode } from './types';
 
 import type { LoginParams, LoginResult, ActiveCompanyInfo } from './types';
@@ -24,8 +28,16 @@ export async function login(
   em: EntityManager,
   params: LoginParams,
 ): Promise<LoginResult> {
-  const { email, password, source, ipAddress, userAgent, deviceId, sessionId } =
-    params;
+  const {
+    email,
+    password,
+    source,
+    ipAddress,
+    userAgent,
+    deviceId,
+    sessionId,
+    deviceTrustToken,
+  } = params;
 
   const user = await em.findOne(
     User,
@@ -150,6 +162,44 @@ export async function login(
   }
 
   if (user.mfaEnabled || activeCompany?.mfaRequired) {
+    // Check if device is trusted before requiring MFA
+    if (deviceTrustToken) {
+      const trustResult = await verifyTrustedDevice(
+        em,
+        user.id,
+        deviceTrustToken,
+      );
+
+      if (trustResult.trusted && trustResult.device) {
+        // Device is trusted - skip MFA and update last seen
+        await updateTrustedDeviceLastSeen(em, trustResult.device, ipAddress);
+
+        // Continue with successful login (skip MFA)
+        await handleSuccessfulLogin(em, user, sessionId, {
+          source,
+          ipAddress,
+          userAgent,
+          deviceId,
+          rememberMe: params.rememberMe,
+          activeCompany,
+        });
+
+        attempt.success = true;
+        em.persist(attempt);
+        await em.flush();
+
+        return {
+          success: true,
+          user,
+          activeCompany: activeCompany
+            ? { id: activeCompany.id, name: activeCompany.name }
+            : undefined,
+          canSwitchCompanies,
+        };
+      }
+    }
+
+    // Device not trusted or no token - require MFA
     attempt.success = true;
     em.persist(attempt);
     await em.flush();

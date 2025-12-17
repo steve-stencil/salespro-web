@@ -13,6 +13,8 @@ export type LoginParams = {
   deviceId?: string | undefined;
   /** Session ID from express-session (req.sessionID) */
   sessionId: string;
+  /** Device trust token from cookie for MFA bypass */
+  deviceTrustToken?: string | undefined;
 };
 
 /**

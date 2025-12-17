@@ -90,6 +90,10 @@ router.post('/login', async (req: Request, res: Response) => {
     const sessionId = await getOrCreateSessionId(req);
 
     const deviceId = req.headers['x-device-id'];
+    const deviceTrustToken = (
+      req.cookies as Record<string, string | undefined>
+    )['device_trust'];
+
     const result = await authService.login({
       email,
       password,
@@ -99,6 +103,7 @@ router.post('/login', async (req: Request, res: Response) => {
       userAgent: getUserAgent(req),
       deviceId: typeof deviceId === 'string' ? deviceId : undefined,
       sessionId,
+      deviceTrustToken,
     });
 
     if (!result.success) {

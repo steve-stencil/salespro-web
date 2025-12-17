@@ -28,10 +28,10 @@ We actively maintain security for the following versions:
 
 ### Database Security
 
-- **Connection strings**: Use secure MongoDB connection strings
+- **Connection strings**: Use secure PostgreSQL connection strings with SSL in production
 - **Environment isolation**: Use different databases for development, staging, and production
 - **Data validation**: Validate all data before database operations
-- **Query sanitization**: Use Mongoose's built-in protection against NoSQL injection
+- **Query sanitization**: Use MikroORM's parameterized queries to prevent SQL injection
 
 ### Frontend Security
 
@@ -88,14 +88,15 @@ This project includes the following security-focused dependencies:
 - **Helmet**: Security headers middleware
 - **CORS**: Cross-origin resource sharing
 - **Zod**: Runtime type validation
-- **Mongoose**: MongoDB ODM with built-in protection
+- **MikroORM**: PostgreSQL ORM with parameterized queries
+- **Argon2**: Secure password hashing
 
 ## Additional Resources
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 - [Node.js Security Best Practices](https://nodejs.org/en/docs/guides/security/)
 - [React Security Best Practices](https://react.dev/learn/security)
-- [MongoDB Security Checklist](https://docs.mongodb.com/manual/security-checklist/)
+- [PostgreSQL Security Documentation](https://www.postgresql.org/docs/current/security.html)
 
 ## Contact
 

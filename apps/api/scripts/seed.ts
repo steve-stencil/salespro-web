@@ -28,11 +28,19 @@ import {
   Company,
   User,
   Session,
+  Role,
+  UserRole,
+  Office,
+  UserOffice,
   SubscriptionTier,
   SessionLimitStrategy,
   DEFAULT_PASSWORD_POLICY,
+  RoleType,
+  UserType,
+  CompanyAccessLevel,
 } from '../src/entities';
 import { hashPassword } from '../src/lib/crypto';
+import { PERMISSIONS } from '../src/lib/permissions';
 
 /**
  * Parse command line arguments for --email and --password
@@ -147,7 +155,7 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
   return {
     clientUrl: databaseUrl,
     driver: PostgreSqlDriver,
-    entities: [Company, User, Session],
+    entities: [Company, User, Session, Role, UserRole, Office, UserOffice],
     debug: false,
     allowGlobalContext: true,
   };
@@ -182,9 +190,18 @@ async function clearSeedData(
 ): Promise<void> {
   const em = orm.em.fork();
 
-  // Find and remove the seed user first (due to FK constraint)
+  // Find the seed user
   const user = await em.findOne(User, { email: seedConfig.user.email });
   if (user) {
+    // Remove user role assignments first (FK constraint)
+    await em.nativeDelete(UserRole, { user: user.id });
+    log('Removed user role assignments', 'warn');
+
+    // Remove sessions
+    await em.nativeDelete(Session, { user: user.id });
+    log('Removed user sessions', 'warn');
+
+    // Remove user
     em.remove(user);
     log(`Removed existing user: ${user.email}`, 'warn');
   }
@@ -249,9 +266,133 @@ async function createUser(
   user.mfaEnabled = false;
   user.needsResetPassword = false;
   user.failedLoginAttempts = 0;
+  user.userType = UserType.INTERNAL; // Platform user with full access
 
   await em.persistAndFlush(user);
   return user;
+}
+
+/**
+ * Get or create the platform admin role
+ */
+async function getOrCreatePlatformAdminRole(orm: MikroORM): Promise<Role> {
+  const em = orm.em.fork();
+
+  let role = await em.findOne(Role, {
+    name: 'platformAdmin',
+    type: RoleType.PLATFORM,
+  });
+
+  if (!role) {
+    role = new Role();
+    role.name = 'platformAdmin';
+    role.displayName = 'Platform Administrator';
+    role.description =
+      'Full platform access. Can manage all companies and internal users.';
+    role.type = RoleType.PLATFORM;
+    role.companyAccessLevel = CompanyAccessLevel.FULL;
+    role.permissions = [
+      PERMISSIONS.PLATFORM_ADMIN,
+      PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+      PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+      PERMISSIONS.PLATFORM_VIEW_AUDIT_LOGS,
+      PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
+    ];
+    role.isDefault = false;
+
+    await em.persistAndFlush(role);
+    log('Created platformAdmin role', 'success');
+  } else {
+    log('Found existing platformAdmin role', 'info');
+  }
+
+  return role;
+}
+
+/**
+ * Get or create the admin system role
+ */
+async function getOrCreateAdminRole(orm: MikroORM): Promise<Role> {
+  const em = orm.em.fork();
+
+  let role = await em.findOne(Role, {
+    name: 'admin',
+    type: RoleType.SYSTEM,
+  });
+
+  if (!role) {
+    role = new Role();
+    role.name = 'admin';
+    role.displayName = 'Administrator';
+    role.description =
+      'Company administrator with full access to manage users, roles, and settings.';
+    role.type = RoleType.SYSTEM;
+    role.permissions = [
+      'customer:*',
+      'user:*',
+      'office:*',
+      'role:*',
+      'settings:*',
+      'company:*',
+      'report:read',
+      'report:export',
+    ];
+    role.isDefault = false;
+
+    await em.persistAndFlush(role);
+    log('Created admin system role', 'success');
+  } else {
+    log('Found existing admin system role', 'info');
+  }
+
+  return role;
+}
+
+/**
+ * Assign platform role to user
+ */
+async function assignPlatformRole(
+  orm: MikroORM,
+  user: User,
+  role: Role,
+): Promise<UserRole> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const roleRef = em.getReference(Role, role.id);
+
+  const userRole = new UserRole();
+  userRole.user = userRef;
+  userRole.role = roleRef;
+  userRole.assignedAt = new Date();
+
+  await em.persistAndFlush(userRole);
+  return userRole;
+}
+
+/**
+ * Assign company role to user
+ */
+async function assignCompanyRole(
+  orm: MikroORM,
+  user: User,
+  role: Role,
+  company: Company,
+): Promise<UserRole> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const roleRef = em.getReference(Role, role.id);
+  const companyRef = em.getReference(Company, company.id);
+
+  const userRole = new UserRole();
+  userRole.user = userRef;
+  userRole.role = roleRef;
+  userRole.company = companyRef;
+  userRole.assignedAt = new Date();
+
+  await em.persistAndFlush(userRole);
+  return userRole;
 }
 
 /**
@@ -283,7 +424,16 @@ function printSummary(
   console.log(`  Email: ${seedConfig.user.email}`);
   console.log(`  Password: ${seedConfig.user.password}`);
   console.log(`  Name: ${user.fullName}`);
+  console.log(`  User Type: ${user.userType} (Platform User)`);
   console.log(`  ID: ${user.id}`);
+  console.log('');
+  console.log(`${colors.cyan}Assigned Roles:${colors.reset}`);
+  console.log(`  1. Platform Administrator (platform-level operations)`);
+  console.log(`  2. Administrator (company-level access)`);
+  console.log('');
+  console.log(
+    `${colors.green}✓ This user has full platform and company access!${colors.reset}`,
+  );
   console.log('');
   console.log(
     `${colors.yellow}⚠️  Remember to change the default password in production!${colors.reset}`,
@@ -332,6 +482,13 @@ async function seed(): Promise<void> {
       }
     }
 
+    // Get or create roles
+    log('Setting up platform admin role...', 'info');
+    const platformRole = await getOrCreatePlatformAdminRole(orm);
+
+    log('Setting up admin system role...', 'info');
+    const adminRole = await getOrCreateAdminRole(orm);
+
     // Create company
     log('Creating company...', 'info');
     const company = await createCompany(orm, seedConfig);
@@ -341,6 +498,16 @@ async function seed(): Promise<void> {
     log('Creating admin user...', 'info');
     const user = await createUser(orm, company, seedConfig);
     log(`User created: ${user.email}`, 'success');
+
+    // Assign platform role to user (for platform operations)
+    log('Assigning platform admin role...', 'info');
+    await assignPlatformRole(orm, user, platformRole);
+    log('Platform role assigned', 'success');
+
+    // Assign admin role to user within their company
+    log('Assigning admin role for company access...', 'info');
+    await assignCompanyRole(orm, user, adminRole, company);
+    log('Admin role assigned for company', 'success');
 
     // Print summary
     printSummary(company, user, seedConfig);
