@@ -28,6 +28,10 @@ import {
   Company,
   User,
   Session,
+  Role,
+  UserRole,
+  Office,
+  UserOffice,
   SubscriptionTier,
   SessionLimitStrategy,
   DEFAULT_PASSWORD_POLICY,
@@ -147,7 +151,7 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
   return {
     clientUrl: databaseUrl,
     driver: PostgreSqlDriver,
-    entities: [Company, User, Session],
+    entities: [Company, User, Session, Role, UserRole, Office, UserOffice],
     debug: false,
     allowGlobalContext: true,
   };
