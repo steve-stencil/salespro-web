@@ -186,7 +186,7 @@ describe('Roles Routes Integration Tests', () => {
       const em = orm.em.fork();
 
       // Remove admin role
-      await em.nativeDelete('user_role', { user: testUser.id });
+      await em.nativeDelete(UserRole, { user: testUser.id });
 
       // Create a role without role:read permission
       const basicRole = em.create(Role, {
