@@ -1,5 +1,5 @@
 {
-  "name": "mern-monorepo",
+  "name": "salespro-web",
   "private": true,
   "packageManager": "pnpm@10.18.1",
   "engines": {

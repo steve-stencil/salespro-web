@@ -1,24 +1,24 @@
-# Docker Setup for MERN Monorepo
+# Docker Setup for SalesPro Web
 
-This document explains the Docker setup for the MERN monorepo, including development, testing, and production environments.
+This document explains the Docker setup for SalesPro Web, including development, testing, and production environments.
 
 ## 🐳 Docker Services
 
 ### Production Services
 
-- **`mongo`** - Production MongoDB (port 27017)
+- **`postgres`** - Production PostgreSQL (port 5432)
 - **`api`** - Production API server (port 4000)
 - **`web`** - Production web app (port 5173)
 
 ### Development Services
 
-- **`mongo`** - Development MongoDB (port 27017)
+- **`postgres`** - Development PostgreSQL (port 5432)
 - **`api-dev`** - Development API with hot reload (port 4000)
 - **`web-dev`** - Development web app with hot reload (port 5173)
 
 ### Test Services
 
-- **`mongo-test`** - Test MongoDB (port 27018)
+- **`postgres-test`** - Test PostgreSQL (port 5433)
 - **`api-test`** - Test API server (port 4001)
 
 ## 🚀 Quick Start
@@ -27,20 +27,20 @@ This document explains the Docker setup for the MERN monorepo, including develop
 
 ```bash
 # Start development environment
-./scripts/docker-dev.sh
-
-# Or manually:
 docker-compose -f docker-compose.dev.yml up -d
+
+# Or start just the database
+docker-compose -f docker-compose.dev.yml up -d postgres
 ```
 
 ### Test Environment
 
 ```bash
 # Start test environment
-./scripts/docker-test.sh
-
-# Or manually:
 docker-compose -f docker-compose.test.yml up -d
+
+# Run integration tests
+pnpm test:integration
 ```
 
 ### Production Environment
@@ -61,9 +61,6 @@ pnpm test:integration
 
 # Watch mode
 pnpm test:integration:watch
-
-# Full monorepo integration tests
-./scripts/run-integration-tests.sh
 ```
 
 ### Using Docker Directly
@@ -82,47 +79,45 @@ docker-compose -f docker-compose.test.yml down
 
 ## 📁 Docker Compose Files
 
-| File                      | Purpose     | Services                |
-| ------------------------- | ----------- | ----------------------- |
-| `docker-compose.yml`      | Production  | mongo, api, web         |
-| `docker-compose.dev.yml`  | Development | mongo, api-dev, web-dev |
-| `docker-compose.test.yml` | Testing     | mongo-test, api-test    |
+| File                      | Purpose     | Services                   |
+| ------------------------- | ----------- | -------------------------- |
+| `docker-compose.yml`      | Production  | postgres, api, web         |
+| `docker-compose.dev.yml`  | Development | postgres, api-dev, web-dev |
+| `docker-compose.test.yml` | Testing     | postgres-test, api-test    |
+| `docker-compose.ci.yml`   | CI Pipeline | postgres-test              |
 
 ## 🔧 Environment Variables
 
 ### Development
 
 - `NODE_ENV=development`
-- `MONGODB_URI=mongodb://mongo:27017/mern_dev`
+- `DATABASE_URL=postgresql://postgres:postgres@postgres:5432/salespro_dev`
 - `PORT=4000`
 
 ### Testing
 
 - `NODE_ENV=test`
-- `MONGODB_URI=mongodb://mongo-test:27017/mern_test`
+- `DATABASE_URL=postgresql://postgres:postgres@postgres-test:5432/salespro_test`
 - `PORT=4001`
 
 ### Production
 
 - `NODE_ENV=production`
-- `MONGODB_URI=mongodb://mongo:27017/mern`
+- `DATABASE_URL=postgresql://postgres:postgres@postgres:5432/salespro`
 - `PORT=4000`
 
 ## 🗂️ Volumes
 
-- **`mongo_data`** - Production MongoDB data
-- **`mongo_dev_data`** - Development MongoDB data
-- **`mongo_test_data`** - Test MongoDB data
+- **`postgres_data`** - Production PostgreSQL data
+- **`postgres_dev_data`** - Development PostgreSQL data
+- **`postgres_test_data`** - Test PostgreSQL data
 
 ## 🛠️ Scripts
 
-| Script                                       | Purpose                       |
-| -------------------------------------------- | ----------------------------- |
-| `./scripts/docker-dev.sh`                    | Start development environment |
-| `./scripts/docker-test.sh`                   | Start test environment        |
-| `./scripts/run-integration-tests.sh`         | Run all integration tests     |
-| `apps/api/scripts/test-integration.sh`       | Run API integration tests     |
-| `apps/api/scripts/test-integration-watch.sh` | Run API tests in watch mode   |
+| Script                                       | Purpose                     |
+| -------------------------------------------- | --------------------------- |
+| `apps/api/scripts/test-integration.sh`       | Run API integration tests   |
+| `apps/api/scripts/test-integration-watch.sh` | Run API tests in watch mode |
 
 ## 🧹 Cleanup
 
@@ -142,11 +137,11 @@ docker-compose down -v
 
 ## 🔍 Health Checks
 
-The MongoDB test service includes health checks to ensure it's ready before running tests:
+The PostgreSQL services include health checks to ensure they're ready before running tests:
 
 ```yaml
 healthcheck:
-  test: ['CMD', 'mongosh', '--eval', "db.runCommand('ping').ok"]
+  test: ['CMD-SHELL', 'pg_isready -U postgres -d salespro_test']
   interval: 5s
   timeout: 3s
   retries: 5
@@ -155,17 +150,17 @@ healthcheck:
 
 ## 🐛 Troubleshooting
 
-### MongoDB Connection Issues
+### PostgreSQL Connection Issues
 
 ```bash
-# Check if MongoDB is running
-docker-compose ps mongo-test
+# Check if PostgreSQL is running
+docker-compose ps postgres-test
 
-# Check MongoDB logs
-docker-compose logs mongo-test
+# Check PostgreSQL logs
+docker-compose logs postgres-test
 
-# Test MongoDB connection
-docker-compose exec mongo-test mongosh --eval "db.runCommand('ping').ok"
+# Test PostgreSQL connection
+docker-compose exec postgres-test psql -U postgres -d salespro_test -c "SELECT 1"
 ```
 
 ### Port Conflicts
@@ -174,8 +169,8 @@ docker-compose exec mongo-test mongosh --eval "db.runCommand('ping').ok"
 - Test API: 4001
 - Development Web: 5173
 - Production Web: 5173
-- MongoDB: 27017
-- Test MongoDB: 27018
+- PostgreSQL: 5432
+- Test PostgreSQL: 5433
 
 ### Volume Issues
 
@@ -184,5 +179,15 @@ docker-compose exec mongo-test mongosh --eval "db.runCommand('ping').ok"
 docker volume ls
 
 # Remove specific volume
-docker volume rm mern-monorepo-skeleton_mongo_test_data
+docker volume rm salespro-web_postgres_test_data
+```
+
+### Database Migration Issues
+
+```bash
+# Run migrations manually
+pnpm db:migrate
+
+# Check migration status
+pnpm --filter api migration:up
 ```

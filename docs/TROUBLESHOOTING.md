@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide helps identify and resolve common issues when building applications with this MERN monorepo project.
+This guide helps identify and resolve common issues when building applications with SalesPro Web.
 
 ## Quick Diagnostic Commands
 
@@ -99,42 +99,41 @@ ls -la apps/web/src/
 
 ### 2. Database Connection Issues
 
-#### "MongoDB connection failed"
+#### "PostgreSQL connection failed"
 
 **Symptoms**: Database connection errors in API
-**Causes**: MongoDB not running or incorrect connection string
+**Causes**: PostgreSQL not running or incorrect connection string
 **Solutions**:
 
-**Local MongoDB**:
+**Local PostgreSQL**:
 
 ```bash
-# Start MongoDB service
-brew services start mongodb-community  # macOS
-sudo systemctl start mongod           # Linux
-net start MongoDB                      # Windows
+# Start PostgreSQL service
+brew services start postgresql@16  # macOS
+sudo systemctl start postgresql    # Linux
 
-# Check if MongoDB is running
-ps aux | grep mongod
+# Check if PostgreSQL is running
+pg_isready
 ```
 
-**MongoDB Atlas**:
+**Docker PostgreSQL**:
 
 ```bash
-# Check connection string in apps/api/.env
-MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/database"
+# Start PostgreSQL via Docker
+docker-compose -f docker-compose.dev.yml up -d postgres
 
-# Verify network access in Atlas dashboard
-# Check IP whitelist and connection limits
+# Check container status
+docker-compose ps postgres
 ```
 
 **Connection String Issues**:
 
 ```bash
-# Test connection string
-mongosh "mongodb://127.0.0.1:27017/mern_monorepo"
+# Check connection string in apps/api/.env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/salespro_dev"
 
-# Check for special characters in password
-# URL encode special characters: @ = %40, : = %3A
+# Test connection
+psql "postgresql://postgres:postgres@localhost:5432/salespro_dev" -c "SELECT 1"
 ```
 
 #### "Database timeout" Errors
@@ -144,11 +143,11 @@ mongosh "mongodb://127.0.0.1:27017/mern_monorepo"
 **Solutions**:
 
 ```bash
-# Check database performance
-mongosh --eval "db.stats()"
+# Check database connectivity
+pg_isready -h localhost -p 5432
 
-# Check connection pool settings
-# In apps/api/src/lib/db.ts, adjust connection options
+# Check connection pool settings in MikroORM config
+# In apps/api/mikro-orm.config.ts, adjust pool options
 ```
 
 ### 3. Build and Compilation Issues
@@ -269,8 +268,11 @@ describe('User API', () => {
 pnpm test:integration
 
 # Check test database setup
-# Verify MongoDB Memory Server is working
+# Verify PostgreSQL test container is running
+docker-compose -f docker-compose.test.yml up -d postgres-test
+
 # Check test environment variables
+cat apps/api/.env.test
 ```
 
 ### 5. Frontend Issues
@@ -354,12 +356,13 @@ cat apps/web/.env
 
 ```bash
 # ❌ Missing required variables
-MONGODB_URI=  # Empty value
+DATABASE_URL=  # Empty value
 
 # ✅ Proper environment setup
-MONGODB_URI="mongodb://127.0.0.1:27017/mern_monorepo"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/salespro_dev"
 PORT=4000
 NODE_ENV=development
+SESSION_SECRET="your-session-secret-change-in-production"
 ```
 
 #### Path Alias Issues
@@ -437,7 +440,7 @@ pnpm list --depth=0
 
 ```bash
 # Check Dockerfile syntax
-docker build -t mern-api apps/api/
+docker build -t salespro-api apps/api/
 
 # Check for missing dependencies
 # Verify all dependencies are in package.json
@@ -476,15 +479,15 @@ DEBUG=* pnpm dev
 ### 2. Database Debugging
 
 ```bash
-# Connect to MongoDB directly
-mongosh "mongodb://127.0.0.1:27017/mern_monorepo"
+# Connect to PostgreSQL directly
+psql "postgresql://postgres:postgres@localhost:5432/salespro_dev"
 
-# Check collections and documents
-show collections
-db.users.find()
+# Check tables and data
+\dt                    # List tables
+SELECT * FROM "user";  # Query users table
 
-# Check database performance
-db.stats()
+# Check database info
+\conninfo              # Connection info
 ```
 
 ### 3. Network Debugging
@@ -579,4 +582,4 @@ pnpm test
 - Performance issues that can't be resolved
 - Security concerns
 
-This troubleshooting guide should help resolve most common issues when building applications with this MERN monorepo project.
+This troubleshooting guide should help resolve most common issues when building applications with SalesPro Web.

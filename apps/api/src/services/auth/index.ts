@@ -57,3 +57,21 @@ export type {
   MfaEnableResult,
   MfaDisableResult,
 } from './mfa';
+
+// Trusted device operations
+export {
+  generateDeviceToken,
+  hashDeviceToken,
+  generateDeviceName,
+  createTrustedDevice,
+  verifyTrustedDevice,
+  updateTrustedDeviceLastSeen,
+  clearUserTrustedDevices,
+  getUserTrustedDevices,
+  removeTrustedDevice,
+  TRUSTED_DEVICE_CONFIG,
+} from './trusted-device';
+export type {
+  TrustedDeviceVerifyResult,
+  CreateTrustedDeviceResult,
+} from './trusted-device';
