@@ -39,3 +39,33 @@ export type {
   AcceptInviteOptions,
   UpdateInviteOptions,
 } from './invite';
+
+// Office settings service
+export {
+  OfficeSettingsService,
+  OfficeSettingsError,
+  OfficeSettingsErrorCode,
+  LOGO_CONFIG,
+  isValidLogoMimeType,
+} from './office-settings';
+export type {
+  OfficeSettingsResponse,
+  LogoInfo,
+  UploadLogoParams,
+  LogoValidationResult,
+} from './office-settings';
+
+// Office integration service
+export {
+  OfficeIntegrationService,
+  OfficeIntegrationError,
+  OfficeIntegrationErrorCode,
+} from './office-integration';
+export type {
+  OfficeIntegrationResponse,
+  OfficeIntegrationWithCredentials,
+  UpsertIntegrationParams,
+  ListIntegrationsOptions,
+  IntegrationCredentials,
+  IntegrationConfig,
+} from './office-integration';

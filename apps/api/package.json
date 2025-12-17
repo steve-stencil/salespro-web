@@ -24,6 +24,7 @@
     "db:seed-roles:force": "tsx scripts/seed-roles.ts --force"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.953.0",
     "@aws-sdk/client-s3": "^3.952.0",
     "@aws-sdk/client-ses": "^3.948.0",
     "@aws-sdk/credential-providers": "^3.952.0",

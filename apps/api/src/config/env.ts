@@ -33,6 +33,15 @@ const EnvSchema = z.object({
   ALLOWED_FILE_TYPES: z
     .string()
     .default('image/*,application/pdf,.doc,.docx,.xls,.xlsx'),
+
+  // AWS KMS Configuration (for credential encryption)
+  /**
+   * KMS Customer Master Key (CMK) ID or alias for envelope encryption.
+   * Can be: key ID, key ARN, alias name, or alias ARN.
+   * Example: "alias/salespro-credentials" or "arn:aws:kms:us-east-1:123456789:key/..."
+   * Required in production for integration credentials.
+   */
+  KMS_KEY_ID: z.string().optional(),
 });
 
 export const env = EnvSchema.parse(process.env);
