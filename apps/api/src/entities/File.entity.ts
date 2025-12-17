@@ -5,6 +5,8 @@ import {
   ManyToOne,
   Index,
   Enum,
+  Opt,
+  OptionalProps,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -19,8 +21,10 @@ import type { User } from './User.entity';
  */
 @Entity()
 export class File {
+  /** Computed properties excluded from RequiredEntityData */
+  [OptionalProps]?: 'isImage' | 'isDeleted' | 'extension';
   @PrimaryKey({ type: 'uuid' })
-  id: string = uuid();
+  id: Opt<string> = uuid();
 
   /** Original filename as uploaded by user */
   @Property({ type: 'string' })
@@ -44,12 +48,12 @@ export class File {
 
   /** File visibility for access control */
   @Enum(() => FileVisibility)
-  visibility: FileVisibility = FileVisibility.COMPANY;
+  visibility: Opt<FileVisibility> = FileVisibility.COMPANY;
 
   /** File upload status */
   @Enum(() => FileStatus)
   @Index()
-  status: FileStatus = FileStatus.ACTIVE;
+  status: Opt<FileStatus> = FileStatus.ACTIVE;
 
   /**
    * Company the file belongs to.
@@ -82,11 +86,11 @@ export class File {
   /** Timestamp when the file was created */
   @Property({ type: 'Date' })
   @Index()
-  createdAt: Date = new Date();
+  createdAt: Opt<Date> = new Date();
 
   /** Timestamp when the file was last updated */
   @Property({ type: 'Date', onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  updatedAt: Opt<Date> = new Date();
 
   /** Timestamp when the file was soft deleted (null if active) */
   @Property({ type: 'Date', nullable: true })
@@ -103,7 +107,10 @@ export class File {
    * Check if the file has been soft deleted.
    */
   get isDeleted(): boolean {
-    return this.status === FileStatus.DELETED || this.deletedAt != null;
+    return (
+      (this.status as FileStatus) === FileStatus.DELETED ||
+      this.deletedAt != null
+    );
   }
 
   /**

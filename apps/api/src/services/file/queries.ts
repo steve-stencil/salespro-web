@@ -37,7 +37,10 @@ export async function getFile(
   if (!file) return null;
 
   // Check visibility-based access
-  if (file.visibility === FileVisibility.PRIVATE && userId) {
+  if (
+    (file.visibility as FileVisibility) === FileVisibility.PRIVATE &&
+    userId
+  ) {
     if (file.uploadedBy.id !== userId) return null;
   }
 

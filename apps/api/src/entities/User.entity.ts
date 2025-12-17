@@ -7,6 +7,8 @@ import {
   Collection,
   OneToMany,
   Enum,
+  Opt,
+  OptionalProps,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -23,8 +25,10 @@ import type { UserOffice } from './UserOffice.entity';
  */
 @Entity()
 export class User {
+  /** Computed properties excluded from RequiredEntityData */
+  [OptionalProps]?: 'isLocked' | 'fullName';
   @PrimaryKey({ type: 'uuid' })
-  id: string = uuid();
+  id: Opt<string> = uuid();
 
   @Property({ type: 'string' })
   @Index()
@@ -40,10 +44,10 @@ export class User {
   nameLast?: string;
 
   @Property({ type: 'boolean' })
-  isActive: boolean = true;
+  isActive: Opt<boolean> = true;
 
   @Property({ type: 'boolean' })
-  needsResetPassword: boolean = false;
+  needsResetPassword: Opt<boolean> = false;
 
   @Property({ type: 'Date', nullable: true })
   lastLoginDate?: Date;
@@ -53,7 +57,7 @@ export class User {
    * Internal users can switch between companies.
    */
   @Enum(() => UserType)
-  userType: UserType = UserType.COMPANY;
+  userType: Opt<UserType> = UserType.COMPANY;
 
   /**
    * Company the user belongs to.
@@ -79,11 +83,11 @@ export class User {
 
   /** Per-user session limit (overrides company default if set) */
   @Property({ type: 'integer' })
-  maxSessions: number = 2;
+  maxSessions: Opt<number> = 2;
 
   // Lockout fields
   @Property({ type: 'integer' })
-  failedLoginAttempts: number = 0;
+  failedLoginAttempts: Opt<number> = 0;
 
   @Property({ type: 'Date', nullable: true })
   lockedUntil?: Date;
@@ -93,7 +97,7 @@ export class User {
 
   // Email verification
   @Property({ type: 'boolean' })
-  emailVerified: boolean = false;
+  emailVerified: Opt<boolean> = false;
 
   @Property({ type: 'Date', nullable: true })
   emailVerifiedAt?: Date;
@@ -104,7 +108,7 @@ export class User {
 
   // MFA fields
   @Property({ type: 'boolean' })
-  mfaEnabled: boolean = false;
+  mfaEnabled: Opt<boolean> = false;
 
   /** TOTP secret (encrypted at rest) */
   @Property({ type: 'string', nullable: true, hidden: true })
@@ -114,10 +118,10 @@ export class User {
   mfaEnabledAt?: Date;
 
   @Property({ type: 'Date' })
-  createdAt: Date = new Date();
+  createdAt: Opt<Date> = new Date();
 
   @Property({ type: 'Date', onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  updatedAt: Opt<Date> = new Date();
 
   @OneToMany('Session', 'user')
   sessions = new Collection<Session>(this);

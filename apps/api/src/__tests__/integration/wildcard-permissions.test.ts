@@ -9,6 +9,7 @@ import {
   UserRole,
   Session,
   Office,
+  SessionSource,
 } from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
@@ -51,7 +52,7 @@ describe('Wildcard Permission Tests', () => {
         requireNumbers: true,
         requireSpecialChars: false,
         historyCount: 3,
-        expirationDays: 90,
+        maxAgeDays: 90,
       },
     });
     em.persist(testCompany);
@@ -167,7 +168,7 @@ describe('Wildcard Permission Tests', () => {
       user,
       company: testCompany,
       data: { userId: user.id },
-      source: 'web',
+      source: SessionSource.WEB,
       ipAddress: '127.0.0.1',
       userAgent: 'Test Agent',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

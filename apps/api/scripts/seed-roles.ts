@@ -300,8 +300,12 @@ async function seedRoles(orm: MikroORM): Promise<Role[]> {
  * Print summary of seeded roles
  */
 function printSummary(roles: Role[]): void {
-  const systemRoles = roles.filter(r => r.type === RoleType.SYSTEM);
-  const platformRoles = roles.filter(r => r.type === RoleType.PLATFORM);
+  const systemRoles = roles.filter(
+    r => (r.type as RoleType) === RoleType.SYSTEM,
+  );
+  const platformRoles = roles.filter(
+    r => (r.type as RoleType) === RoleType.PLATFORM,
+  );
 
   console.log('');
   console.log(

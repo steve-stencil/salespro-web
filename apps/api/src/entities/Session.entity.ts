@@ -5,6 +5,8 @@ import {
   ManyToOne,
   Enum,
   Index,
+  Opt,
+  OptionalProps,
 } from '@mikro-orm/core';
 
 import { SessionSource } from './types';
@@ -29,13 +31,15 @@ import type { User } from './User.entity';
 @Index({ properties: ['expiresAt'] })
 @Index({ properties: ['absoluteExpiresAt'] })
 export class Session {
+  /** Computed properties excluded from RequiredEntityData */
+  [OptionalProps]?: 'isExpired';
   /** Session ID from express-session (not UUID format) */
   @PrimaryKey({ type: 'string', length: 64 })
   sid!: string;
 
   /** Session data stored as JSON */
   @Property({ type: 'json' })
-  data: Record<string, unknown> = {};
+  data: Opt<Record<string, unknown>> = {};
 
   /** Sliding expiration (extends on activity) */
   @Property({ type: 'Date' })
@@ -81,13 +85,13 @@ export class Session {
 
   /** Whether MFA has been verified for this session */
   @Property({ type: 'boolean' })
-  mfaVerified: boolean = false;
+  mfaVerified: Opt<boolean> = false;
 
   @Property({ type: 'Date' })
-  createdAt: Date = new Date();
+  createdAt: Opt<Date> = new Date();
 
   @Property({ type: 'Date', onUpdate: () => new Date() })
-  lastActivityAt: Date = new Date();
+  lastActivityAt: Opt<Date> = new Date();
 
   /**
    * Check if session has expired (either sliding or absolute)

@@ -163,6 +163,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: office.id,
         allowedOfficeIds: [office.id],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(true);
@@ -179,6 +181,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: undefined as unknown as string,
         allowedOfficeIds: ['office-123'],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -194,6 +198,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: 'office-123',
         allowedOfficeIds: undefined as unknown as string[],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -209,6 +215,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: 'office-123',
         allowedOfficeIds: [],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -224,6 +232,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: 'office-999',
         allowedOfficeIds: ['office-123', 'office-456'],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -243,6 +253,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: 'office-123',
         allowedOfficeIds: ['office-123'],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -262,6 +274,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: 'office-123',
         allowedOfficeIds: ['office-123'],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -290,6 +304,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: 'office-123',
         allowedOfficeIds: ['office-123'],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -317,6 +333,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: 'invalid-office',
         allowedOfficeIds: ['invalid-office'],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);
@@ -350,6 +368,8 @@ describe('InviteService', () => {
         inviterName: 'Test User',
         currentOfficeId: office.id,
         allowedOfficeIds: [office.id, 'non-existent-office'],
+        ipAddress: '127.0.0.1',
+        userAgent: 'Test Agent',
       });
 
       expect(result.success).toBe(false);

@@ -4,6 +4,7 @@ import {
   Property,
   ManyToOne,
   Index,
+  Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -19,7 +20,7 @@ import type { Company } from './Company.entity';
 @Entity()
 export class Office {
   @PrimaryKey({ type: 'uuid' })
-  id: string = uuid();
+  id: Opt<string> = uuid();
 
   /** Office name (e.g., 'Main Office', 'West Coast Branch') */
   @Property({ type: 'string' })
@@ -32,11 +33,11 @@ export class Office {
 
   /** Whether this office is active */
   @Property({ type: 'boolean' })
-  isActive: boolean = true;
+  isActive: Opt<boolean> = true;
 
   @Property({ type: 'Date' })
-  createdAt: Date = new Date();
+  createdAt: Opt<Date> = new Date();
 
   @Property({ type: 'Date', onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  updatedAt: Opt<Date> = new Date();
 }

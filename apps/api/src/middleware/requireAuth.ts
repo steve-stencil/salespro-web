@@ -65,8 +65,12 @@ export function requireAuth(): RequestHandler {
 
       // If no session, try to look up session from our custom cookie
       if (!userId) {
-        const rawCookie = (req.cookies as Record<string, string>)['sid'];
-        const sessionId = parseSessionIdFromCookie(rawCookie);
+        const rawCookie = (req.cookies as Record<string, string | undefined>)[
+          'sid'
+        ];
+        const sessionId = rawCookie
+          ? parseSessionIdFromCookie(rawCookie)
+          : null;
         if (sessionId) {
           const orm = getORM();
           const em = orm.em.fork();
@@ -149,9 +153,13 @@ export function requireAuth(): RequestHandler {
       let sessionEntity: Session | null = null;
       let activeCompany: Company | undefined;
 
-      if (user.userType === UserType.INTERNAL) {
-        const rawCookie = (req.cookies as Record<string, string>)['sid'];
-        const sessionId = parseSessionIdFromCookie(rawCookie);
+      if ((user.userType as UserType) === UserType.INTERNAL) {
+        const rawCookie = (req.cookies as Record<string, string | undefined>)[
+          'sid'
+        ];
+        const sessionId = rawCookie
+          ? parseSessionIdFromCookie(rawCookie)
+          : null;
         if (sessionId) {
           sessionEntity = await em.findOne(
             SessionEntity,
@@ -163,7 +171,7 @@ export function requireAuth(): RequestHandler {
       }
 
       // Attach user and context to request for downstream use
-      const isInternalUser = user.userType === UserType.INTERNAL;
+      const isInternalUser = (user.userType as UserType) === UserType.INTERNAL;
       const extendedReq = req as AuthenticatedRequest;
       extendedReq.user = user;
       extendedReq.isInternalUser = isInternalUser;

@@ -2,7 +2,12 @@ import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, afterEach, beforeEach } from 'vitest';
 
 import { Company, User, Role, UserRole, Session, Office } from '../../entities';
-import { UserType, RoleType, CompanyAccessLevel } from '../../entities/types';
+import {
+  UserType,
+  RoleType,
+  CompanyAccessLevel,
+  SessionSource,
+} from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -50,7 +55,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
         requireNumbers: true,
         requireSpecialChars: false,
         historyCount: 3,
-        expirationDays: 90,
+        maxAgeDays: 90,
       },
     });
     em.persist(testCompany);
@@ -200,7 +205,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
       sid,
       user,
       data: { userId: user.id },
-      source: 'web',
+      source: SessionSource.WEB,
       ipAddress: '127.0.0.1',
       userAgent: 'Test Agent',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

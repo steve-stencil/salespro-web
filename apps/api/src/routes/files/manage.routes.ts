@@ -17,7 +17,7 @@ import type { AuthenticatedFileRequest } from './utils';
 import type { FileVisibility } from '../../entities';
 import type { Request, Response } from 'express';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * PATCH /files/:id

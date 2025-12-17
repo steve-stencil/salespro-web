@@ -517,8 +517,11 @@ describe('Authentication E2E Tests', () => {
       expect(response.headers['set-cookie']).toBeDefined();
 
       // The cookie should have a longer max-age for remember me
-      const cookies = response.headers['set-cookie'] as string[];
-      const sessionCookie = cookies.find(c => c.startsWith('sid='));
+      const setCookieHeader = response.headers['set-cookie'];
+      const cookies = Array.isArray(setCookieHeader)
+        ? setCookieHeader
+        : [setCookieHeader].filter(Boolean);
+      const sessionCookie = cookies.find(c => c?.startsWith('sid='));
       expect(sessionCookie).toBeDefined();
     });
   });

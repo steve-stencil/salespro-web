@@ -277,8 +277,10 @@ router.get('/me', async (req: Request, res: Response) => {
 
     // If no session, try to look up session from our custom cookie
     if (!userId) {
-      const rawCookie = (req.cookies as Record<string, string>)['sid'];
-      const sessionId = parseSessionIdFromCookie(rawCookie);
+      const rawCookie = (req.cookies as Record<string, string | undefined>)[
+        'sid'
+      ];
+      const sessionId = rawCookie ? parseSessionIdFromCookie(rawCookie) : null;
       if (sessionId) {
         const orm = getORM();
         const em = orm.em.fork();
@@ -331,10 +333,12 @@ router.get('/me', async (req: Request, res: Response) => {
       nameLast: user.nameLast,
       emailVerified: user.emailVerified,
       mfaEnabled: user.mfaEnabled,
-      company: {
-        id: user.company.id,
-        name: user.company.name,
-      },
+      company: user.company
+        ? {
+            id: user.company.id,
+            name: user.company.name,
+          }
+        : null,
     });
   } catch (err) {
     req.log.error({ err }, 'Get current user error');

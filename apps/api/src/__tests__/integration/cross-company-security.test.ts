@@ -9,6 +9,7 @@ import {
   UserRole,
   Session,
   Office,
+  SessionSource,
 } from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
@@ -63,7 +64,7 @@ describe('Cross-Company Security Tests', () => {
         requireNumbers: true,
         requireSpecialChars: false,
         historyCount: 3,
-        expirationDays: 90,
+        maxAgeDays: 90,
       },
     });
     em.persist(companyA);
@@ -138,7 +139,7 @@ describe('Cross-Company Security Tests', () => {
         requireNumbers: true,
         requireSpecialChars: false,
         historyCount: 3,
-        expirationDays: 90,
+        maxAgeDays: 90,
       },
     });
     em.persist(companyB);
@@ -186,7 +187,7 @@ describe('Cross-Company Security Tests', () => {
       user: userA,
       company: companyA,
       data: { userId: userA.id },
-      source: 'web',
+      source: SessionSource.WEB,
       ipAddress: '127.0.0.1',
       userAgent: 'Test Agent',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

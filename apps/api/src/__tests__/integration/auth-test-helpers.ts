@@ -1,7 +1,13 @@
 import { v4 as uuid } from 'uuid';
+import { expect } from 'vitest';
 
 import { Company, User, Role, UserRole, Session, Office } from '../../entities';
-import { UserType, RoleType, CompanyAccessLevel } from '../../entities/types';
+import {
+  UserType,
+  RoleType,
+  CompanyAccessLevel,
+  SessionSource,
+} from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -81,7 +87,7 @@ export async function createTestCompany(
       requireNumbers: true,
       requireSpecialChars: false,
       historyCount: 3,
-      expirationDays: 90,
+      maxAgeDays: 90,
     },
   });
   em.persist(company);
@@ -186,6 +192,7 @@ export async function createUserWithPermissions(
     user,
     role,
     company,
+    assignedAt: new Date(),
   });
   em.persist(userRole);
 
@@ -196,7 +203,7 @@ export async function createUserWithPermissions(
     user,
     company,
     data: { userId: user.id },
-    source: 'web',
+    source: SessionSource.WEB,
     ipAddress: '127.0.0.1',
     userAgent: 'Test Agent',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -338,7 +345,7 @@ export async function createInternalUser(
     sid: sessionId,
     user,
     data: { userId: user.id },
-    source: 'web',
+    source: SessionSource.WEB,
     ipAddress: '127.0.0.1',
     userAgent: 'Test Agent',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -398,6 +405,7 @@ export async function createCompanySetup(
     user: adminUser,
     role: adminRole,
     company,
+    assignedAt: new Date(),
   });
   em.persist(userRole);
 
@@ -408,7 +416,7 @@ export async function createCompanySetup(
     user: adminUser,
     company,
     data: { userId: adminUser.id },
-    source: 'web',
+    source: SessionSource.WEB,
     ipAddress: '127.0.0.1',
     userAgent: 'Test Agent',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -514,7 +522,7 @@ export async function createTestUserSet(
     user: noPermsUser,
     company,
     data: { userId: noPermsUser.id },
-    source: 'web',
+    source: SessionSource.WEB,
     ipAddress: '127.0.0.1',
     userAgent: 'Test Agent',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

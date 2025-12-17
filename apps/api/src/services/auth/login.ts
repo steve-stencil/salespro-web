@@ -102,7 +102,7 @@ export async function login(
     };
   }
 
-  if (user.mfaEnabled || user.company.mfaRequired) {
+  if (user.mfaEnabled || user.company?.mfaRequired) {
     attempt.success = true;
     em.persist(attempt);
     await em.flush();

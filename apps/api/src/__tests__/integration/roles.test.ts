@@ -8,6 +8,7 @@ import {
   Role,
   UserRole,
   Session,
+  SessionSource,
 } from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
@@ -42,7 +43,7 @@ describe('Roles Routes Integration Tests', () => {
         requireNumbers: true,
         requireSpecialChars: false,
         historyCount: 3,
-        expirationDays: 90,
+        maxAgeDays: 90,
       },
     });
     em.persist(testCompany);
@@ -88,7 +89,7 @@ describe('Roles Routes Integration Tests', () => {
       user: testUser,
       company: testCompany,
       data: { userId: testUser.id },
-      source: 'web',
+      source: SessionSource.WEB,
       ipAddress: '127.0.0.1',
       userAgent: 'Test Agent',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -731,7 +732,7 @@ describe('Roles Routes Integration Tests', () => {
         user,
         company: testCompany,
         data: { userId: user.id },
-        source: 'web',
+        source: SessionSource.WEB,
         ipAddress: '127.0.0.1',
         userAgent: 'Test Agent',
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

@@ -5,6 +5,7 @@ import {
   ManyToOne,
   Unique,
   Index,
+  Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -29,7 +30,7 @@ import type { User } from './User.entity';
 @Unique({ properties: ['user', 'role', 'company'] })
 export class UserRole {
   @PrimaryKey({ type: 'uuid' })
-  id: string = uuid();
+  id: Opt<string> = uuid();
 
   /** The user being assigned the role */
   @ManyToOne('User')
@@ -51,7 +52,7 @@ export class UserRole {
 
   /** When this role was assigned */
   @Property({ type: 'Date' })
-  assignedAt: Date = new Date();
+  assignedAt: Opt<Date> = new Date();
 
   /** Who assigned this role (null if system-assigned) */
   @ManyToOne('User', { nullable: true })

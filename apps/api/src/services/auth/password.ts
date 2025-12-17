@@ -197,6 +197,9 @@ export async function validatePassword(
   user: User,
   password: string,
 ): Promise<string | null> {
+  if (!user.company) {
+    return 'User has no company association';
+  }
   const policy = user.company.passwordPolicy;
 
   if (password.length < policy.minLength) {

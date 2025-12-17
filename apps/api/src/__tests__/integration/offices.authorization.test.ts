@@ -9,6 +9,7 @@ import {
   UserRole,
   Session,
   Office,
+  SessionSource,
 } from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
@@ -51,7 +52,7 @@ describe('Offices Routes Authorization Tests', () => {
         requireNumbers: true,
         requireSpecialChars: false,
         historyCount: 3,
-        expirationDays: 90,
+        maxAgeDays: 90,
       },
     });
     em.persist(testCompany);
@@ -85,11 +86,6 @@ describe('Offices Routes Authorization Tests', () => {
     testOffice = em.create(Office, {
       id: uuid(),
       name: 'Main Office',
-      address1: '123 Main St',
-      city: 'Test City',
-      state: 'TS',
-      postalCode: '12345',
-      country: 'USA',
       company: testCompany,
       isActive: true,
     });
@@ -98,11 +94,6 @@ describe('Offices Routes Authorization Tests', () => {
     testOffice2 = em.create(Office, {
       id: uuid(),
       name: 'Branch Office',
-      address1: '456 Branch Ave',
-      city: 'Branch City',
-      state: 'BC',
-      postalCode: '67890',
-      country: 'USA',
       company: testCompany,
       isActive: true,
     });
@@ -124,7 +115,7 @@ describe('Offices Routes Authorization Tests', () => {
       user: adminUser,
       company: testCompany,
       data: { userId: adminUser.id },
-      source: 'web',
+      source: SessionSource.WEB,
       ipAddress: '127.0.0.1',
       userAgent: 'Test Agent',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -205,7 +196,7 @@ describe('Offices Routes Authorization Tests', () => {
       user,
       company: testCompany,
       data: { userId: user.id },
-      source: 'web',
+      source: SessionSource.WEB,
       ipAddress: '127.0.0.1',
       userAgent: 'Test Agent',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -448,7 +439,7 @@ describe('Offices Routes Authorization Tests', () => {
         user,
         company: testCompany,
         data: { userId: user.id },
-        source: 'web',
+        source: SessionSource.WEB,
         ipAddress: '127.0.0.1',
         userAgent: 'Test Agent',
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

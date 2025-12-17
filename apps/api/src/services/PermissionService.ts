@@ -462,7 +462,7 @@ export class PermissionService {
     _companyId: string,
   ): Promise<string[]> {
     const user = await this.em.findOne(User, userId);
-    if (!user || user.userType !== UserType.INTERNAL) {
+    if (!user || (user.userType as UserType) !== UserType.INTERNAL) {
       return [];
     }
 
@@ -575,7 +575,7 @@ export class PermissionService {
   ): Promise<RoleAssignmentResult> {
     // Verify user is internal
     const user = await this.em.findOne(User, userId);
-    if (!user || user.userType !== UserType.INTERNAL) {
+    if (!user || (user.userType as UserType) !== UserType.INTERNAL) {
       return {
         success: false,
         error: 'User is not an internal user',
@@ -584,7 +584,7 @@ export class PermissionService {
 
     // Verify role is a platform role
     const role = await this.em.findOne(Role, roleId);
-    if (!role || role.type !== RoleType.PLATFORM) {
+    if (!role || (role.type as RoleType) !== RoleType.PLATFORM) {
       return {
         success: false,
         error: 'Role is not a platform role',

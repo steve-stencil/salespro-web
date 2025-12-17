@@ -485,8 +485,8 @@ describe('PermissionService', () => {
       );
 
       expect(roles).toHaveLength(2);
-      expect(roles[0].name).toBe('admin');
-      expect(roles[1].name).toBe('user');
+      expect(roles[0]?.name).toBe('admin');
+      expect(roles[1]?.name).toBe('user');
     });
 
     it('should return empty array if user has no roles', async () => {

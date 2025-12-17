@@ -5,6 +5,8 @@ import {
   ManyToOne,
   Enum,
   Index,
+  Opt,
+  OptionalProps,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -22,8 +24,10 @@ import type { Company } from './Company.entity';
  */
 @Entity()
 export class Role {
+  /** Computed properties excluded from RequiredEntityData */
+  [OptionalProps]?: 'isSystemRole' | 'isPlatformRole';
   @PrimaryKey({ type: 'uuid' })
-  id: string = uuid();
+  id: Opt<string> = uuid();
 
   /**
    * Unique identifier for the role (e.g., 'salesRep', 'admin').
@@ -43,7 +47,7 @@ export class Role {
   description?: string;
 
   @Enum(() => RoleType)
-  type: RoleType = RoleType.COMPANY;
+  type: Opt<RoleType> = RoleType.COMPANY;
 
   /**
    * For PLATFORM roles: defines the access level within any company.
@@ -70,32 +74,32 @@ export class Role {
    * @example ['customer:read', 'customer:create', 'report:*']
    */
   @Property({ type: 'json' })
-  permissions: string[] = [];
+  permissions: Opt<string[]> = [];
 
   /**
    * If true, this role is automatically assigned to new users
    * in the company (or all companies for system roles).
    */
   @Property({ type: 'boolean' })
-  isDefault: boolean = false;
+  isDefault: Opt<boolean> = false;
 
   @Property({ type: 'Date' })
-  createdAt: Date = new Date();
+  createdAt: Opt<Date> = new Date();
 
   @Property({ type: 'Date', onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  updatedAt: Opt<Date> = new Date();
 
   /**
    * Check if this is a system role (cannot be deleted/modified)
    */
   get isSystemRole(): boolean {
-    return this.type === RoleType.SYSTEM;
+    return (this.type as RoleType) === RoleType.SYSTEM;
   }
 
   /**
    * Check if this is a platform role (for internal users)
    */
   get isPlatformRole(): boolean {
-    return this.type === RoleType.PLATFORM;
+    return (this.type as RoleType) === RoleType.PLATFORM;
   }
 }

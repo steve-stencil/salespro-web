@@ -8,7 +8,7 @@ import multer from 'multer';
 import { env } from '../config/env';
 import { isFileTypeAllowed } from '../lib/storage/utils';
 
-import type { Request, Response } from 'express';
+import type { Request, Response, RequestHandler } from 'express';
 import type { FileFilterCallback } from 'multer';
 
 /** Maximum file size in bytes (from env variable in MB) */
@@ -77,13 +77,13 @@ const multerConfig: multer.Options = {
  * Single file upload middleware.
  * Expects a file in the 'file' field.
  */
-export const uploadSingle = multer(multerConfig).single('file');
+export const uploadSingle: RequestHandler = multer(multerConfig).single('file');
 
 /**
  * Multiple files upload middleware (up to 10 files).
  * Expects files in the 'files' field.
  */
-export const uploadMultiple = multer({
+export const uploadMultiple: RequestHandler = multer({
   ...multerConfig,
   limits: {
     ...multerConfig.limits,

@@ -13,7 +13,7 @@ import {
 import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response } from 'express';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * UUID v4 validation regex
@@ -119,9 +119,9 @@ router.get(
         id: company.id,
         name: company.name,
         isActive: company.isActive,
-        subscriptionTier: company.subscriptionTier,
-        maxUsers: company.maxUsers,
-        maxSessions: company.maxSessions,
+        subscriptionTier: company.tier,
+        maxUsers: company.maxSeats,
+        maxSessions: company.maxSessionsPerUser,
         createdAt: company.createdAt,
         updatedAt: company.updatedAt,
       });
@@ -205,8 +205,10 @@ router.post(
       }
 
       // Get session ID from cookie
-      const rawCookie = (req.cookies as Record<string, string>)['sid'];
-      const sessionId = parseSessionIdFromCookie(rawCookie);
+      const rawCookie = (req.cookies as Record<string, string | undefined>)[
+        'sid'
+      ];
+      const sessionId = rawCookie ? parseSessionIdFromCookie(rawCookie) : null;
 
       if (!sessionId) {
         res.status(400).json({ error: 'Invalid session' });
@@ -258,8 +260,10 @@ router.delete(
       const em = orm.em.fork();
 
       // Get session ID from cookie
-      const rawCookie = (req.cookies as Record<string, string>)['sid'];
-      const sessionId = parseSessionIdFromCookie(rawCookie);
+      const rawCookie = (req.cookies as Record<string, string | undefined>)[
+        'sid'
+      ];
+      const sessionId = rawCookie ? parseSessionIdFromCookie(rawCookie) : null;
 
       if (!sessionId) {
         res.status(400).json({ error: 'Invalid session' });

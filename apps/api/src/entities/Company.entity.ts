@@ -5,6 +5,7 @@ import {
   Enum,
   Collection,
   OneToMany,
+  Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -24,43 +25,43 @@ import type { User } from './User.entity';
 @Entity()
 export class Company {
   @PrimaryKey({ type: 'uuid' })
-  id: string = uuid();
+  id: Opt<string> = uuid();
 
   @Property({ type: 'string' })
   name!: string;
 
   /** Maximum number of paid user seats */
   @Property({ type: 'integer' })
-  maxSeats: number = 5;
+  maxSeats: Opt<number> = 5;
 
   /** Default session limit per user (inherited by users) */
   @Property({ type: 'integer' })
-  maxSessionsPerUser: number = 2;
+  maxSessionsPerUser: Opt<number> = 2;
 
   @Enum(() => SubscriptionTier)
-  tier: SubscriptionTier = SubscriptionTier.FREE;
+  tier: Opt<SubscriptionTier> = SubscriptionTier.FREE;
 
   /** Strategy for handling concurrent session limits */
   @Enum(() => SessionLimitStrategy)
-  sessionLimitStrategy: SessionLimitStrategy =
+  sessionLimitStrategy: Opt<SessionLimitStrategy> =
     SessionLimitStrategy.REVOKE_OLDEST;
 
   /** Company-configurable password policy */
   @Property({ type: 'json' })
-  passwordPolicy: PasswordPolicy = { ...DEFAULT_PASSWORD_POLICY };
+  passwordPolicy: Opt<PasswordPolicy> = { ...DEFAULT_PASSWORD_POLICY };
 
   /** Require MFA for all users in this company */
   @Property({ type: 'boolean' })
-  mfaRequired: boolean = false;
+  mfaRequired: Opt<boolean> = false;
 
   @Property({ type: 'boolean' })
-  isActive: boolean = true;
+  isActive: Opt<boolean> = true;
 
   @Property({ type: 'Date' })
-  createdAt: Date = new Date();
+  createdAt: Opt<Date> = new Date();
 
   @Property({ type: 'Date', onUpdate: () => new Date() })
-  updatedAt: Date = new Date();
+  updatedAt: Opt<Date> = new Date();
 
   @OneToMany('User', 'company')
   users = new Collection<User>(this);

@@ -15,7 +15,7 @@ import { PermissionService } from '../services/PermissionService';
 
 import type { Request, Response } from 'express';
 
-const router = Router();
+const router: Router = Router();
 
 /** Password hash salt rounds */
 const SALT_ROUNDS = 12;
@@ -279,6 +279,10 @@ router.post(
         userType: UserType.INTERNAL,
         isActive: true,
         emailVerified: true, // Internal users don't need email verification
+        mfaEnabled: false,
+        needsResetPassword: false,
+        maxSessions: 5,
+        failedLoginAttempts: 0,
       });
 
       em.persist(user);

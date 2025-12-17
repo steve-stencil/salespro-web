@@ -106,7 +106,10 @@ describe('MFA Service', () => {
     vi.clearAllMocks();
     // Reset mock implementations to defaults
     vi.mocked(isEmailServiceConfigured).mockReturnValue(true);
-    vi.mocked(emailService.sendMfaCodeEmail).mockResolvedValue(undefined);
+    vi.mocked(emailService.sendMfaCodeEmail).mockResolvedValue({
+      success: true,
+      messageId: 'mock-message-id',
+    });
     vi.mocked(verifyPassword).mockResolvedValue(false);
     // Clear any pending MFA codes
     clearPendingMfa('user-123');
@@ -429,7 +432,10 @@ describe('MFA Service', () => {
         id: 'code-1',
         codeHash: 'hashed-code',
         usedAt: null,
-      } as MfaRecoveryCodeType;
+        user,
+        createdAt: new Date(),
+        isUsed: false,
+      } as unknown as MfaRecoveryCodeType;
 
       const session = createMockSession();
 

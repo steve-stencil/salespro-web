@@ -23,6 +23,7 @@ import {
   File,
   FileStatus,
   FileVisibility,
+  SessionSource,
 } from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
@@ -101,7 +102,7 @@ describe('File Routes Integration Tests', () => {
         requireNumbers: true,
         requireSpecialChars: false,
         historyCount: 3,
-        expirationDays: 90,
+        maxAgeDays: 90,
       },
     });
     em.persist(testCompany);
@@ -152,7 +153,7 @@ describe('File Routes Integration Tests', () => {
       user: testUser,
       company: testCompany,
       data: { userId: testUser.id },
-      source: 'web',
+      source: SessionSource.WEB,
       ipAddress: '127.0.0.1',
       userAgent: 'Test Agent',
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -553,7 +554,7 @@ describe('File Routes Integration Tests', () => {
         name: 'limitedRole',
         displayName: 'Limited Role',
         permissions: [], // No permissions
-        type: RoleType.CUSTOM,
+        type: RoleType.COMPANY,
         isDefault: false,
         company: testCompany,
       });
@@ -588,7 +589,7 @@ describe('File Routes Integration Tests', () => {
         user: limitedUser,
         company: testCompany,
         data: { userId: limitedUser.id },
-        source: 'web',
+        source: SessionSource.WEB,
         ipAddress: '127.0.0.1',
         userAgent: 'Test Agent',
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),

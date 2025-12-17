@@ -9,7 +9,7 @@ import listRoutes from './list.routes';
 import manageRoutes from './manage.routes';
 import uploadRoutes from './upload.routes';
 
-const router = Router();
+const router: Router = Router();
 
 // Upload routes (POST /upload, /presign, /confirm)
 router.use('/', uploadRoutes);

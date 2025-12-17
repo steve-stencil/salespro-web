@@ -694,7 +694,7 @@ router.patch(
       }
 
       // Cannot modify system roles
-      if (role.type === RoleType.SYSTEM) {
+      if ((role.type as RoleType) === RoleType.SYSTEM) {
         res.status(403).json({
           error: 'Cannot modify system roles',
           message: 'System roles are protected and cannot be modified.',
@@ -789,7 +789,7 @@ router.delete(
       }
 
       // Cannot delete system roles
-      if (role.type === RoleType.SYSTEM) {
+      if ((role.type as RoleType) === RoleType.SYSTEM) {
         res.status(403).json({
           error: 'Cannot delete system roles',
           message: 'System roles are protected and cannot be deleted.',

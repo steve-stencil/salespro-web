@@ -5,6 +5,7 @@ import {
   ManyToOne,
   Index,
   Unique,
+  Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -21,7 +22,7 @@ import type { User } from './User.entity';
 @Unique({ properties: ['user', 'office'] })
 export class UserOffice {
   @PrimaryKey({ type: 'uuid' })
-  id: string = uuid();
+  id: Opt<string> = uuid();
 
   /** The user being granted office access */
   @ManyToOne('User')
@@ -35,7 +36,7 @@ export class UserOffice {
 
   /** When this office access was granted */
   @Property({ type: 'Date' })
-  assignedAt: Date = new Date();
+  assignedAt: Opt<Date> = new Date();
 
   /** The admin user who granted this access (null if system-assigned) */
   @ManyToOne('User', { nullable: true })

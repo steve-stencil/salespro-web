@@ -16,7 +16,7 @@ import { handleFileServiceError, formatFileResponse } from './utils';
 import type { AuthenticatedFileRequest } from './utils';
 import type { Request, Response } from 'express';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * GET /files
