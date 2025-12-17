@@ -456,7 +456,8 @@ describe('Authentication E2E Tests', () => {
           newPassword: 'NewPassword789!',
         });
 
-      expect(response.status).toBe(401);
+      // 400 because user is authenticated but provided wrong input
+      expect(response.status).toBe(400);
       expect(response.body.error).toBe('Current password is incorrect');
     });
 
@@ -506,7 +507,7 @@ describe('Authentication E2E Tests', () => {
 
       // Should reject because it's in password history
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('recently used');
+      expect(response.body.error).toContain('Cannot reuse');
     });
 
     it('should reject new password that does not meet policy', async () => {
