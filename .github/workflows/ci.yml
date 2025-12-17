@@ -63,21 +63,22 @@ jobs:
       - name: Start test environment
         run: |
           docker compose -f docker-compose.ci.yml up -d
-          # Wait for MongoDB to be ready
-          until docker compose -f docker-compose.ci.yml exec -T mongo-test mongosh --eval "db.runCommand('ping').ok" > /dev/null 2>&1; do
-            echo "Waiting for MongoDB..."
+          # Wait for PostgreSQL to be ready
+          until docker compose -f docker-compose.ci.yml exec -T postgres-test pg_isready -U postgres -d salespro_test > /dev/null 2>&1; do
+            echo "Waiting for PostgreSQL..."
             sleep 2
           done
         timeout-minutes: 2
 
       - name: Run integration tests
         run: |
-          # Use the existing integration test script
-          ./scripts/run-integration-tests.sh
+          cd apps/api
+          pnpm exec vitest run --config vitest.integration.config.ts
         env:
-          MONGODB_URI: mongodb://localhost:27018/mern_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/salespro_test
           NODE_ENV: test
           PORT: 4001
+          SESSION_SECRET: test-session-secret-at-least-32-characters-long
 
       - name: Cleanup test environment
         if: always()
@@ -107,17 +108,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build API
-        run: |
-          cd apps/api
-          pnpm build
-
-      - name: Build Web
-        run: |
-          cd apps/web
-          pnpm build
-
-      - name: Build Shared
-        run: |
-          cd packages/shared
-          pnpm build
+      - name: Build all packages
+        run: pnpm build
