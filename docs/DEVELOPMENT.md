@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers development practices, patterns, and conventions for working with this MERN monorepo skeleton.
+This guide covers development practices, patterns, and conventions for working with SalesPro Web.
 
 ## Development Environment Setup
 
@@ -9,14 +9,14 @@ This guide covers development practices, patterns, and conventions for working w
 - **Node.js**: >= 20.11.0
 - **pnpm**: >= 10.18.1
 - **Git**: Latest version
-- **MongoDB**: Local installation or MongoDB Atlas
+- **PostgreSQL**: >= 16 (local installation or cloud)
 
 ### Initial Setup
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd mern-monorepo-skeleton
+cd salespro-web
 
 # Install dependencies
 pnpm install
@@ -24,6 +24,12 @@ pnpm install
 # Set up environment files
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
+
+# Run database migrations
+pnpm db:migrate
+
+# Seed the database
+pnpm db:seed
 
 # Start development servers
 pnpm dev
@@ -44,14 +50,17 @@ pnpm dev
 ```
 src/
 ├── components/       # Reusable UI components
-│   ├── ui/          # Basic UI components
-│   └── features/    # Feature-specific components
+│   ├── roles/       # Role management components
+│   ├── users/       # User management components
+│   └── offices/     # Office management components
 ├── pages/           # Page components
 ├── hooks/           # Custom React hooks
-├── api/             # API client functions
-├── utils/           # Utility functions
+├── services/        # API client service modules
+├── lib/             # Utility functions and API client
 ├── types/           # TypeScript type definitions
-└── constants/       # Application constants
+├── context/         # React context providers
+├── theme/           # Theme configuration
+└── layouts/         # Layout components
 ```
 
 ### 3. Import Organization
@@ -128,32 +137,37 @@ export const handleError = (error: unknown, res: Response) => {
 };
 ```
 
-### 3. Database Model Pattern
+### 3. Database Entity Pattern
 
 ```typescript
-// apps/api/src/models/User.ts
-import { Schema, model, Document } from 'mongoose';
-import { z } from 'zod';
+// apps/api/src/entities/User.entity.ts
+import { Entity, PrimaryKey, Property, ManyToOne } from '@mikro-orm/core';
+import { v4 as uuid } from 'uuid';
+import { Company } from './Company.entity';
 
-const userSchema = new Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  createdAt: { type: Date, default: Date.now },
-});
+@Entity()
+export class User {
+  @PrimaryKey({ type: 'uuid' })
+  id: string = uuid();
 
-export interface IUser extends Document {
-  name: string;
-  email: string;
-  createdAt: Date;
+  @Property()
+  email!: string;
+
+  @Property()
+  firstName!: string;
+
+  @Property()
+  lastName!: string;
+
+  @ManyToOne(() => Company)
+  company!: Company;
+
+  @Property()
+  createdAt: Date = new Date();
+
+  @Property({ onUpdate: () => new Date() })
+  updatedAt: Date = new Date();
 }
-
-export const User = model<IUser>('User', userSchema);
-
-// Zod schema for validation
-export const userSchemaZod = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-});
 ```
 
 ## Frontend Development Patterns
@@ -190,13 +204,13 @@ export const UserCard: React.FC<UserCardProps> = ({ user, onEdit }) => {
 ```typescript
 // apps/web/src/hooks/useUsers.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User } from '@shared/types';
-import { api } from '../api';
+import type { User } from '../types/users';
+import { usersService } from '../services/users';
 
 export const useUsers = () => {
   return useQuery({
     queryKey: ['users'],
-    queryFn: api.getUsers,
+    queryFn: usersService.getUsers,
   });
 };
 
@@ -204,7 +218,7 @@ export const useCreateUser = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: api.createUser,
+    mutationFn: usersService.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
@@ -215,10 +229,10 @@ export const useCreateUser = () => {
 ### 3. API Client Pattern
 
 ```typescript
-// apps/web/src/api/index.ts
-import { User } from '@shared/types';
+// apps/web/src/lib/api-client.ts
+import type { User } from '../types/users';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 class ApiClient {
   private async request<T>(
@@ -230,6 +244,7 @@ class ApiClient {
         'Content-Type': 'application/json',
         ...options?.headers,
       },
+      credentials: 'include', // Required for session cookies
       ...options,
     });
 
@@ -252,114 +267,150 @@ class ApiClient {
   }
 }
 
-export const api = new ApiClient();
+export const apiClient = new ApiClient();
 ```
 
 ## Shared Code Patterns
 
-### 1. Type Definitions
+The `@shared/core` package provides types, utilities, and constants shared between the API and web applications.
+
+### 1. Importing Shared Types
 
 ```typescript
-// packages/shared/src/types/User.ts
-export interface User {
+// Option 1: Import from @shared/core directly
+import type { CurrentUser, Role, LoginRequest } from '@shared/core';
+
+// Option 2: Import from local types (re-exports from shared)
+import type { User, Role } from '../types/users';
+import type { LoginRequest } from '../types/auth';
+```
+
+### 2. Type Definitions
+
+The shared package organizes types by domain:
+
+```typescript
+// Authentication types (packages/shared/src/types/auth.ts)
+import type {
+  LoginRequest,
+  LoginResponse,
+  CurrentUser,
+  MfaVerifyRequest,
+  SessionSource,
+  UserType,
+} from '@shared/core';
+
+// User/Role/Office types (packages/shared/src/types/users.ts)
+import type {
+  UserListItem,
+  UserDetail,
+  Role,
+  RoleType,
+  Office,
+  CreateRoleRequest,
+  UsersListResponse,
+} from '@shared/core';
+
+// Pagination types (packages/shared/src/types/api/pagination.ts)
+import type { Pagination, PaginationParams } from '@shared/core';
+```
+
+### 3. Error Handling Utilities
+
+```typescript
+// packages/shared/src/types/errors.ts
+import {
+  ErrorCode,
+  ERROR_MESSAGES,
+  getErrorMessage,
+  isClientError,
+  isServerError,
+  isRetryableError,
+} from '@shared/core';
+
+import type { ApiError, ErrorResponse } from '@shared/core';
+
+// Usage example
+function handleError(error: ApiError): string {
+  if (isRetryableError(error)) {
+    return 'Please try again in a moment.';
+  }
+  return getErrorMessage(error);
+}
+```
+
+### 4. Adding New Shared Types
+
+When adding types that need to be shared between API and web:
+
+1. **Create/update the type file** in `packages/shared/src/types/`
+2. **Export from the index** in `packages/shared/src/types/index.ts`
+3. **Build the package**: `pnpm --filter @shared/core build`
+4. **Re-export in app types** (optional) for backwards compatibility
+
+```typescript
+// packages/shared/src/types/products.ts
+import type { Pagination } from './api/pagination';
+
+export type Product = {
   id: string;
   name: string;
-  email: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateUserRequest {
-  name: string;
-  email: string;
-}
-
-export interface UpdateUserRequest {
-  name?: string;
-  email?: string;
-}
-```
-
-### 2. Zod Validation Schemas
-
-```typescript
-// packages/shared/src/zod/user.ts
-import { z } from 'zod';
-
-export const userSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1),
-  email: z.string().email(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-});
-
-export const createUserSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-});
-
-export const updateUserSchema = z.object({
-  name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-});
-```
-
-### 3. Utility Functions
-
-```typescript
-// packages/shared/src/utils/validation.ts
-import { z } from 'zod';
-
-export const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  price: number;
 };
 
-export const sanitizeString = (str: string): string => {
-  return str.trim().replace(/\s+/g, ' ');
+export type ProductsListResponse = {
+  products: Product[];
+  pagination: Pagination;
 };
+
+// packages/shared/src/types/index.ts
+export * from './products';
 ```
+
+### 5. Best Practices for Shared Types
+
+**Do:**
+
+- Define request/response types that are used by both API and web
+- Keep types focused on data contracts (no UI or API implementation details)
+- Use `type` over `interface` for consistency
+- Add JSDoc comments for complex types
+
+**Don't:**
+
+- Put React-specific types in shared (keep those in `apps/web/src/types/`)
+- Put Express-specific types in shared (keep those in `apps/api/src/`)
+- Include runtime code unless absolutely necessary
 
 ## Testing Patterns
 
-### 1. Jest Configuration
+### 1. Vitest Configuration
 
-The project uses Jest as the primary testing framework with TypeScript support. Each package has its own Jest configuration:
+The project uses Vitest as the primary testing framework with TypeScript support. Each package has its own Vitest configuration:
 
-```javascript
-// jest.config.js (root)
-module.exports = {
-  projects: [
-    '<rootDir>/apps/api',
-    '<rootDir>/apps/web',
-    '<rootDir>/packages/shared',
-  ],
-  collectCoverageFrom: [
-    '**/*.{ts,tsx}',
-    '!**/*.d.ts',
-    '!**/node_modules/**',
-    '!**/dist/**',
-    '!**/coverage/**',
-  ],
-  coverageDirectory: '<rootDir>/coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
+```typescript
+// vitest.config.ts (example)
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node', // or 'jsdom' for web
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'html'],
+      exclude: ['**/*.d.ts', '**/node_modules/**', '**/dist/**'],
     },
   },
-};
+});
 ```
 
 ### 2. API Testing
 
 ```typescript
 // apps/api/src/__tests__/users.test.ts
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import { app } from '../server';
 
@@ -407,9 +458,9 @@ describe('Users API', () => {
 ```typescript
 // apps/web/src/components/__tests__/UserCard.test.tsx
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, vi } from 'vitest';
 import { UserCard } from '../UserCard';
-import { User } from '@shared/types';
+import type { User } from '@shared/types';
 
 const mockUser: User = {
   id: '1',
@@ -428,7 +479,7 @@ describe('UserCard', () => {
   });
 
   it('should call onEdit when edit button is clicked', () => {
-    const onEdit = jest.fn();
+    const onEdit = vi.fn();
     render(<UserCard user={mockUser} onEdit={onEdit} />);
 
     fireEvent.click(screen.getByRole('button', { name: /edit/i }));
@@ -473,7 +524,7 @@ pnpm test:coverage
 # Run tests for specific package
 pnpm --filter api test
 pnpm --filter web test
-pnpm --filter @shared/core test
+pnpm --filter shared test
 ```
 
 ### 6. Test Coverage Requirements
@@ -486,8 +537,10 @@ pnpm --filter @shared/core test
 ### 7. Mock Patterns
 
 ```typescript
-// Mock external dependencies (Vitest)
-vi.mock('mongoose', () => ({
+import { vi } from 'vitest';
+
+// Mock external dependencies
+vi.mock('@mikro-orm/core', () => ({
   connect: vi.fn(),
   connection: {
     readyState: 0,
@@ -496,10 +549,11 @@ vi.mock('mongoose', () => ({
 
 // Mock environment variables
 process.env.NODE_ENV = 'test';
-process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
+process.env.DATABASE_URL =
+  'postgresql://postgres:postgres@localhost:5433/salespro_test';
 
 // Mock API responses
-vi.mock('../api', () => ({
+vi.mock('../services', () => ({
   getUsers: vi.fn().mockResolvedValue([]),
   createUser: vi.fn().mockResolvedValue({ id: '1', name: 'Test User' }),
 }));
@@ -562,7 +616,8 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
   PORT: z.string().transform(Number).default('4000'),
-  MONGODB_URI: z.string().url(),
+  DATABASE_URL: z.string().url(),
+  SESSION_SECRET: z.string().min(32),
 });
 
 export const env = envSchema.parse(process.env);
@@ -585,7 +640,7 @@ export { env };
 ### 1. API Performance
 
 - **Database indexing** for frequently queried fields
-- **Connection pooling** for MongoDB
+- **Connection pooling** for PostgreSQL
 - **Response compression** with Express
 - **Caching** for expensive operations
 
@@ -643,4 +698,4 @@ export { env };
 - **Asset optimization** for images and fonts
 - **Caching strategies** for static assets
 
-This development guide provides comprehensive patterns and practices for building robust MERN applications with this monorepo skeleton.
+This development guide provides comprehensive patterns and practices for building robust applications with SalesPro Web.

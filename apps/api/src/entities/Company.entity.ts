@@ -17,6 +17,7 @@ import {
 
 import type { PasswordPolicy } from './types';
 import type { User } from './User.entity';
+import type { UserCompany } from './UserCompany.entity';
 
 /**
  * Company entity representing a tenant in the multi-tenant SaaS system.
@@ -65,4 +66,12 @@ export class Company {
 
   @OneToMany('User', 'company')
   users = new Collection<User>(this);
+
+  /**
+   * Collection of user memberships in this company.
+   * Used for multi-company access where users can belong to multiple companies.
+   * Works for both company users (membership) and internal users (restriction).
+   */
+  @OneToMany('UserCompany', 'company')
+  memberUsers = new Collection<UserCompany>(this);
 }

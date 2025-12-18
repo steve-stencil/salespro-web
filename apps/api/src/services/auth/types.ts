@@ -13,6 +13,16 @@ export type LoginParams = {
   deviceId?: string | undefined;
   /** Session ID from express-session (req.sessionID) */
   sessionId: string;
+  /** Device trust token from cookie for MFA bypass */
+  deviceTrustToken?: string | undefined;
+};
+
+/**
+ * Active company info returned in login response
+ */
+export type ActiveCompanyInfo = {
+  id: string;
+  name: string;
 };
 
 /**
@@ -24,6 +34,10 @@ export type LoginResult = {
   requiresMfa?: boolean;
   error?: string;
   errorCode?: LoginErrorCode;
+  /** Currently active company for the session */
+  activeCompany?: ActiveCompanyInfo;
+  /** Whether user can switch between multiple companies */
+  canSwitchCompanies?: boolean;
 };
 
 /**
@@ -36,6 +50,7 @@ export enum LoginErrorCode {
   EMAIL_NOT_VERIFIED = 'email_not_verified',
   PASSWORD_EXPIRED = 'password_expired',
   MFA_REQUIRED = 'mfa_required',
+  NO_ACTIVE_COMPANIES = 'no_active_companies',
 }
 
 /**

@@ -1,6 +1,6 @@
 # AI Prompt Templates
 
-This guide provides prompt templates for effective communication between users and AI agents when building applications with this MERN monorepo project.
+This guide provides prompt templates for effective communication between users and AI agents when building applications with SalesPro Web.
 
 ## For Non-Technical Users
 

@@ -1,4 +1,4 @@
-# ADR-001: Credential Encryption with AWS KMS Envelope Encryption
+# ADR-002: Credential Encryption with AWS KMS Envelope Encryption
 
 ## Status
 

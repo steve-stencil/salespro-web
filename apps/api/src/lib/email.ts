@@ -205,6 +205,8 @@ type SendInviteEmailOptions = {
   inviterName: string;
   /** Expiration time in days (default: 7) */
   expiresInDays?: number;
+  /** True if the invite is for an existing user to join an additional company */
+  isExistingUser?: boolean;
 };
 
 /**
@@ -214,13 +216,21 @@ type SendInviteEmailOptions = {
 async function sendInviteEmail(
   options: SendInviteEmailOptions,
 ): Promise<SendEmailResult> {
-  const { email, token, companyName, inviterName, expiresInDays = 7 } = options;
+  const {
+    email,
+    token,
+    companyName,
+    inviterName,
+    expiresInDays = 7,
+    isExistingUser = false,
+  } = options;
   const inviteUrl = `${env.APP_URL}/accept-invite?token=${encodeURIComponent(token)}`;
   const template = inviteUserTemplate({
     inviteUrl,
     companyName,
     inviterName,
     expiresInDays,
+    isExistingUser,
   });
 
   return sendEmail({

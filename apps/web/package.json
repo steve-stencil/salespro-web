@@ -24,6 +24,7 @@
     "@fontsource/poppins": "^5.2.7",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
+    "@shared/core": "workspace:*",
     "@tanstack/react-query": "^5.90.12",
     "axios": "^1.13.2",
     "react": "^19.1.1",

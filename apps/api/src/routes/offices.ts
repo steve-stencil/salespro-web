@@ -8,20 +8,13 @@ import { requireAuth, requirePermission } from '../middleware';
 
 import officeSettingsRoutes from './office-settings';
 
+import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
 
 // Mount office settings and integrations routes under /:id
 router.use('/:id', officeSettingsRoutes);
-
-/**
- * Request type with authenticated user
- */
-type AuthenticatedRequest = Request & {
-  user?: User & { company?: Company };
-};
-
 // ============================================================================
 // Validation Schemas
 // ============================================================================
@@ -44,14 +37,16 @@ const updateOfficeSchema = z.object({
 // ============================================================================
 
 /**
- * Get user from authenticated request.
- * @returns User with company or null if not authenticated
+ * Get company context from authenticated request.
+ * @returns Company context or null if not available
  */
-function getAuthenticatedUser(
+function getCompanyContext(
   req: Request,
-): (User & { company?: Company }) | null {
-  const user = (req as AuthenticatedRequest).user;
-  return user?.company ? user : null;
+): { user: User; company: Company } | null {
+  const authReq = req as AuthenticatedRequest;
+  const user = authReq.user;
+  const company = authReq.companyContext;
+  return user && company ? { user, company } : null;
 }
 
 /**
@@ -98,17 +93,18 @@ router.get(
   requirePermission(PERMISSIONS.OFFICE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = getAuthenticatedUser(req);
-      if (!user) {
+      const context = getCompanyContext(req);
+      if (!context) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
 
+      const { company } = context;
       const { isActive } = req.query;
       const orm = getORM();
       const em = orm.em.fork();
 
-      const where: Record<string, unknown> = { company: user.company!.id };
+      const where: Record<string, unknown> = { company: company.id };
       if (isActive !== undefined) {
         where['isActive'] = isActive === 'true';
       }
@@ -140,12 +136,13 @@ router.get(
   requirePermission(PERMISSIONS.OFFICE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = getAuthenticatedUser(req);
-      if (!user) {
+      const context = getCompanyContext(req);
+      if (!context) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
 
+      const { company } = context;
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Office ID is required' });
@@ -157,7 +154,7 @@ router.get(
 
       const office = await em.findOne(Office, {
         id,
-        company: user.company!.id,
+        company: company.id,
       });
       if (!office) {
         res.status(404).json({ error: 'Office not found' });
@@ -183,12 +180,13 @@ router.post(
   requirePermission(PERMISSIONS.OFFICE_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = getAuthenticatedUser(req);
-      if (!user) {
+      const context = getCompanyContext(req);
+      if (!context) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
 
+      const { user, company } = context;
       const parseResult = createOfficeSchema.safeParse(req.body);
       if (!parseResult.success) {
         res.status(400).json({
@@ -207,7 +205,7 @@ router.post(
 
       const existing = await em.findOne(Office, {
         name,
-        company: user.company!.id,
+        company: company.id,
       });
       if (existing) {
         res.status(409).json({
@@ -220,7 +218,7 @@ router.post(
       const office = new Office();
       office.name = name;
       office.isActive = isActive ?? true;
-      office.company = em.getReference(Company, user.company!.id);
+      office.company = em.getReference(Company, company.id);
 
       await em.persistAndFlush(office);
       req.log.info(
@@ -249,12 +247,13 @@ router.patch(
   requirePermission(PERMISSIONS.OFFICE_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = getAuthenticatedUser(req);
-      if (!user) {
+      const context = getCompanyContext(req);
+      if (!context) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
 
+      const { user, company } = context;
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Office ID is required' });
@@ -280,7 +279,7 @@ router.patch(
 
       const office = await em.findOne(Office, {
         id,
-        company: user.company!.id,
+        company: company.id,
       });
       if (!office) {
         res.status(404).json({ error: 'Office not found' });
@@ -290,7 +289,7 @@ router.patch(
       if (name && name !== office.name) {
         const existing = await em.findOne(Office, {
           name,
-          company: user.company!.id,
+          company: company.id,
         });
         if (existing) {
           res.status(409).json({
@@ -339,12 +338,13 @@ router.delete(
   requirePermission(PERMISSIONS.OFFICE_DELETE),
   async (req: Request, res: Response) => {
     try {
-      const user = getAuthenticatedUser(req);
-      if (!user) {
+      const context = getCompanyContext(req);
+      if (!context) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
 
+      const { user, company } = context;
       const { id } = req.params;
       if (!id) {
         res.status(400).json({ error: 'Office ID is required' });
@@ -357,7 +357,7 @@ router.delete(
 
       const office = await em.findOne(Office, {
         id,
-        company: user.company!.id,
+        company: company.id,
       });
       if (!office) {
         res.status(404).json({ error: 'Office not found' });
@@ -367,7 +367,7 @@ router.delete(
       const assignedCount = await em.count(UserOffice, { office: office.id });
       const currentOfficeCount = await em.count(User, {
         currentOffice: office.id,
-        company: user.company!.id,
+        company: company.id,
       });
 
       if (assignedCount + currentOfficeCount > 0 && !force) {
@@ -396,7 +396,7 @@ router.delete(
       if (currentOfficeCount > 0 && force) {
         await em.nativeUpdate(
           User,
-          { currentOffice: office.id, company: user.company!.id },
+          { currentOffice: office.id, company: company.id },
           { currentOffice: null },
         );
         req.log.info(

@@ -61,7 +61,8 @@ Use lowercase with hyphens for the title portion.
 | ADR                                           | Title                                   | Status   | Date       |
 | --------------------------------------------- | --------------------------------------- | -------- | ---------- |
 | [ADR-000](ADR-000-template.md)                | ADR Template                            | Accepted | 2024-12-16 |
-| [ADR-001](./ADR-001-credential-encryption.md) | Credential Encryption with Key Rotation | Accepted | 2024-12-16 |
+| [ADR-001](./ADR-001-mfa-trusted-devices.md)   | MFA Trusted Devices                     | Accepted | 2024-12-16 |
+| [ADR-002](./ADR-002-credential-encryption.md) | Credential Encryption with Key Rotation | Accepted | 2024-12-16 |
 
 <!-- Add new ADRs to this table as they are created -->
 
@@ -97,3 +98,8 @@ Use lowercase with hyphens for the title portion.
 - [Architecture Overview](../ARCHITECTURE.md)
 - [Development Guide](../DEVELOPMENT.md)
 - [Contributing Guidelines](../../CONTRIBUTING.md)
+
+## References
+
+- [ADR GitHub Organization](https://adr.github.io/)
+- [Michael Nygard's Original Article](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document describes the architecture and design patterns used in this MERN monorepo skeleton.
+This document describes the architecture and design patterns used in SalesPro Web.
 
 ## Monorepo Structure
 
@@ -21,7 +21,7 @@ This document describes the architecture and design patterns used in this MERN m
 
 - **Runtime**: Node.js (>= 20.11.0)
 - **Framework**: Express.js
-- **Database**: MongoDB with Mongoose ODM
+- **Database**: PostgreSQL with MikroORM
 - **Language**: TypeScript (strict mode)
 - **Validation**: Zod schemas
 - **Logging**: Pino
@@ -35,11 +35,13 @@ This document describes the architecture and design patterns used in this MERN m
 - **Styling**: CSS (extensible to CSS-in-JS)
 - **State Management**: React hooks + TanStack Query (recommended)
 
-### Shared
+### Shared (`@shared/core`)
 
-- **Types**: TypeScript interfaces and types
-- **Validation**: Zod schemas
-- **Utilities**: Common functions and helpers
+- **API Types**: Request/response types for all API endpoints
+- **Entity Types**: User, Role, Office, Company type definitions
+- **Auth Types**: Login, session, MFA type definitions
+- **Error Handling**: Error codes, messages, and helper functions
+- **Pagination**: Standard pagination types for list endpoints
 
 ## Design Patterns
 
@@ -94,22 +96,42 @@ apps/api/src/
 ```
 apps/web/src/
 ├── components/      # Reusable UI components
+│   ├── roles/       # Role management components
+│   ├── users/       # User management components
+│   └── offices/     # Office management components
 ├── pages/           # Page components
 ├── hooks/           # Custom React hooks
-├── api/             # API client functions
-├── utils/           # Utility functions
-└── App.tsx          # Root component
+├── services/        # API client service modules
+├── lib/             # Utility functions and API client
+├── types/           # TypeScript type definitions
+├── context/         # React context providers
+├── theme/           # Theme configuration
+├── layouts/         # Layout components
+└── router.tsx       # Application routing
 ```
 
 ### Shared Structure
 
 ```
 packages/shared/src/
-├── types/           # TypeScript type definitions
-├── zod/             # Zod validation schemas
-├── utils/           # Shared utility functions
-└── index.ts         # Public API
+├── types/              # TypeScript type definitions
+│   ├── api/            # API-specific types (pagination, responses)
+│   ├── auth.ts         # Authentication types (login, session, MFA)
+│   ├── users.ts        # User, role, office types and API contracts
+│   ├── invites.ts      # User invitation types
+│   ├── company.ts      # Company settings types
+│   ├── errors.ts       # Error handling types and utilities
+│   └── index.ts        # Re-exports all types
+├── __tests__/          # Unit tests
+└── index.ts            # Public API
 ```
+
+The shared package provides:
+
+- **Request/Response Types** - API contract types used by both frontend and backend
+- **Entity Types** - User, Role, Office, Company definitions
+- **Error Handling** - Error codes, messages, and helper functions
+- **Pagination** - Standard pagination types for list endpoints
 
 ## Configuration Management
 
@@ -305,7 +327,7 @@ Storage is controlled by environment variables:
 ### API Performance
 
 - **Database indexing** for query optimization
-- **Connection pooling** for MongoDB
+- **Connection pooling** for PostgreSQL
 - **Response compression** with Express
 - **Caching strategies** for frequently accessed data
 
@@ -332,4 +354,4 @@ Storage is controlled by environment variables:
 - **Database connectivity** verification
 - **Dependency health** monitoring
 
-This architecture provides a solid foundation for building scalable MERN applications with modern development practices and AI-assisted development support.
+This architecture provides a solid foundation for building scalable web applications with modern development practices and AI-assisted development support.

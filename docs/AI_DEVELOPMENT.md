@@ -1,12 +1,12 @@
 # AI-Assisted Development Guide
 
-This guide provides comprehensive instructions for AI agents working with this MERN monorepo project, especially when assisting users with little to no coding knowledge to build real applications.
+This guide provides comprehensive instructions for AI agents working with SalesPro Web, especially when assisting users with little to no coding knowledge to build real applications.
 
 ## Project Overview
 
-This is a **production-ready MERN monorepo** designed for AI-assisted development:
+This is a **production-ready web application monorepo** designed for AI-assisted development:
 
-- **Backend**: Express.js API with MongoDB
+- **Backend**: Express.js API with PostgreSQL (MikroORM)
 - **Frontend**: React 19 with Vite
 - **Shared**: TypeScript types and Zod schemas
 - **Testing**: Vitest with 80% coverage requirement
@@ -183,9 +183,33 @@ This is a **production-ready MERN monorepo** designed for AI-assisted developmen
    - Validation rules?
 2. **Check existing patterns** in `apps/api/src/routes/`
 3. **Create route handler** with Zod validation
-4. **Add Mongoose model** if needed
-5. **Write integration tests**
-6. **Update API documentation**
+4. **Add MikroORM entity** if needed
+5. **Add shared types** if the endpoint needs new request/response types:
+   - Add types to `packages/shared/src/types/`
+   - Run `pnpm --filter @shared/core build`
+6. **Write integration tests**
+7. **Update API documentation**
+
+#### "Add shared types"
+
+When creating types that need to be used by both API and web:
+
+1. **Add types** to `packages/shared/src/types/` (in the appropriate domain file)
+2. **Export from index** in `packages/shared/src/types/index.ts` if new file
+3. **Build the package**: `pnpm --filter @shared/core build`
+4. **Import in apps**:
+   ```typescript
+   import type { MyNewType } from '@shared/core';
+   ```
+
+**Type categories:**
+
+- `auth.ts` - Authentication types (login, session, MFA)
+- `users.ts` - User, role, office types
+- `invites.ts` - User invitation types
+- `company.ts` - Company settings types
+- `api/pagination.ts` - Pagination types
+- `errors.ts` - Error codes and helpers
 
 #### "Add a new page/component"
 
@@ -250,14 +274,14 @@ This is a **production-ready MERN monorepo** designed for AI-assisted developmen
 
 1. **Check the logs**: Use structured logging to identify issues
 2. **Validate inputs**: Ensure all inputs match Zod schemas
-3. **Check database connection**: Verify MongoDB connectivity
+3. **Check database connection**: Verify PostgreSQL connectivity
 4. **Review environment variables**: Ensure all required vars are set
 5. **Run tests**: Use `pnpm test` to identify failing tests
 
 #### Common Error Patterns
 
 - **Validation errors** → Check Zod schemas in shared package
-- **Database errors** → Check MongoDB connection and models
+- **Database errors** → Check PostgreSQL connection and MikroORM entities
 - **Type errors** → Ensure strict TypeScript compliance
 - **Test failures** → Check test setup and mocks
 - **Build errors** → Check TypeScript configuration and imports
@@ -342,7 +366,7 @@ pnpm test:integration
 
 - **Input validation**: Use Zod schemas for all inputs
 - **Environment variables**: Validate with Zod schemas
-- **Database queries**: Use Mongoose's built-in protection
+- **Database queries**: Use MikroORM's parameterized queries
 - **Error messages**: Never expose sensitive information
 
 #### Security Checklist
@@ -359,7 +383,7 @@ pnpm test:integration
 #### API Performance
 
 - **Database indexing** for frequently queried fields
-- **Connection pooling** for MongoDB
+- **Connection pooling** for PostgreSQL
 - **Response compression** with Express
 - **Caching** for expensive operations
 
@@ -377,7 +401,7 @@ pnpm test:integration
 1. **TypeScript errors**: Check strict mode compliance
 2. **Test failures**: Verify test setup and mocks
 3. **Build errors**: Check imports and dependencies
-4. **Database connection**: Verify MongoDB URI and connection
+4. **Database connection**: Verify PostgreSQL connection (DATABASE_URL)
 5. **Environment variables**: Ensure all required vars are set
 
 #### Debugging Steps

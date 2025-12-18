@@ -152,6 +152,8 @@ type InviteTemplateOptions = {
   inviterName: string;
   /** Expiration time in days (default: 7) */
   expiresInDays?: number;
+  /** True if this is an invite for an existing user to join an additional company */
+  isExistingUser?: boolean;
 };
 
 /**
@@ -161,10 +163,21 @@ type InviteTemplateOptions = {
 export function inviteUserTemplate(
   options: InviteTemplateOptions,
 ): EmailTemplate {
-  const { inviteUrl, companyName, inviterName, expiresInDays = 7 } = options;
+  const {
+    inviteUrl,
+    companyName,
+    inviterName,
+    expiresInDays = 7,
+    isExistingUser = false,
+  } = options;
   const { colors, fonts, borderRadius } = LEAP_TOKENS;
 
   const expirationText = `${expiresInDays} day${expiresInDays === 1 ? '' : 's'}`;
+
+  // Customize messaging based on whether this is an existing user
+  const actionText = isExistingUser
+    ? 'Click the button below to join this company with your existing account.'
+    : 'Click the button below to create your account and get started.';
 
   const html = `
 <!DOCTYPE html>
@@ -188,7 +201,7 @@ export function inviteUserTemplate(
               </p>
               
               <p style="margin: 0 0 24px; font-size: 14px; line-height: 21px; font-family: ${fonts.body}; color: ${colors.textPrimary};">
-                Click the button below to create your account and get started.
+                ${actionText}
               </p>
               
               <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 32px 0; width: 100%;">
@@ -229,12 +242,16 @@ export function inviteUserTemplate(
 </html>
 `.trim();
 
+  const textActionText = isExistingUser
+    ? 'Click the link below to join this company with your existing account:'
+    : 'Click the link below to create your account and get started:';
+
   const text = `
 You're Invited to Join ${companyName}!
 
 ${inviterName} has invited you to join ${companyName} on SalesPro.
 
-Click the link below to create your account and get started:
+${textActionText}
 ${inviteUrl}
 
 This invitation will expire in ${expirationText}.

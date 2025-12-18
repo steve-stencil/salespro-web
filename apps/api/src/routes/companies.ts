@@ -12,16 +12,10 @@ import { PERMISSIONS } from '../lib/permissions';
 import { requireAuth, requirePermission } from '../middleware';
 
 import type { User } from '../entities';
+import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
-
-/**
- * Request type with authenticated user
- */
-type AuthenticatedRequest = Request & {
-  user?: User & { company?: Company };
-};
 
 // ============================================================================
 // Validation Schemas
@@ -36,14 +30,16 @@ const updateCompanySettingsSchema = z.object({
 // ============================================================================
 
 /**
- * Get user from authenticated request.
- * @returns User with company or null if not authenticated
+ * Get company context from authenticated request.
+ * @returns Company context or null if not available
  */
-function getAuthenticatedUser(
+function getCompanyContext(
   req: Request,
-): (User & { company?: Company }) | null {
-  const user = (req as AuthenticatedRequest).user;
-  return user?.company ? user : null;
+): { user: User; company: Company } | null {
+  const authReq = req as AuthenticatedRequest;
+  const user = authReq.user;
+  const company = authReq.companyContext;
+  return user && company ? { user, company } : null;
 }
 
 /**
@@ -87,16 +83,17 @@ router.get(
   requirePermission(PERMISSIONS.COMPANY_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = getAuthenticatedUser(req);
-      if (!user) {
+      const context = getCompanyContext(req);
+      if (!context) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
 
+      const { company: companyContext } = context;
       const orm = getORM();
       const em = orm.em.fork();
 
-      const company = await em.findOne(Company, { id: user.company!.id });
+      const company = await em.findOne(Company, { id: companyContext.id });
       if (!company) {
         res.status(404).json({ error: 'Company not found' });
         return;
@@ -123,12 +120,13 @@ router.patch(
   requirePermission(PERMISSIONS.COMPANY_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = getAuthenticatedUser(req);
-      if (!user) {
+      const context = getCompanyContext(req);
+      if (!context) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
 
+      const { user, company: companyContext } = context;
       const parseResult = updateCompanySettingsSchema.safeParse(req.body);
       if (!parseResult.success) {
         res.status(400).json({
@@ -145,7 +143,7 @@ router.patch(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const company = await em.findOne(Company, { id: user.company!.id });
+      const company = await em.findOne(Company, { id: companyContext.id });
       if (!company) {
         res.status(404).json({ error: 'Company not found' });
         return;

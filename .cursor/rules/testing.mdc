@@ -59,7 +59,7 @@ pnpm --filter @shared/core test
 
 # Mock Patterns
 
-- Mock external dependencies (mongoose, APIs, etc.)
+- Mock external dependencies (MikroORM, APIs, etc.)
 - Mock environment variables in test setup
 - Use Vitest mocks (`vi.fn()`, `vi.mock()`) for functions and modules
 - Mock API responses for consistent testing

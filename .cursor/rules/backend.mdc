@@ -1,5 +1,5 @@
 ---
-description: Rules for Express API, Mongo models, routing, and validation
+description: Rules for Express API, MikroORM entities, routing, and validation
 globs:
   - 'apps/api/**'
 ---
@@ -8,23 +8,30 @@ globs:
 
 - Use Express routers per resource under `apps/api/src/routes/*`.
 - Validate all request bodies with Zod before DB writes.
-- Use Mongoose models in `apps/api/src/models/*`. Keep schemas minimal.
+- Use MikroORM entities in `apps/api/src/entities/*`. Keep entities focused.
 - API is mounted under `/api`; keep this consistent with web defaults and `README.md`.
 - Implement proper request/response logging with structured data.
 - Use consistent API response format with proper status codes.
 - Implement rate limiting for all endpoints.
 - Add proper CORS configuration for production environments.
 
-# Database & Models
+# Database & Entities
 
-- Use Mongoose models in `apps/api/src/models/*`. Keep schemas minimal.
-- Always define proper indexes for query performance.
-- Use transactions for multi-document operations.
-- Implement proper data validation at the schema level.
-- Use lean() queries when full document hydration isn't needed.
+- Use MikroORM entities in `apps/api/src/entities/*`. Keep entities focused.
+- Use PostgreSQL as the database with MikroORM as the ORM.
+- Always define proper indexes using `@Index()` decorator for query performance.
+- Use MikroORM's unit of work pattern for transactional operations.
+- Implement proper data validation at the entity level with decorators.
+- Use QueryBuilder or EntityManager for complex queries.
 - Implement proper pagination for list endpoints.
 - Use proper error handling for database connection issues.
-- Implement connection pooling and proper connection management.
+- Configure connection pooling in `mikro-orm.config.ts`.
+
+# Shared Types
+
+- Use shared types from `@shared/core` for API request/response types.
+- Define request/response types in `packages/shared/src/types/` for consistency between API and web.
+- Import types: `import type { UserListItem, Role } from '@shared/core';`
 
 # Error Handling
 

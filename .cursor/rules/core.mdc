@@ -39,7 +39,15 @@ globs:
 
 # Files & Paths
 
-- Shared code is in `packages/shared`. Import with `@shared/*` path alias.
+- Shared code is in `packages/shared`. Import with `@shared/core` for the main entry.
+- Shared types by domain:
+  - `types/auth.ts` - Authentication (login, session, MFA)
+  - `types/users.ts` - Users, roles, offices
+  - `types/invites.ts` - User invitations
+  - `types/company.ts` - Company settings
+  - `types/api/` - Pagination, responses
+  - `types/errors.ts` - Error codes and helpers
+- When adding shared types, export from `packages/shared/src/types/index.ts` and run `pnpm --filter @shared/core build`.
 
 # Commit Hygiene
 
@@ -83,6 +91,7 @@ When completing ANY task, evaluate if documentation updates are needed:
 - [ ] **New service added?** → Update relevant `services/README.md`
 - [ ] **Environment variable changed?** → Update root `README.md` and app READMEs
 - [ ] **Permission added?** → Update `.cursor/rules/permissions.mdc`
+- [ ] **Shared type added?** → Update `packages/shared/README.md`
 - [ ] **Architecture decision made?** → Create ADR in `docs/adr/`
 
 See `.cursor/rules/self-improvement.mdc` for complete self-improvement protocol.

@@ -8,8 +8,10 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
@@ -37,18 +39,28 @@ export function MfaVerifyPage(): React.ReactElement {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [trustDevice, setTrustDevice] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Get the intended destination from navigation state
-  const from =
-    (location.state as { from?: string } | null)?.from ?? '/dashboard';
+  // Get the intended destination and canSwitchCompanies from navigation state
+  const locationState = location.state as {
+    from?: string;
+    canSwitchCompanies?: boolean;
+  } | null;
+  const from = locationState?.from ?? '/dashboard';
+  const canSwitchCompanies = locationState?.canSwitchCompanies ?? false;
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      void navigate(from, { replace: true });
+      // If user has multiple companies, redirect to company selection
+      if (canSwitchCompanies) {
+        void navigate('/select-company', { state: { from }, replace: true });
+      } else {
+        void navigate(from, { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, navigate, from, canSwitchCompanies]);
 
   // Redirect if MFA is not required (user navigated directly to this page)
   useEffect(() => {
@@ -201,7 +213,7 @@ export function MfaVerifyPage(): React.ReactElement {
     setError(null);
 
     try {
-      await verifyMfa(codeToVerify);
+      await verifyMfa(codeToVerify, trustDevice);
       // Success - redirect handled by useEffect
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -351,6 +363,19 @@ export function MfaVerifyPage(): React.ReactElement {
                 />
               ))}
             </Box>
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={trustDevice}
+                  onChange={e => setTrustDevice(e.target.checked)}
+                  disabled={isSubmitting}
+                  color="primary"
+                />
+              }
+              label="Trust this device for 30 days"
+              sx={{ justifyContent: 'center' }}
+            />
 
             <Button
               type="submit"

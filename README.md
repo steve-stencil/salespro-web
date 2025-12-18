@@ -1,13 +1,14 @@
-# MERN Monorepo Skeleton (pnpm + Turborepo)
+# SalesPro Web (pnpm + Turborepo)
 
 ### Requirements
 
 - **Node**: `>= 20.11.0`
 - **pnpm**: `>= 10.18.1`
+- **PostgreSQL**: `>= 16`
 
 ### Monorepo layout
 
-- `apps/api`: Express + MongoDB API (TypeScript)
+- `apps/api`: Express + PostgreSQL API (TypeScript, MikroORM)
 - `apps/web`: React + Vite web app
 - `packages/shared`: Shared TypeScript types and Zod schemas
 - `packages/config`: Shared config (ESLint, Prettier, TS base)
@@ -32,11 +33,12 @@ You can either run `pnpm init-latest` (or `pnpm init-latest:conservative`) to au
 
 ```bash
 # Required
-MONGODB_URI="mongodb://127.0.0.1:27017/mern_monorepo"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/salespro_dev"
 
 # Optional
 PORT=4000
 NODE_ENV=development
+SESSION_SECRET="your-session-secret-change-in-production"
 ```
 
 `apps/web/.env`
@@ -46,7 +48,7 @@ NODE_ENV=development
 VITE_API_BASE="http://localhost:4000/api"
 ```
 
-If you use MongoDB Atlas, set `MONGODB_URI` to that connection string.
+For cloud deployments, set `DATABASE_URL` to your PostgreSQL connection string.
 
 ### Run all apps (dev)
 
@@ -147,7 +149,7 @@ The script will:
 - **Ports**:
   - API: `4000` (mounts at `/api`)
   - Web: `5173`
-  - MongoDB: `27017`
+  - PostgreSQL: `5432`
 
 Build and run:
 
@@ -164,7 +166,7 @@ docker compose logs -f api
 
 Environment used by compose:
 
-- API: `MONGODB_URI=mongodb://mongo:27017/mern`, `PORT=4000`, `NODE_ENV=production`
+- API: `DATABASE_URL=postgresql://postgres:postgres@postgres:5432/salespro`, `PORT=4000`, `NODE_ENV=production`
 - Web: `VITE_API_URL=http://localhost:4000`
 
 Stop and clean:
@@ -181,7 +183,7 @@ docker compose down -v
 
 ### Troubleshooting
 
-- **Mongo connection fails**: Ensure `mongod` is running locally, or provide a valid `MONGODB_URI`.
+- **PostgreSQL connection fails**: Ensure PostgreSQL is running locally, or provide a valid `DATABASE_URL`.
 - **Port in use**: Change `PORT` in `apps/api/.env` or `VITE_API_BASE` in `apps/web/.env`.
 - **pnpm/version mismatch**: Check the required versions above and upgrade your local toolchain.
 

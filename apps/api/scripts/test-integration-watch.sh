@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Integration Test Watch Script for API
-# This script starts MongoDB test service and runs integration tests in watch mode
+# This script starts PostgreSQL test service and runs integration tests in watch mode
 
 set -e
 
@@ -13,25 +13,25 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Start MongoDB test service
-echo "🐳 Starting MongoDB test service..."
-docker compose up -d mongo-test
+# Start PostgreSQL test service
+echo "🐳 Starting PostgreSQL test service..."
+docker compose -f docker-compose.test.yml up -d postgres-test
 
-# Wait for MongoDB to be ready
-echo "⏳ Waiting for MongoDB to be ready..."
-until docker compose exec -T mongo-test mongosh --eval "db.runCommand('ping').ok" > /dev/null 2>&1; do
-    echo "Waiting for MongoDB..."
+# Wait for PostgreSQL to be ready
+echo "⏳ Waiting for PostgreSQL to be ready..."
+until docker compose -f docker-compose.test.yml exec -T postgres-test pg_isready -U postgres -d salespro_test > /dev/null 2>&1; do
+    echo "Waiting for PostgreSQL..."
     sleep 2
 done
-echo "✅ MongoDB is ready!"
+echo "✅ PostgreSQL is ready!"
 
 # Run integration tests in watch mode
 echo "🔧 Running integration tests in watch mode..."
-echo "💡 Press Ctrl+C to stop watching and clean up MongoDB service"
+echo "💡 Press Ctrl+C to stop watching and clean up PostgreSQL service"
 vitest --config vitest.integration.config.ts
 
-# Clean up MongoDB test service when watch mode is stopped
-echo "🧹 Cleaning up MongoDB test service..."
-docker compose down mongo-test
+# Clean up PostgreSQL test service when watch mode is stopped
+echo "🧹 Cleaning up PostgreSQL test service..."
+docker compose -f docker-compose.test.yml down
 
 echo "✅ Integration tests watch mode completed!"

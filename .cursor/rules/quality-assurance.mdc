@@ -97,11 +97,11 @@ const data: User = response.data;
 #### Import Issues
 
 ```typescript
-// ❌ Bad
-import { ApiError, ErrorResponse } from '@shared/types/errors';
+// ❌ Bad - importing types without 'type' keyword
+import { ApiError, ErrorResponse } from '@shared/core';
 
-// ✅ Good
-import type { ApiError, ErrorResponse } from '@shared/types/errors';
+// ✅ Good - use type imports for types
+import type { ApiError, ErrorResponse } from '@shared/core';
 ```
 
 #### Optional Properties
@@ -140,6 +140,7 @@ Before marking any task complete, verify:
 - [ ] **New routes** documented in `apps/api/src/routes/README.md`
 - [ ] **New components** documented in `apps/web/src/components/README.md`
 - [ ] **New hooks** documented in `apps/web/src/hooks/README.md`
+- [ ] **Shared types** documented in `packages/shared/README.md`
 - [ ] **Environment changes** documented in README.md files
 - [ ] **Complex code** has inline explanatory comments
 - [ ] **Public functions** have JSDoc comments

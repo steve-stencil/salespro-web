@@ -13,7 +13,7 @@ import {
 import { ApiClientError } from '../lib/api-client';
 import { authApi } from '../services/auth';
 
-import type { User, AuthContextType } from '../types/auth';
+import type { User, AuthContextType, LoginResult } from '../types/auth';
 import type { ReactNode } from 'react';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -68,33 +68,42 @@ export function AuthProvider({
   /**
    * Authenticates user with email and password.
    * Returns { requiresMfa: true } if MFA verification is needed.
+   * Returns { canSwitchCompanies: true } if user has multiple companies to choose from.
    */
   const login = useCallback(
     async (
       email: string,
       password: string,
       rememberMe = false,
-    ): Promise<{ requiresMfa?: boolean }> => {
+    ): Promise<LoginResult> => {
       const response = await authApi.login(email, password, rememberMe);
 
       if (response.requiresMfa) {
         setRequiresMfa(true);
-        return { requiresMfa: true };
+        return {
+          requiresMfa: true,
+          canSwitchCompanies: response.canSwitchCompanies,
+        };
       }
 
       // Login successful - fetch full user data
       await checkAuth();
-      return {};
+
+      // Return canSwitchCompanies so the login page can redirect appropriately
+      return { canSwitchCompanies: response.canSwitchCompanies };
     },
     [checkAuth],
   );
 
   /**
    * Verifies MFA code after login.
+   *
+   * @param code - 6-digit MFA code
+   * @param trustDevice - Whether to trust this device for 30 days (skip MFA)
    */
   const verifyMfa = useCallback(
-    async (code: string): Promise<void> => {
-      await authApi.verifyMfa(code);
+    async (code: string, trustDevice = false): Promise<void> => {
+      await authApi.verifyMfa(code, trustDevice);
       setRequiresMfa(false);
       // Fetch full user data after MFA verification
       await checkAuth();
