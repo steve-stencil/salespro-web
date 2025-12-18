@@ -79,12 +79,12 @@ docker-compose -f docker-compose.test.yml down
 
 ## 📁 Docker Compose Files
 
-| File                      | Purpose     | Services                   |
-| ------------------------- | ----------- | -------------------------- |
-| `docker-compose.yml`      | Production  | postgres, api, web         |
-| `docker-compose.dev.yml`  | Development | postgres, api-dev, web-dev |
-| `docker-compose.test.yml` | Testing     | postgres-test, api-test    |
-| `docker-compose.ci.yml`   | CI Pipeline | postgres-test              |
+| File                      | Purpose     | Services                                            |
+| ------------------------- | ----------- | --------------------------------------------------- |
+| `docker-compose.yml`      | All-in-one  | postgres, postgres-test, api, web, api-dev, web-dev |
+| `docker-compose.dev.yml`  | Development | postgres, postgres-test, api-dev, web-dev           |
+| `docker-compose.test.yml` | Testing     | postgres-test, api-test                             |
+| `docker-compose.ci.yml`   | CI Pipeline | postgres-test                                       |
 
 ## 🔧 Environment Variables
 

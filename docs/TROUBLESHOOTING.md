@@ -212,7 +212,7 @@ pnpm install
 # Verify all packages build individually
 pnpm --filter api build
 pnpm --filter web build
-pnpm --filter @shared/core build
+pnpm --filter shared build
 ```
 
 ### 4. Testing Issues
@@ -374,7 +374,7 @@ SESSION_SECRET="your-session-secret-change-in-production"
 **Check TypeScript Configuration**:
 
 ```json
-// tsconfig.json
+// tsconfig.json (or tsconfig.base.json)
 {
   "compilerOptions": {
     "baseUrl": ".",
@@ -392,8 +392,47 @@ SESSION_SECRET="your-session-secret-change-in-production"
 # Check if shared package builds
 pnpm --filter @shared/core build
 
-# Check if path aliases work
-# Use @shared/types instead of relative imports
+# Check if shared package typechecks
+pnpm --filter @shared/core typecheck
+
+# Verify the dependency is installed in consuming apps
+# Check apps/web/package.json or apps/api/package.json for:
+# "@shared/core": "workspace:*"
+```
+
+### Shared Package Issues
+
+#### "Cannot find module '@shared/core'"
+
+**Symptoms**: Import errors when importing from `@shared/core`
+**Causes**: Missing dependency or build not run
+**Solutions**:
+
+```bash
+# 1. Ensure the dependency is in package.json
+cd apps/web  # or apps/api
+pnpm add '@shared/core@workspace:*'
+
+# 2. Build the shared package
+pnpm --filter @shared/core build
+
+# 3. Reinstall dependencies
+pnpm install
+```
+
+#### "Type not exported from '@shared/core'"
+
+**Symptoms**: Type import fails even though it's defined
+**Causes**: Type not exported from index.ts or package not rebuilt
+**Solutions**:
+
+```bash
+# 1. Check the type is exported in packages/shared/src/types/index.ts
+# 2. Rebuild the shared package
+pnpm --filter @shared/core build
+
+# 3. Restart TypeScript server in IDE
+# In VS Code: Cmd+Shift+P > "TypeScript: Restart TS Server"
 ```
 
 ### 7. Performance Issues

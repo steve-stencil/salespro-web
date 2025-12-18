@@ -2,18 +2,27 @@
 
 ## Purpose
 
-This package contains shared TypeScript types, interfaces, and utilities used by both the API and web applications. It provides a single source of truth for common definitions to ensure consistency across the monorepo.
+This package contains shared TypeScript types, interfaces, and utilities used by the API, web, and any future applications. It provides a single source of truth for common definitions to ensure consistency across the monorepo.
 
 ## Structure
 
 ```
 packages/shared/
 ├── src/
-│   ├── index.ts          # Main exports
+│   ├── index.ts              # Main exports
 │   ├── types/
-│   │   └── errors.ts     # Error type definitions
+│   │   ├── api/              # API-specific types
+│   │   │   ├── pagination.ts # Pagination types
+│   │   │   ├── responses.ts  # Response wrappers
+│   │   │   └── index.ts
+│   │   ├── auth.ts           # Authentication types
+│   │   ├── users.ts          # User, role, office types
+│   │   ├── invites.ts        # User invitation types
+│   │   ├── company.ts        # Company settings types
+│   │   ├── errors.ts         # Error handling types
+│   │   └── index.ts          # Re-exports all types
 │   └── __tests__/
-│       └── index.test.ts # Package tests
+│       └── index.test.ts     # Package tests
 ├── package.json
 ├── tsconfig.json
 └── vitest.config.ts
@@ -31,71 +40,180 @@ This package is available as `@shared/core` within the monorepo:
 }
 ```
 
+Or use path aliases (configured in `tsconfig.base.json`):
+
+```typescript
+// These are equivalent:
+import type { User } from '@shared/core';
+import type { User } from '@shared/types/users';
+```
+
 ## Usage
 
 ### Importing Types
 
 ```typescript
-import type { ApiError, ValidationError } from '@shared/core';
+// Import from main entry point
+import type { LoginRequest, LoginResponse, CurrentUser } from '@shared/core';
+
+// Or import specific modules
+import type { Pagination, PaginatedResponse } from '@shared/core';
+import type { Role, RoleType, UserListItem } from '@shared/core';
+
+// Error handling utilities (these have runtime code)
+import { ErrorCode, getErrorMessage, isRetryableError } from '@shared/core';
 ```
 
-### Error Types
+### Type Categories
 
-The package exports standardized error types used across API and web:
+#### Authentication Types (`auth.ts`)
 
 ```typescript
-import type { ApiError, ErrorResponse, ValidationError } from '@shared/core';
+import type {
+  LoginRequest,
+  LoginResponse,
+  CurrentUser,
+  MfaVerifyRequest,
+  SessionSource,
+  UserType,
+} from '@shared/core';
+```
 
-// ApiError - Standard error response from the API
-type ApiError = {
-  message: string;
-  statusCode: number;
-  code?: string;
-};
+#### User Management Types (`users.ts`)
 
-// ValidationError - Field-level validation errors
-type ValidationError = {
-  field: string;
-  message: string;
-};
+```typescript
+import type {
+  // Entities
+  User,
+  UserListItem,
+  UserDetail,
+  Role,
+  RoleBasic,
+  RoleType,
+  Office,
+  UserOfficeAccess,
+  PermissionMeta,
+  PermissionsByCategory,
 
-// ErrorResponse - Complete error response shape
-type ErrorResponse = {
-  error: ApiError;
-  errors?: ValidationError[];
-};
+  // API Responses
+  UsersListResponse,
+  UserDetailResponse,
+  RolesListResponse,
+  PermissionsResponse,
+  OfficesListResponse,
+  OfficeMutationResponse,
+
+  // API Requests
+  CreateRoleRequest,
+  UpdateRoleRequest,
+  CreateOfficeRequest,
+  UsersListParams,
+} from '@shared/core';
+```
+
+#### Invitation Types (`invites.ts`)
+
+```typescript
+import type {
+  InviteListItem,
+  CreateInviteRequest,
+  AcceptInviteRequest,
+  ValidateInviteResponse,
+} from '@shared/core';
+```
+
+#### Company Types (`company.ts`)
+
+```typescript
+import type {
+  CompanySettings,
+  CompanySettingsResponse,
+  CompanySettingsUpdate,
+} from '@shared/core';
+```
+
+#### Pagination Types (`api/pagination.ts`)
+
+```typescript
+import type {
+  Pagination,
+  PaginationParams,
+  PaginatedResponse,
+} from '@shared/core';
+```
+
+#### Error Types (`errors.ts`)
+
+```typescript
+import {
+  ErrorCode,
+  ERROR_MESSAGES,
+  getErrorMessage,
+  isClientError,
+  isServerError,
+  isRetryableError,
+} from '@shared/core';
+
+import type { ApiError, ErrorResponse } from '@shared/core';
 ```
 
 ## Adding New Shared Types
 
 When adding new shared types:
 
-1. Create the type definition in the appropriate file under `src/types/`
-2. Export it from `src/index.ts`
-3. Add tests if the type includes validation logic
-4. Update this README with documentation
+1. **Identify the domain** - Does it belong to auth, users, invites, company, or a new domain?
+2. **Create/update the type file** in `src/types/`
+3. **Export from `src/types/index.ts`** if it's a new file
+4. **Add JSDoc comments** for all exported types
+5. **Update this README** with usage examples
 
-### Example: Adding a New Type
+### Guidelines
+
+#### Do
+
+- Define types that are used by both API and web (or multiple apps)
+- Keep types simple and focused on data contracts
+- Use `type` over `interface` for consistency
+- Add JSDoc comments for complex types
+- Group related types together in the same file
+- Use descriptive names that indicate purpose (e.g., `CreateRoleRequest` vs `RoleInput`)
+
+#### Don't
+
+- Put API-only implementation types here (e.g., Express middleware types)
+- Put UI-only types here (e.g., React component props)
+- Include runtime code unless absolutely necessary (error helpers are an exception)
+- Import from other workspace packages (avoid circular dependencies)
+- Duplicate MikroORM entity definitions (those stay in the API)
+
+### Example: Adding a New Domain
 
 ```typescript
-// src/types/pagination.ts
-export type PaginationParams = {
-  page: number;
-  limit: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+// src/types/products.ts
+import type { Pagination, PaginationParams } from './api/pagination';
+
+/** Product entity */
+export type Product = {
+  id: string;
+  name: string;
+  price: number;
+  createdAt: string;
 };
 
-export type PaginatedResponse<T> = {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+/** Products list response */
+export type ProductsListResponse = {
+  products: Product[];
+  pagination: Pagination;
 };
 
-// src/index.ts
-export type { PaginationParams, PaginatedResponse } from './types/pagination';
+/** Create product request */
+export type CreateProductRequest = {
+  name: string;
+  price: number;
+};
+
+// src/types/index.ts - Add the export
+export * from './products';
 ```
 
 ## Development
@@ -126,26 +244,10 @@ pnpm test
 pnpm --filter @shared/core typecheck
 ```
 
-## Best Practices
-
-### Do
-
-- Define types that are used by both API and web
-- Keep types simple and focused
-- Use `type` over `interface` for consistency
-- Export types with the `type` keyword for type-only imports
-- Add JSDoc comments for complex types
-
-### Don't
-
-- Put API-specific types here (put them in `apps/api`)
-- Put UI-specific types here (put them in `apps/web`)
-- Include runtime code unless absolutely necessary
-- Import from other workspace packages (avoid circular dependencies)
-
 ## Dependencies
 
 - **TypeScript** - Type definitions
+- **Zod** - Validation schemas (available for shared schemas)
 - **Vitest** - Testing framework
 
 ## Related
@@ -153,3 +255,4 @@ pnpm --filter @shared/core typecheck
 - [API App](../../apps/api/README.md) - Consumes shared types
 - [Web App](../../apps/web/README.md) - Consumes shared types
 - [Config Package](../config/README.md) - Shared configuration
+- [Architecture Docs](../../docs/ARCHITECTURE.md) - System architecture

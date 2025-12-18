@@ -6,7 +6,7 @@ globs:
 
 # React Rules
 
-- Use React Router for pages in `src/routes/*`.
+- Use React Router for routing. Pages are in `src/pages/*`, router config in `src/router.tsx`.
 - Use TanStack Query for server state. Never fetch in useEffect directly.
 - Centralize API calls using axios in `src/lib/api-client.ts`. Always throw on non-2xx.
 - Use proper loading and error states in components.
@@ -18,7 +18,7 @@ globs:
 # Styling with MUI & Leap Brand
 
 - **ALWAYS use MUI components** for all UI elements - avoid custom CSS files.
-- **ALWAYS follow Leap Design Tokens** from Confluence (see `docs/LEAP_STYLE_GUIDES.md`).
+- **ALWAYS follow Leap Design Tokens** defined in `src/theme/theme.ts`.
 - Use the `sx` prop for component-specific styling - never create `.css` files.
 - **NEVER hardcode colors** - use theme palette values (`primary.main`, `error.main`, etc.).
 - Use MUI icons from `@mui/icons-material` instead of inline SVGs.
@@ -49,6 +49,13 @@ globs:
 - Use consistent naming conventions for components and files.
 - Extract reusable UI components into a shared components library.
 
+# Shared Types
+
+- Use shared types from `@shared/core` for API request/response types.
+- Import types: `import type { CurrentUser, Role, LoginRequest } from '@shared/core';`
+- Re-export shared types in `src/types/` for backwards compatibility if needed.
+- Web-specific types (e.g., `AuthState`, `AuthContextType`) stay in `src/types/`.
+
 # API Integration
 
 - **ALWAYS use axios** for HTTP requests - never use native `fetch()`.
@@ -75,4 +82,3 @@ globs:
 - **Frontend Development**: See `docs/DEVELOPMENT.md` for detailed React patterns, component structure, custom hooks, and API client examples.
 - **Architecture**: See `docs/ARCHITECTURE.md` for frontend design patterns, performance optimization, and security considerations.
 - **Security**: See `docs/SECURITY.md` for frontend security best practices and XSS prevention.
-- **Leap Style Guides**: See `docs/LEAP_STYLE_GUIDES.md` for Confluence page references with brand colors and typography tokens.
