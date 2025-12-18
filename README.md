@@ -39,6 +39,14 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/salespro_dev"
 PORT=4000
 NODE_ENV=development
 SESSION_SECRET="your-session-secret-change-in-production"
+
+# AWS Configuration (optional for development)
+AWS_REGION="us-east-1"
+AWS_PROFILE="salespro-dev"  # For local development credentials
+
+# AWS KMS (required in production for credential encryption)
+# Can be key ID, ARN, alias name, or alias ARN
+KMS_KEY_ID="alias/salespro-credentials"
 ```
 
 `apps/web/.env`

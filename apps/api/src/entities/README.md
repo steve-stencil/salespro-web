@@ -75,6 +75,13 @@ This folder contains all MikroORM entity definitions for the SalesPro Dashboard 
 | ---------------- | ------------------------------------ |
 | `File.entity.ts` | File metadata and storage references |
 
+### Office Settings
+
+| Entity                        | Purpose                                             |
+| ----------------------------- | --------------------------------------------------- |
+| `OfficeSettings.entity.ts`    | Office-level settings (logo, branding)              |
+| `OfficeIntegration.entity.ts` | Third-party integration credentials (KMS-encrypted) |
+
 ### Supporting Files
 
 | File       | Purpose                |
@@ -99,6 +106,9 @@ User (1) ─────────┬──── (*) UserRole ──── Ro
                   ├──── (*) Session
                   ├──── (*) LoginEvent
                   └──── (*) File (uploadedBy)
+
+Office (1) ───────┬──── (1) OfficeSettings ──── File (logo)
+                  └──── (*) OfficeIntegration
 
 Role (*) ─────────┴──── (*) UserRole
 ```
