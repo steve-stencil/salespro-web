@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { Role, RoleType, User, Company, UserRole } from '../entities';
+import { Role, RoleType, Company, UserRole } from '../entities';
 import { UserType } from '../entities/types';
 import { getORM } from '../lib/db';
 import {
@@ -14,16 +14,10 @@ import {
 import { requireAuth, requirePermission } from '../middleware';
 import { PermissionService } from '../services/PermissionService';
 
+import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
-
-/**
- * Request type with authenticated user
- */
-type AuthenticatedRequest = Request & {
-  user?: User & { company?: Company };
-};
 
 // ============================================================================
 // Validation Helpers
@@ -173,8 +167,11 @@ router.get(
   requirePermission(PERMISSIONS.ROLE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -183,7 +180,7 @@ router.get(
       const em = orm.em.fork();
       const permissionService = new PermissionService(em);
 
-      let roles = await permissionService.getAvailableRoles(user.company.id);
+      let roles = await permissionService.getAvailableRoles(company.id);
 
       // Filter out platform roles for non-internal users
       // Platform roles should only be visible to internal platform users
@@ -196,7 +193,7 @@ router.get(
         roles.map(async r => {
           const count = await em.count(UserRole, {
             role: r.id,
-            company: user.company!.id,
+            company: company.id,
           });
           return { roleId: r.id, count };
         }),
@@ -233,8 +230,11 @@ router.get(
  */
 router.get('/me', requireAuth(), async (req: Request, res: Response) => {
   try {
-    const user = (req as AuthenticatedRequest).user;
-    if (!user?.company) {
+    const authReq = req as AuthenticatedRequest;
+    const user = authReq.user;
+    const company = authReq.companyContext;
+
+    if (!user || !company) {
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
@@ -243,13 +243,10 @@ router.get('/me', requireAuth(), async (req: Request, res: Response) => {
     const em = orm.em.fork();
     const permissionService = new PermissionService(em);
 
-    const roles = await permissionService.getUserRoles(
-      user.id,
-      user.company.id,
-    );
+    const roles = await permissionService.getUserRoles(user.id, company.id);
     const permissions = await permissionService.getUserPermissions(
       user.id,
-      user.company.id,
+      company.id,
     );
 
     res.status(200).json({
@@ -277,8 +274,11 @@ router.get(
   requirePermission(PERMISSIONS.ROLE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -294,7 +294,7 @@ router.get(
 
       const role = await em.findOne(Role, {
         id,
-        $or: [{ company: null }, { company: user.company.id }],
+        $or: [{ company: null }, { company: company.id }],
       });
 
       if (!role) {
@@ -305,7 +305,7 @@ router.get(
       // Get user count for this role
       const userCount = await em.count(UserRole, {
         role: role.id,
-        company: user.company.id,
+        company: company.id,
       });
 
       res.status(200).json({
@@ -340,8 +340,11 @@ router.get(
   requirePermission(PERMISSIONS.ROLE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -366,7 +369,7 @@ router.get(
       // Verify role exists and is accessible
       const role = await em.findOne(Role, {
         id,
-        $or: [{ company: null }, { company: user.company.id }],
+        $or: [{ company: null }, { company: company.id }],
       });
 
       if (!role) {
@@ -379,7 +382,7 @@ router.get(
         UserRole,
         {
           role: role.id,
-          company: user.company.id,
+          company: company.id,
         },
         {
           populate: ['user'],
@@ -422,8 +425,11 @@ router.post(
   requirePermission(PERMISSIONS.ROLE_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -460,7 +466,7 @@ router.post(
       // Check if role name already exists for this company
       const existing = await em.findOne(Role, {
         name,
-        company: user.company.id,
+        company: company.id,
       });
 
       if (existing) {
@@ -494,7 +500,7 @@ router.post(
       role.permissions = permissions;
       role.isDefault = isDefault ?? false;
       role.type = RoleType.COMPANY;
-      role.company = em.getReference(Company, user.company.id);
+      role.company = em.getReference(Company, company.id);
 
       await em.persistAndFlush(role);
 
@@ -533,8 +539,11 @@ router.post(
   requirePermission(PERMISSIONS.ROLE_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -565,7 +574,7 @@ router.post(
       // Find the source role
       const sourceRole = await em.findOne(Role, {
         id,
-        $or: [{ company: null }, { company: user.company.id }],
+        $or: [{ company: null }, { company: company.id }],
       });
 
       if (!sourceRole) {
@@ -576,7 +585,7 @@ router.post(
       // Check if new role name already exists
       const existing = await em.findOne(Role, {
         name,
-        company: user.company.id,
+        company: company.id,
       });
 
       if (existing) {
@@ -598,7 +607,7 @@ router.post(
       newRole.permissions = [...sourceRole.permissions]; // Copy permissions
       newRole.isDefault = false; // Cloned roles are not default
       newRole.type = RoleType.COMPANY;
-      newRole.company = em.getReference(Company, user.company.id);
+      newRole.company = em.getReference(Company, company.id);
 
       await em.persistAndFlush(newRole);
 
@@ -645,8 +654,11 @@ router.patch(
   requirePermission(PERMISSIONS.ROLE_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -692,7 +704,7 @@ router.patch(
 
       const role = await em.findOne(Role, {
         id,
-        company: user.company.id,
+        company: company.id,
       });
 
       if (!role) {
@@ -768,8 +780,11 @@ router.delete(
   requirePermission(PERMISSIONS.ROLE_DELETE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -787,7 +802,7 @@ router.delete(
 
       const role = await em.findOne(Role, {
         id,
-        company: user.company.id,
+        company: company.id,
       });
 
       if (!role) {
@@ -807,7 +822,7 @@ router.delete(
       // Check for assigned users
       const assignedCount = await em.count(UserRole, {
         role: role.id,
-        company: user.company.id,
+        company: company.id,
       });
 
       if (assignedCount > 0 && !force) {
@@ -823,7 +838,7 @@ router.delete(
       if (assignedCount > 0 && force) {
         await em.nativeDelete(UserRole, {
           role: role.id,
-          company: user.company.id,
+          company: company.id,
         });
         req.log.info(
           {
@@ -873,8 +888,11 @@ router.get(
   requirePermission(PERMISSIONS.ROLE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -889,13 +907,10 @@ router.get(
       const em = orm.em.fork();
       const permissionService = new PermissionService(em);
 
-      const roles = await permissionService.getUserRoles(
-        userId,
-        user.company.id,
-      );
+      const roles = await permissionService.getUserRoles(userId, company.id);
       const permissions = await permissionService.getUserPermissions(
         userId,
-        user.company.id,
+        company.id,
       );
 
       res.status(200).json({
@@ -925,8 +940,11 @@ router.post(
   requirePermission(PERMISSIONS.ROLE_ASSIGN),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -951,7 +969,7 @@ router.post(
       // Verify the role is available to this company
       const role = await em.findOne(Role, {
         id: roleId,
-        $or: [{ company: null }, { company: user.company.id }],
+        $or: [{ company: null }, { company: company.id }],
       });
 
       if (!role) {
@@ -960,9 +978,10 @@ router.post(
       }
 
       // Verify the target user belongs to the same company
+      const { User } = await import('../entities');
       const targetUser = await em.findOne(User, {
         id: userId,
-        company: user.company.id,
+        company: company.id,
       });
 
       if (!targetUser) {
@@ -973,7 +992,7 @@ router.post(
       const result = await permissionService.assignRole(
         userId,
         roleId,
-        user.company.id,
+        company.id,
         user.id,
       );
 
@@ -1014,8 +1033,11 @@ router.post(
   requirePermission(PERMISSIONS.ROLE_ASSIGN),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -1040,7 +1062,7 @@ router.post(
       const success = await permissionService.revokeRole(
         userId,
         roleId,
-        user.company.id,
+        company.id,
       );
 
       if (!success) {
@@ -1071,8 +1093,11 @@ router.post(
   requirePermission(PERMISSIONS.ROLE_ASSIGN),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -1107,7 +1132,7 @@ router.post(
         error?: string;
       }> = [];
 
-      const companyId = user.company.id;
+      const companyId = company.id;
 
       for (const { userId, roleId } of assignments) {
         // Verify role and user
@@ -1126,7 +1151,8 @@ router.post(
           continue;
         }
 
-        const targetUser = await em.findOne(User, {
+        const { User: UserEntity } = await import('../entities');
+        const targetUser = await em.findOne(UserEntity, {
           id: userId,
           company: companyId,
         });

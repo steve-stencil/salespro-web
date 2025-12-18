@@ -10,6 +10,7 @@ import {
   Session,
   SessionSource,
   UserType,
+  CompanyAccessLevel,
 } from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
@@ -1265,9 +1266,8 @@ describe('Roles Routes Integration Tests', () => {
       });
     });
 
-    // TODO: The /api/roles endpoint requires user.company but internal users use companyContext
-    // These tests need the route to be updated to support internal users
-    describe.skip('Internal user', () => {
+    // Route handlers have been updated to use companyContext to support internal users
+    describe('Internal user', () => {
       let internalUser: User;
       let internalUserCookie: string;
       let internalCompany: Company;
@@ -1309,21 +1309,34 @@ describe('Roles Routes Integration Tests', () => {
         });
         em.persist(internalUser);
 
-        // Assign admin role to internal user
+        // Create a platform role with FULL company access for internal user
+        // Internal users need a platform role (not system role) for permission resolution
+        const internalPlatformRole = em.create(Role, {
+          id: uuid(),
+          name: `internalPlatformRole-${Date.now()}`,
+          displayName: 'Internal Platform Role',
+          permissions: ['platform:view_companies', 'platform:switch_company'],
+          type: RoleType.PLATFORM,
+          companyAccessLevel: CompanyAccessLevel.FULL, // Full access to all company permissions
+        });
+        em.persist(internalPlatformRole);
+
+        // Assign platform role to internal user (no company for platform roles)
         const userRole = em.create(UserRole, {
           id: uuid(),
           user: internalUser,
-          role: adminRole,
-          company: internalCompany,
+          role: internalPlatformRole,
         });
         em.persist(userRole);
 
-        // Create session for internal user
+        // Create session for internal user with activeCompany set
+        // Internal users need activeCompany (not just company) for companyContext
         const sid = uuid();
         const session = em.create(Session, {
           sid,
           user: internalUser,
           company: internalCompany,
+          activeCompany: internalCompany, // Required for internal user companyContext
           data: { userId: internalUser.id },
           source: SessionSource.WEB,
           ipAddress: '127.0.0.1',

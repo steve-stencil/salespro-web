@@ -29,8 +29,11 @@ router.patch(
   requirePermission(PERMISSIONS.FILE_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -72,11 +75,7 @@ router.patch(
         updateParams.description = updates.description ?? '';
       }
 
-      const file = await fileService.updateFile(
-        id,
-        user.company.id,
-        updateParams,
-      );
+      const file = await fileService.updateFile(id, company.id, updateParams);
 
       res.status(200).json({
         message: 'File updated',
@@ -103,8 +102,11 @@ router.delete(
   requirePermission(PERMISSIONS.FILE_DELETE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -119,7 +121,7 @@ router.delete(
       const em = orm.em.fork();
       const fileService = new FileService(em);
 
-      await fileService.deleteFile(id, user.company.id);
+      await fileService.deleteFile(id, company.id);
 
       res.status(200).json({ message: 'File deleted' });
     } catch (err) {
