@@ -25,6 +25,9 @@ import {
   File,
   OfficeSettings,
   OfficeIntegration,
+  PriceGuide,
+  PriceGuideCategory,
+  PriceGuideItem,
 } from './src/entities';
 
 /**
@@ -60,6 +63,9 @@ export default defineConfig({
     File,
     OfficeSettings,
     OfficeIntegration,
+    PriceGuide,
+    PriceGuideCategory,
+    PriceGuideItem,
   ],
   migrations: {
     path: './src/migrations',

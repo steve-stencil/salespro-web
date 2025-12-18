@@ -49,5 +49,10 @@ export { File } from './File.entity';
 export { OfficeSettings } from './OfficeSettings.entity';
 export { OfficeIntegration } from './OfficeIntegration.entity';
 
+// Price guide entities
+export { PriceGuide } from './PriceGuide.entity';
+export { PriceGuideCategory } from './PriceGuideCategory.entity';
+export { PriceGuideItem } from './PriceGuideItem.entity';
+
 // Types and enums
 export * from './types';

@@ -148,3 +148,35 @@ export enum FileStatus {
   /** File is soft deleted */
   DELETED = 'deleted',
 }
+
+/** Status of a price guide */
+export enum PriceGuideStatus {
+  /** Price guide is a draft (not visible to regular users) */
+  DRAFT = 'draft',
+  /** Price guide is active and visible */
+  ACTIVE = 'active',
+  /** Price guide is archived (read-only, not in use) */
+  ARCHIVED = 'archived',
+}
+
+/** Status of a price guide item */
+export enum PriceGuideItemStatus {
+  /** Item is active and available for use */
+  ACTIVE = 'active',
+  /** Item is temporarily unavailable */
+  INACTIVE = 'inactive',
+  /** Item is discontinued (no longer offered) */
+  DISCONTINUED = 'discontinued',
+}
+
+/** Pricing type for a price guide item */
+export enum PricingType {
+  /** Fixed price amount */
+  FIXED = 'fixed',
+  /** Price per hour */
+  HOURLY = 'hourly',
+  /** Price per unit/quantity */
+  PER_UNIT = 'per_unit',
+  /** Price varies (quote required) */
+  VARIABLE = 'variable',
+}

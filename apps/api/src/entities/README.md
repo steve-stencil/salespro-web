@@ -82,6 +82,14 @@ This folder contains all MikroORM entity definitions for the SalesPro Dashboard 
 | `OfficeSettings.entity.ts`    | Office-level settings (logo, branding)              |
 | `OfficeIntegration.entity.ts` | Third-party integration credentials (KMS-encrypted) |
 
+### Price Guide (Pricing Catalog)
+
+| Entity                         | Purpose                                           |
+| ------------------------------ | ------------------------------------------------- |
+| `PriceGuide.entity.ts`         | Main price guide/catalog for a company            |
+| `PriceGuideCategory.entity.ts` | Categories for organizing items hierarchically    |
+| `PriceGuideItem.entity.ts`     | Individual items with pricing (products/services) |
+
 ### Supporting Files
 
 | File       | Purpose                |
@@ -97,7 +105,8 @@ Company (1) ──────┬──── (*) User
                   ├──── (*) Office
                   ├──── (*) File
                   ├──── (*) UserCompany ───────── User (multi-company access)
-                  └──── (*) InternalUserCompany ─ User (internal user restrictions)
+                  ├──── (*) InternalUserCompany ─ User (internal user restrictions)
+                  └──── (*) PriceGuide
 
 User (1) ─────────┬──── (*) UserRole ──── Role
                   ├──── (*) UserOffice ── Office
@@ -111,6 +120,13 @@ Office (1) ───────┬──── (1) OfficeSettings ──── 
                   └──── (*) OfficeIntegration
 
 Role (*) ─────────┴──── (*) UserRole
+
+PriceGuide (1) ───┬──── (*) PriceGuideCategory
+                  └──── Company
+
+PriceGuideCategory (1) ─┬──── (*) PriceGuideItem
+                        ├──── (*) PriceGuideCategory (child categories)
+                        └──── (?) PriceGuideCategory (parent category)
 ```
 
 ## Patterns
