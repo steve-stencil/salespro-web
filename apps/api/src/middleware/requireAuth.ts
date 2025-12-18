@@ -1,7 +1,7 @@
 import { UserType } from '../entities/types';
 import { getORM } from '../lib/db';
 
-import type { User, Company, Session } from '../entities';
+import type { User, Company } from '../entities';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 /**
@@ -12,9 +12,9 @@ export type AuthenticatedRequest = Request & {
   user?: User;
   /** Whether the user is an internal platform user */
   isInternalUser?: boolean;
-  /** The company context for this request:
-   * - For company users: their fixed company
-   * - For internal users: their active company from session (may be undefined)
+  /** The company context for this request (from session.activeCompany).
+   * For multi-company users, this is the currently selected company.
+   * Falls back to user.company if activeCompany not set.
    */
   companyContext?: Company;
 };
@@ -159,25 +159,21 @@ export function requireAuth(): RequestHandler {
         }
       }
 
-      // Load session entity for internal users (to get activeCompany)
-      let sessionEntity: Session | null = null;
+      // Load session entity to get activeCompany for all user types
+      // Both company users (multi-company) and internal users use session.activeCompany
+      const rawCookie = (req.cookies as Record<string, string | undefined>)[
+        'sid'
+      ];
+      const sessionId = rawCookie ? parseSessionIdFromCookie(rawCookie) : null;
       let activeCompany: Company | undefined;
 
-      if ((user.userType as UserType) === UserType.INTERNAL) {
-        const rawCookie = (req.cookies as Record<string, string | undefined>)[
-          'sid'
-        ];
-        const sessionId = rawCookie
-          ? parseSessionIdFromCookie(rawCookie)
-          : null;
-        if (sessionId) {
-          sessionEntity = await em.findOne(
-            SessionEntity,
-            { sid: sessionId },
-            { populate: ['activeCompany'] },
-          );
-          activeCompany = sessionEntity?.activeCompany;
-        }
+      if (sessionId) {
+        const sessionEntity = await em.findOne(
+          SessionEntity,
+          { sid: sessionId },
+          { populate: ['activeCompany'] },
+        );
+        activeCompany = sessionEntity?.activeCompany;
       }
 
       // Attach user and context to request for downstream use
@@ -186,10 +182,9 @@ export function requireAuth(): RequestHandler {
       extendedReq.user = user;
       extendedReq.isInternalUser = isInternalUser;
 
-      // For internal users, use activeCompany from session; for company users, use their fixed company
-      extendedReq.companyContext = isInternalUser
-        ? activeCompany
-        : user.company;
+      // For all users, prefer activeCompany from session (supports multi-company access)
+      // Fallback to user.company for backwards compatibility during migration
+      extendedReq.companyContext = activeCompany ?? user.company;
 
       next();
     } catch (err) {

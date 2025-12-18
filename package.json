@@ -26,8 +26,8 @@
     "workflow:user": "bash scripts/dev-workflow.sh user-workflow",
     "workflow:qa": "bash scripts/dev-workflow.sh qa-workflow",
     "workflow:deploy": "bash scripts/dev-workflow.sh deploy-workflow",
-    "db:seed": "pnpm --filter api db:seed",
-    "db:seed:force": "pnpm --filter api db:seed:force",
+    "db:seed": "pnpm --filter api db:seed --",
+    "db:seed:force": "pnpm --filter api db:seed -- --force",
     "db:migrate": "pnpm --filter api migration:up"
   },
   "devDependencies": {

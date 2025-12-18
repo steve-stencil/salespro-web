@@ -1,6 +1,6 @@
 /**
- * Company settings types.
- * Re-exports shared types for company configuration.
+ * Company types.
+ * Re-exports shared types for company configuration and multi-company access.
  */
 
 export type {
@@ -8,4 +8,8 @@ export type {
   CompanySettingsResponse,
   CompanySettingsUpdateResponse,
   CompanySettingsUpdate,
+  CompanyInfo,
+  UserCompaniesResponse,
+  SwitchCompanyResponse,
+  PinCompanyResponse,
 } from '@shared/core';

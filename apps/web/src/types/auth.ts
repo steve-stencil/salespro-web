@@ -45,13 +45,21 @@ export type AuthState = {
   requiresMfa: boolean;
 };
 
+/** Login result returned from the login function */
+export type LoginResult = {
+  /** Whether MFA verification is required */
+  requiresMfa?: boolean;
+  /** Whether user has access to multiple companies and needs to select one */
+  canSwitchCompanies?: boolean;
+};
+
 /** Auth context actions */
 export type AuthContextType = AuthState & {
   login: (
     email: string,
     password: string,
     rememberMe?: boolean,
-  ) => Promise<{ requiresMfa?: boolean }>;
+  ) => Promise<LoginResult>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   verifyMfa: (code: string, trustDevice?: boolean) => Promise<void>;

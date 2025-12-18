@@ -14,6 +14,9 @@ export { UserRole } from './UserRole.entity';
 export { Office } from './Office.entity';
 export { UserOffice } from './UserOffice.entity';
 
+// Multi-company access entities
+export { UserCompany } from './UserCompany.entity';
+
 // OAuth entities
 export { OAuthClient } from './OAuthClient.entity';
 export { OAuthToken } from './OAuthToken.entity';

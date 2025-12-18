@@ -17,6 +17,7 @@ import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { OfficesPage } from './pages/OfficesPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
+import { SelectCompanyPage } from './pages/SelectCompanyPage';
 import { UsersPage } from './pages/UsersPage';
 
 /**
@@ -25,6 +26,7 @@ import { UsersPage } from './pages/UsersPage';
  * Public routes:
  * - /login - Login page
  * - /mfa-verify - MFA verification (after login)
+ * - /select-company - Company selection (for multi-company users after login)
  * - /forgot-password - Request password reset
  * - /reset-password - Reset password with token
  * - /accept-invite - Accept invitation and create account
@@ -46,6 +48,10 @@ export const router = createBrowserRouter([
   {
     path: '/mfa-verify',
     element: <MfaVerifyPage />,
+  },
+  {
+    path: '/select-company',
+    element: <SelectCompanyPage />,
   },
   {
     path: '/forgot-password',

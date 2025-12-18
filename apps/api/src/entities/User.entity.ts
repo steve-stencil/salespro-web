@@ -17,6 +17,7 @@ import { UserType } from './types';
 import type { Company } from './Company.entity';
 import type { Office } from './Office.entity';
 import type { Session } from './Session.entity';
+import type { UserCompany } from './UserCompany.entity';
 import type { UserOffice } from './UserOffice.entity';
 
 /**
@@ -80,6 +81,15 @@ export class User {
    */
   @OneToMany('UserOffice', 'user')
   officeAccess = new Collection<UserOffice>(this);
+
+  /**
+   * Collection of companies the user has access to.
+   * For company users: Having records = can access those companies
+   * For internal users: Having records = restricted to those companies (no records = unrestricted)
+   * Managed through the UserCompany join entity.
+   */
+  @OneToMany('UserCompany', 'user')
+  companyAccess = new Collection<UserCompany>(this);
 
   /** Per-user session limit (overrides company default if set) */
   @Property({ type: 'integer' })

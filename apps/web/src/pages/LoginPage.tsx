@@ -81,18 +81,20 @@ export function LoginPage(): React.ReactElement {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Track if we're handling login to prevent useEffect redirect race condition
+  const [isHandlingLogin, setIsHandlingLogin] = useState(false);
 
   // Get the intended destination from navigation state
   const from =
     (location.state as { from?: Location } | null)?.from?.pathname ??
     '/dashboard';
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (but not if we're in the middle of login)
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+    if (isAuthenticated && !authLoading && !isHandlingLogin) {
       void navigate(from, { replace: true });
     }
-  }, [isAuthenticated, authLoading, navigate, from]);
+  }, [isAuthenticated, authLoading, navigate, from, isHandlingLogin]);
 
   /**
    * Handles input field changes.
@@ -146,6 +148,7 @@ export function LoginPage(): React.ReactElement {
     }
 
     setIsSubmitting(true);
+    setIsHandlingLogin(true);
 
     try {
       const result = await login(
@@ -155,12 +158,30 @@ export function LoginPage(): React.ReactElement {
       );
 
       if (result.requiresMfa) {
-        void navigate('/mfa-verify', { state: { from } });
+        // Pass canSwitchCompanies to MFA page so it can redirect appropriately after
+        // Note: We don't reset isHandlingLogin here - the navigation will unmount this component
+        void navigate('/mfa-verify', {
+          state: { from, canSwitchCompanies: result.canSwitchCompanies },
+        });
         return;
       }
 
-      // Login successful - redirect handled by useEffect
+      // If user has multiple companies, redirect to company selection
+      if (result.canSwitchCompanies) {
+        // Note: We don't reset isHandlingLogin here - the navigation will unmount this component
+        void navigate('/select-company', { state: { from } });
+        return;
+      }
+
+      // Login successful with single company - redirect to destination
+      // Note: We don't reset isHandlingLogin here - the navigation will unmount this component
+      void navigate(from, { replace: true });
+      return;
     } catch (error) {
+      // Reset flags on error - successful navigation will unmount this component
+      setIsSubmitting(false);
+      setIsHandlingLogin(false);
+
       if (error instanceof ApiClientError) {
         const errorData = error.apiError.details as
           | { errorCode?: string }
@@ -184,8 +205,6 @@ export function LoginPage(): React.ReactElement {
       } else {
         setSubmitError('Unable to connect to the server. Please try again.');
       }
-    } finally {
-      setIsSubmitting(false);
     }
   }
 

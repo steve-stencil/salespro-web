@@ -5,6 +5,7 @@ import {
   ManyToOne,
   Enum,
   Index,
+  Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
@@ -17,6 +18,7 @@ import type { User } from './User.entity';
 /**
  * User invite entity for the email invitation system.
  * Allows admins to invite new users to join a company.
+ * Supports both new user invites (create account) and existing user invites (add to company).
  */
 @Entity()
 @Index({ properties: ['tokenHash'] })
@@ -38,6 +40,20 @@ export class UserInvite {
 
   @ManyToOne('User')
   invitedBy!: User;
+
+  /**
+   * Flag indicating this invite is for an existing user to join an additional company.
+   * When true, accepting the invite creates a UserCompany record instead of a new User.
+   */
+  @Property({ type: 'boolean' })
+  isExistingUserInvite: Opt<boolean> = false;
+
+  /**
+   * Reference to the existing user when isExistingUserInvite is true.
+   * Used to validate the correct user is accepting the invite.
+   */
+  @ManyToOne('User', { nullable: true })
+  existingUser?: User;
 
   /** Roles to assign when invite is accepted */
   @Property({ type: 'array' })

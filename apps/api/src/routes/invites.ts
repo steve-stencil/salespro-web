@@ -43,7 +43,11 @@ const createInviteSchema = z
 
 const acceptInviteSchema = z.object({
   token: z.string().min(1, 'Token is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  // Password is optional for existing users who are joining an additional company
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .optional(),
   nameFirst: z.string().max(100).optional(),
   nameLast: z.string().max(100).optional(),
 });
@@ -112,7 +116,9 @@ router.post(
       }
 
       const response: Record<string, unknown> = {
-        message: 'Invitation sent successfully',
+        message: result.isExistingUserInvite
+          ? 'Invitation sent to existing user'
+          : 'Invitation sent successfully',
         invite: {
           id: result.invite!.id,
           email: result.invite!.email,
@@ -122,6 +128,7 @@ router.post(
             name: result.invite!.currentOffice.name,
           },
           allowedOffices: result.invite!.allowedOffices,
+          isExistingUserInvite: result.isExistingUserInvite ?? false,
         },
       };
 
@@ -422,6 +429,7 @@ router.get('/validate', async (req: Request, res: Response) => {
       valid: true,
       email: result.email,
       companyName: result.companyName,
+      isExistingUserInvite: result.isExistingUserInvite ?? false,
     });
   } catch (err) {
     req.log.error({ err }, 'Validate invite token error');
@@ -431,7 +439,9 @@ router.get('/validate', async (req: Request, res: Response) => {
 
 /**
  * POST /invites/accept
- * Accept an invitation and create user account (public endpoint)
+ * Accept an invitation and create user account or add to company (public endpoint).
+ * For new users: Creates account with provided password.
+ * For existing users: Adds them to the company (password not required).
  */
 router.post('/accept', async (req: Request, res: Response) => {
   try {
@@ -448,9 +458,22 @@ router.post('/accept', async (req: Request, res: Response) => {
     const orm = getORM();
     const em = orm.em.fork();
 
+    // First validate the token to check if it's for an existing user
+    const validation = await validateInviteToken(em, token);
+    if (!validation.valid) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
+
+    // For new users, password is required
+    if (!validation.isExistingUserInvite && !password) {
+      res.status(400).json({ error: 'Password is required for new accounts' });
+      return;
+    }
+
     const result = await acceptInvite(em, {
       token,
-      password,
+      password: password ?? '', // Empty string for existing users (not used)
       nameFirst,
       nameLast,
       ipAddress: req.ip ?? 'unknown',
@@ -462,14 +485,19 @@ router.post('/accept', async (req: Request, res: Response) => {
       return;
     }
 
+    const message = validation.isExistingUserInvite
+      ? 'Successfully joined company'
+      : 'Account created successfully';
+
     res.status(201).json({
-      message: 'Account created successfully',
+      message,
       user: {
         id: result.user!.id,
         email: result.user!.email,
         nameFirst: result.user!.nameFirst,
         nameLast: result.user!.nameLast,
       },
+      isExistingUserInvite: validation.isExistingUserInvite ?? false,
     });
   } catch (err) {
     req.log.error({ err }, 'Accept invite error');

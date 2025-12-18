@@ -28,11 +28,20 @@ import {
   Company,
   User,
   Session,
+  Role,
+  UserRole,
+  Office,
+  UserOffice,
+  UserCompany,
   SubscriptionTier,
   SessionLimitStrategy,
   DEFAULT_PASSWORD_POLICY,
+  RoleType,
+  UserType,
+  CompanyAccessLevel,
 } from '../src/entities';
 import { hashPassword } from '../src/lib/crypto';
+import { PERMISSIONS } from '../src/lib/permissions';
 
 /**
  * Parse command line arguments for --email and --password
@@ -58,18 +67,21 @@ function parseCliArgs(): {
   return { email, password };
 }
 
+/** Company configuration type */
+type CompanyConfig = {
+  name: string;
+  maxSeats: number;
+  maxSessionsPerUser: number;
+  tier: SubscriptionTier;
+  sessionLimitStrategy: SessionLimitStrategy;
+  mfaRequired: boolean;
+};
+
 /**
  * Get seed configuration with CLI args and env vars taking precedence
  */
 function getSeedConfig(): {
-  company: {
-    name: string;
-    maxSeats: number;
-    maxSessionsPerUser: number;
-    tier: SubscriptionTier;
-    sessionLimitStrategy: SessionLimitStrategy;
-    mfaRequired: boolean;
-  };
+  companies: CompanyConfig[];
   user: {
     email: string;
     password: string;
@@ -91,14 +103,25 @@ function getSeedConfig(): {
     'SalesProAdmin123!';
 
   return {
-    company: {
-      name: 'SalesPro Demo Company',
-      maxSeats: 10,
-      maxSessionsPerUser: 3,
-      tier: SubscriptionTier.PROFESSIONAL,
-      sessionLimitStrategy: SessionLimitStrategy.REVOKE_OLDEST,
-      mfaRequired: false,
-    },
+    // Two companies for multi-company switching demo
+    companies: [
+      {
+        name: 'SalesPro Demo Company',
+        maxSeats: 10,
+        maxSessionsPerUser: 3,
+        tier: SubscriptionTier.PROFESSIONAL,
+        sessionLimitStrategy: SessionLimitStrategy.REVOKE_OLDEST,
+        mfaRequired: false,
+      },
+      {
+        name: 'Acme Corporation',
+        maxSeats: 25,
+        maxSessionsPerUser: 5,
+        tier: SubscriptionTier.ENTERPRISE,
+        sessionLimitStrategy: SessionLimitStrategy.REVOKE_OLDEST,
+        mfaRequired: false,
+      },
+    ],
     user: {
       email,
       password,
@@ -147,7 +170,16 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
   return {
     clientUrl: databaseUrl,
     driver: PostgreSqlDriver,
-    entities: [Company, User, Session],
+    entities: [
+      Company,
+      User,
+      Session,
+      Role,
+      UserRole,
+      Office,
+      UserOffice,
+      UserCompany,
+    ],
     debug: false,
     allowGlobalContext: true,
   };
@@ -159,18 +191,19 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
 async function checkExistingData(
   orm: MikroORM,
   seedConfig: ReturnType<typeof getSeedConfig>,
-): Promise<{ company: Company | null; user: User | null }> {
+): Promise<{ companies: Company[]; user: User | null }> {
   const em = orm.em.fork();
 
-  const company = await em.findOne(Company, {
-    name: seedConfig.company.name,
+  const companyNames = seedConfig.companies.map(c => c.name);
+  const companies = await em.find(Company, {
+    name: { $in: companyNames },
   });
 
   const user = await em.findOne(User, {
     email: seedConfig.user.email,
   });
 
-  return { company, user };
+  return { companies, user };
 }
 
 /**
@@ -182,40 +215,77 @@ async function clearSeedData(
 ): Promise<void> {
   const em = orm.em.fork();
 
-  // Find and remove the seed user first (due to FK constraint)
+  // Find the seed user
   const user = await em.findOne(User, { email: seedConfig.user.email });
   if (user) {
+    // Remove user role assignments first (FK constraint)
+    await em.nativeDelete(UserRole, { user: user.id });
+    log('Removed user role assignments', 'warn');
+
+    // Remove user company memberships
+    await em.nativeDelete(UserCompany, { user: user.id });
+    log('Removed user company memberships', 'warn');
+
+    // Remove sessions
+    await em.nativeDelete(Session, { user: user.id });
+    log('Removed user sessions', 'warn');
+
+    // Remove user
     em.remove(user);
     log(`Removed existing user: ${user.email}`, 'warn');
   }
 
-  // Then remove the company
-  const company = await em.findOne(Company, { name: seedConfig.company.name });
-  if (company) {
-    em.remove(company);
-    log(`Removed existing company: ${company.name}`, 'warn');
+  // Then remove the companies (need to delete related records first due to FK)
+  for (const companyConfig of seedConfig.companies) {
+    const company = await em.findOne(Company, { name: companyConfig.name });
+    if (company) {
+      // Delete all UserCompany records for this company (from any user)
+      const ucDeleted = await em.nativeDelete(UserCompany, {
+        company: company.id,
+      });
+      if (ucDeleted > 0) {
+        log(
+          `Removed ${ucDeleted} user-company memberships for: ${company.name}`,
+          'warn',
+        );
+      }
+
+      // Delete offices associated with this company
+      const officesDeleted = await em.nativeDelete(Office, {
+        company: company.id,
+      });
+      if (officesDeleted > 0) {
+        log(
+          `Removed ${officesDeleted} offices for company: ${company.name}`,
+          'warn',
+        );
+      }
+
+      em.remove(company);
+      log(`Removed existing company: ${company.name}`, 'warn');
+    }
   }
 
   await em.flush();
 }
 
 /**
- * Create the seed company
+ * Create a company from config
  */
 async function createCompany(
   orm: MikroORM,
-  seedConfig: ReturnType<typeof getSeedConfig>,
+  companyConfig: CompanyConfig,
 ): Promise<Company> {
   const em = orm.em.fork();
 
   const company = new Company();
-  company.name = seedConfig.company.name;
-  company.maxSeats = seedConfig.company.maxSeats;
-  company.maxSessionsPerUser = seedConfig.company.maxSessionsPerUser;
-  company.tier = seedConfig.company.tier;
-  company.sessionLimitStrategy = seedConfig.company.sessionLimitStrategy;
+  company.name = companyConfig.name;
+  company.maxSeats = companyConfig.maxSeats;
+  company.maxSessionsPerUser = companyConfig.maxSessionsPerUser;
+  company.tier = companyConfig.tier;
+  company.sessionLimitStrategy = companyConfig.sessionLimitStrategy;
   company.passwordPolicy = { ...DEFAULT_PASSWORD_POLICY };
-  company.mfaRequired = seedConfig.company.mfaRequired;
+  company.mfaRequired = companyConfig.mfaRequired;
   company.isActive = true;
 
   await em.persistAndFlush(company);
@@ -223,17 +293,43 @@ async function createCompany(
 }
 
 /**
+ * Create UserCompany membership record
+ */
+async function createUserCompanyMembership(
+  orm: MikroORM,
+  user: User,
+  company: Company,
+  isPinned = false,
+): Promise<UserCompany> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const companyRef = em.getReference(Company, company.id);
+
+  const userCompany = new UserCompany();
+  userCompany.user = userRef;
+  userCompany.company = companyRef;
+  userCompany.isActive = true;
+  userCompany.isPinned = isPinned;
+  userCompany.joinedAt = new Date();
+  userCompany.lastAccessedAt = new Date();
+
+  await em.persistAndFlush(userCompany);
+  return userCompany;
+}
+
+/**
  * Create the seed admin user
  */
 async function createUser(
   orm: MikroORM,
-  company: Company,
+  homeCompany: Company,
   seedConfig: ReturnType<typeof getSeedConfig>,
 ): Promise<User> {
   const em = orm.em.fork();
 
   // Re-fetch company in this context
-  const companyRef = em.getReference(Company, company.id);
+  const companyRef = em.getReference(Company, homeCompany.id);
 
   const passwordHash = await hashPassword(seedConfig.user.password);
 
@@ -242,23 +338,148 @@ async function createUser(
   user.passwordHash = passwordHash;
   user.nameFirst = seedConfig.user.nameFirst;
   user.nameLast = seedConfig.user.nameLast;
-  user.company = companyRef;
+  user.company = companyRef; // Home company (for backward compatibility)
   user.isActive = true;
   user.emailVerified = seedConfig.user.emailVerified;
   user.maxSessions = seedConfig.user.maxSessions;
   user.mfaEnabled = false;
   user.needsResetPassword = false;
   user.failedLoginAttempts = 0;
+  // COMPANY user type enables multi-company switching via CompanySwitcher
+  user.userType = UserType.COMPANY;
 
   await em.persistAndFlush(user);
   return user;
 }
 
 /**
+ * Get or create the platform admin role
+ */
+async function getOrCreatePlatformAdminRole(orm: MikroORM): Promise<Role> {
+  const em = orm.em.fork();
+
+  let role = await em.findOne(Role, {
+    name: 'platformAdmin',
+    type: RoleType.PLATFORM,
+  });
+
+  if (!role) {
+    role = new Role();
+    role.name = 'platformAdmin';
+    role.displayName = 'Platform Administrator';
+    role.description =
+      'Full platform access. Can manage all companies and internal users.';
+    role.type = RoleType.PLATFORM;
+    role.companyAccessLevel = CompanyAccessLevel.FULL;
+    role.permissions = [
+      PERMISSIONS.PLATFORM_ADMIN,
+      PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+      PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+      PERMISSIONS.PLATFORM_VIEW_AUDIT_LOGS,
+      PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
+    ];
+    role.isDefault = false;
+
+    await em.persistAndFlush(role);
+    log('Created platformAdmin role', 'success');
+  } else {
+    log('Found existing platformAdmin role', 'info');
+  }
+
+  return role;
+}
+
+/**
+ * Get or create the admin system role
+ */
+async function getOrCreateAdminRole(orm: MikroORM): Promise<Role> {
+  const em = orm.em.fork();
+
+  let role = await em.findOne(Role, {
+    name: 'admin',
+    type: RoleType.SYSTEM,
+  });
+
+  if (!role) {
+    role = new Role();
+    role.name = 'admin';
+    role.displayName = 'Administrator';
+    role.description =
+      'Company administrator with full access to manage users, roles, and settings.';
+    role.type = RoleType.SYSTEM;
+    role.permissions = [
+      'customer:*',
+      'user:*',
+      'office:*',
+      'role:*',
+      'settings:*',
+      'company:*',
+      'report:read',
+      'report:export',
+    ];
+    role.isDefault = false;
+
+    await em.persistAndFlush(role);
+    log('Created admin system role', 'success');
+  } else {
+    log('Found existing admin system role', 'info');
+  }
+
+  return role;
+}
+
+/**
+ * Assign platform role to user
+ */
+async function assignPlatformRole(
+  orm: MikroORM,
+  user: User,
+  role: Role,
+): Promise<UserRole> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const roleRef = em.getReference(Role, role.id);
+
+  const userRole = new UserRole();
+  userRole.user = userRef;
+  userRole.role = roleRef;
+  userRole.assignedAt = new Date();
+
+  await em.persistAndFlush(userRole);
+  return userRole;
+}
+
+/**
+ * Assign company role to user
+ */
+async function assignCompanyRole(
+  orm: MikroORM,
+  user: User,
+  role: Role,
+  company: Company,
+): Promise<UserRole> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const roleRef = em.getReference(Role, role.id);
+  const companyRef = em.getReference(Company, company.id);
+
+  const userRole = new UserRole();
+  userRole.user = userRef;
+  userRole.role = roleRef;
+  userRole.company = companyRef;
+  userRole.assignedAt = new Date();
+
+  await em.persistAndFlush(userRole);
+  return userRole;
+}
+
+/**
  * Print seed summary
  */
 function printSummary(
-  company: Company,
+  companies: Company[],
   user: User,
   seedConfig: ReturnType<typeof getSeedConfig>,
 ): void {
@@ -273,17 +494,31 @@ function printSummary(
     `${colors.bright}${colors.green}═══════════════════════════════════════════════════════${colors.reset}`,
   );
   console.log('');
-  console.log(`${colors.cyan}Company:${colors.reset}`);
-  console.log(`  Name: ${company.name}`);
-  console.log(`  Tier: ${company.tier}`);
-  console.log(`  Max Seats: ${company.maxSeats}`);
-  console.log(`  ID: ${company.id}`);
+  console.log(`${colors.cyan}Companies (${companies.length}):${colors.reset}`);
+  companies.forEach((company, index) => {
+    console.log(`  ${index + 1}. ${company.name}`);
+    console.log(`     Tier: ${company.tier}`);
+    console.log(`     Max Seats: ${company.maxSeats}`);
+    console.log(`     ID: ${company.id}`);
+  });
   console.log('');
   console.log(`${colors.cyan}Admin User:${colors.reset}`);
   console.log(`  Email: ${seedConfig.user.email}`);
   console.log(`  Password: ${seedConfig.user.password}`);
   console.log(`  Name: ${user.fullName}`);
+  console.log(`  User Type: ${user.userType}`);
   console.log(`  ID: ${user.id}`);
+  console.log('');
+  console.log(`${colors.cyan}Assigned Roles:${colors.reset}`);
+  console.log(`  1. Platform Administrator (platform-level operations)`);
+  console.log(`  2. Administrator (in each company)`);
+  console.log('');
+  console.log(
+    `${colors.green}✓ This user can SWITCH between ${companies.length} companies!${colors.reset}`,
+  );
+  console.log(
+    `${colors.green}✓ Look for the CompanySwitcher in the top app bar.${colors.reset}`,
+  );
   console.log('');
   console.log(
     `${colors.yellow}⚠️  Remember to change the default password in production!${colors.reset}`,
@@ -304,6 +539,7 @@ async function seed(): Promise<void> {
     'info',
   );
   log(`Admin Email: ${seedConfig.user.email}`, 'info');
+  log(`Companies to create: ${seedConfig.companies.length}`, 'info');
 
   let orm: MikroORM | null = null;
 
@@ -315,13 +551,15 @@ async function seed(): Promise<void> {
     // Check for existing data
     const existing = await checkExistingData(orm, seedConfig);
 
-    if (existing.company || existing.user) {
+    if (existing.companies.length > 0 || existing.user) {
       if (forceFlag) {
         log('Force flag detected, clearing existing seed data...', 'warn');
         await clearSeedData(orm, seedConfig);
       } else {
-        if (existing.company) {
-          log(`Company "${seedConfig.company.name}" already exists`, 'warn');
+        if (existing.companies.length > 0) {
+          existing.companies.forEach(c => {
+            log(`Company "${c.name}" already exists`, 'warn');
+          });
         }
         if (existing.user) {
           log(`User "${seedConfig.user.email}" already exists`, 'warn');
@@ -332,18 +570,50 @@ async function seed(): Promise<void> {
       }
     }
 
-    // Create company
-    log('Creating company...', 'info');
-    const company = await createCompany(orm, seedConfig);
-    log(`Company created: ${company.name}`, 'success');
+    // Get or create roles
+    log('Setting up platform admin role...', 'info');
+    const platformRole = await getOrCreatePlatformAdminRole(orm);
 
-    // Create admin user
+    log('Setting up admin system role...', 'info');
+    const adminRole = await getOrCreateAdminRole(orm);
+
+    // Create all companies
+    const companies: Company[] = [];
+    for (const companyConfig of seedConfig.companies) {
+      log(`Creating company: ${companyConfig.name}...`, 'info');
+      const company = await createCompany(orm, companyConfig);
+      companies.push(company);
+      log(`Company created: ${company.name}`, 'success');
+    }
+
+    // Create admin user (first company is the home company)
     log('Creating admin user...', 'info');
-    const user = await createUser(orm, company, seedConfig);
+    const user = await createUser(orm, companies[0]!, seedConfig);
     log(`User created: ${user.email}`, 'success');
 
+    // Create UserCompany memberships for all companies
+    log('Creating company memberships...', 'info');
+    for (let i = 0; i < companies.length; i++) {
+      const company = companies[i]!;
+      // Pin the first company
+      await createUserCompanyMembership(orm, user, company, i === 0);
+      log(`Added user to company: ${company.name}`, 'success');
+    }
+
+    // Assign platform role to user (for platform operations)
+    log('Assigning platform admin role...', 'info');
+    await assignPlatformRole(orm, user, platformRole);
+    log('Platform role assigned', 'success');
+
+    // Assign admin role to user within each company
+    for (const company of companies) {
+      log(`Assigning admin role for ${company.name}...`, 'info');
+      await assignCompanyRole(orm, user, adminRole, company);
+      log(`Admin role assigned for ${company.name}`, 'success');
+    }
+
     // Print summary
-    printSummary(company, user, seedConfig);
+    printSummary(companies, user, seedConfig);
   } catch (error) {
     log(
       `Seeding failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { User, Role, UserRole } from '../entities';
+import { User, Role, UserRole, Company, UserCompany } from '../entities';
 import { UserType, RoleType } from '../entities/types';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
@@ -13,6 +13,7 @@ import {
 } from '../middleware';
 import { PermissionService } from '../services/PermissionService';
 
+import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response } from 'express';
 
 const router: Router = Router();
@@ -35,6 +36,10 @@ const updateInternalUserSchema = z.object({
   nameLast: z.string().optional(),
   isActive: z.boolean().optional(),
   platformRoleId: z.string().uuid('Invalid role ID format').optional(),
+});
+
+const addCompanyAccessSchema = z.object({
+  companyId: z.string().uuid('Invalid company ID format'),
 });
 
 /**
@@ -479,6 +484,245 @@ router.delete(
       res.status(204).send();
     } catch (err) {
       req.log.error({ err }, 'Error deleting internal user');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+// ============================================================================
+// Internal User Company Access Management
+// ============================================================================
+
+/**
+ * GET /internal-users/:id/companies
+ * List companies an internal user has restricted access to.
+ * If the user has no UserCompany records, they have unrestricted access.
+ * Requires internal user with platform:manage_internal_users permission.
+ */
+router.get(
+  '/:id/companies',
+  requireAuth(),
+  requireInternalUser(),
+  requirePermission(PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      if (!id || !UUID_REGEX.test(id)) {
+        res.status(400).json({ error: 'Invalid user ID format' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Verify user exists and is internal
+      const user = await em.findOne(User, {
+        id,
+        userType: UserType.INTERNAL,
+        deletedAt: null,
+      });
+
+      if (!user) {
+        res.status(404).json({ error: 'Internal user not found' });
+        return;
+      }
+
+      // Get company access records
+      const companyAccess = await em.find(
+        UserCompany,
+        { user: id },
+        {
+          populate: ['company', 'deactivatedBy'],
+          orderBy: { joinedAt: 'DESC' },
+        },
+      );
+
+      res.json({
+        hasRestrictions: companyAccess.length > 0,
+        companies: companyAccess.map(uc => ({
+          id: uc.company.id,
+          name: uc.company.name,
+          isActive: uc.company.isActive,
+          isPinned: uc.isPinned,
+          grantedAt: uc.joinedAt,
+          lastAccessedAt: uc.lastAccessedAt,
+          grantedBy: null, // UserCompany doesn't track who granted access
+        })),
+        total: companyAccess.length,
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Error listing internal user companies');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * POST /internal-users/:id/companies
+ * Grant company access to an internal user (restricts their access).
+ * Adding the first company restriction converts an unrestricted user to restricted.
+ * Requires internal user with platform:manage_internal_users permission.
+ */
+router.post(
+  '/:id/companies',
+  requireAuth(),
+  requireInternalUser(),
+  requirePermission(PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+      if (!currentUser) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { id } = req.params;
+
+      if (!id || !UUID_REGEX.test(id)) {
+        res.status(400).json({ error: 'Invalid user ID format' });
+        return;
+      }
+
+      const parseResult = addCompanyAccessSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation error',
+          details: parseResult.error.issues,
+        });
+        return;
+      }
+
+      const { companyId } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Verify target user exists and is internal
+      const targetUser = await em.findOne(User, {
+        id,
+        userType: UserType.INTERNAL,
+        deletedAt: null,
+      });
+
+      if (!targetUser) {
+        res.status(404).json({ error: 'Internal user not found' });
+        return;
+      }
+
+      // Verify company exists
+      const company = await em.findOne(Company, { id: companyId });
+
+      if (!company) {
+        res.status(404).json({ error: 'Company not found' });
+        return;
+      }
+
+      // Check if access already exists
+      const existing = await em.findOne(UserCompany, {
+        user: id,
+        company: companyId,
+      });
+
+      if (existing) {
+        res
+          .status(409)
+          .json({ error: 'User already has access to this company' });
+        return;
+      }
+
+      // Create company access record using UserCompany
+      const userCompany = new UserCompany();
+      userCompany.user = em.getReference(User, id);
+      userCompany.company = em.getReference(Company, companyId);
+      userCompany.isActive = true;
+
+      await em.persistAndFlush(userCompany);
+
+      req.log.info(
+        { targetUserId: id, companyId, grantedBy: currentUser.id },
+        'Granted company access to internal user',
+      );
+
+      res.status(201).json({
+        message: 'Company access granted',
+        companyAccess: {
+          id: userCompany.id,
+          companyId: company.id,
+          companyName: company.name,
+          grantedAt: userCompany.joinedAt,
+        },
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Error granting company access');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * DELETE /internal-users/:id/companies/:companyId
+ * Remove company access from an internal user.
+ * Removing the last company access record gives user unrestricted access again.
+ * Requires internal user with platform:manage_internal_users permission.
+ */
+router.delete(
+  '/:id/companies/:companyId',
+  requireAuth(),
+  requireInternalUser(),
+  requirePermission(PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id, companyId } = req.params;
+
+      if (!id || !UUID_REGEX.test(id)) {
+        res.status(400).json({ error: 'Invalid user ID format' });
+        return;
+      }
+
+      if (!companyId || !UUID_REGEX.test(companyId)) {
+        res.status(400).json({ error: 'Invalid company ID format' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Verify target user exists and is internal
+      const targetUser = await em.findOne(User, {
+        id,
+        userType: UserType.INTERNAL,
+        deletedAt: null,
+      });
+
+      if (!targetUser) {
+        res.status(404).json({ error: 'Internal user not found' });
+        return;
+      }
+
+      // Find the access record
+      const accessRecord = await em.findOne(UserCompany, {
+        user: id,
+        company: companyId,
+      });
+
+      if (!accessRecord) {
+        res.status(404).json({ error: 'Company access not found' });
+        return;
+      }
+
+      await em.removeAndFlush(accessRecord);
+
+      req.log.info(
+        { targetUserId: id, companyId },
+        'Removed company access from internal user',
+      );
+
+      res.status(200).json({
+        message: 'Company access removed',
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Error removing company access');
       res.status(500).json({ error: 'Internal server error' });
     }
   },
