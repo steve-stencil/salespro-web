@@ -1,10 +1,11 @@
 /**
  * Office card component.
- * Displays office information with edit/delete actions.
+ * Displays office information with logo and edit/delete/settings actions.
  */
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import PeopleIcon from '@mui/icons-material/People';
+import SettingsIcon from '@mui/icons-material/Settings';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
@@ -14,23 +15,35 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
+import { OfficeLogo } from './OfficeLogo';
+
+import type { LogoInfo } from '../../types/office-settings';
 import type { Office } from '../../types/users';
 
 type OfficeCardProps = {
   office: Office;
+  /** Logo information for the office */
+  logo?: LogoInfo | null;
+  /** Whether settings are loading */
+  isLoadingSettings?: boolean;
   /** Handler for edit action. If undefined, edit button is hidden. */
   onEdit?: ((office: Office) => void) | undefined;
   /** Handler for delete action. If undefined, delete button is hidden. */
   onDelete?: ((office: Office) => void) | undefined;
+  /** Handler for settings action. If undefined, settings button is hidden. */
+  onSettings?: ((office: Office) => void) | undefined;
 };
 
 /**
- * Card component displaying office information.
+ * Card component displaying office information with logo.
  */
 export function OfficeCard({
   office,
+  logo,
+  isLoadingSettings,
   onEdit,
   onDelete,
+  onSettings,
 }: OfficeCardProps): React.ReactElement {
   /**
    * Handle action button click, stopping propagation.
@@ -42,6 +55,9 @@ export function OfficeCard({
     e.stopPropagation();
     handler(office);
   }
+
+  const hasActions =
+    onEdit !== undefined || onDelete !== undefined || onSettings !== undefined;
 
   return (
     <Card
@@ -60,28 +76,47 @@ export function OfficeCard({
       data-testid={`office-card-${office.id}`}
     >
       <CardContent sx={{ flex: 1 }}>
-        {/* Header */}
+        {/* Header with Logo */}
         <Box
           sx={{
             display: 'flex',
             alignItems: 'flex-start',
-            justifyContent: 'space-between',
+            gap: 2,
             mb: 1,
           }}
         >
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h3" component="h3">
+          {/* Office Logo */}
+          <OfficeLogo
+            logo={logo}
+            officeName={office.name}
+            size={48}
+            isLoading={isLoadingSettings}
+            useThumbnail
+          />
+
+          {/* Name and Status */}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="h3"
+              component="h3"
+              sx={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {office.name}
             </Typography>
-          </Box>
 
-          {/* Status Badge */}
-          <Chip
-            label={office.isActive ? 'Active' : 'Inactive'}
-            size="small"
-            color={office.isActive ? 'success' : 'default'}
-            variant="outlined"
-          />
+            {/* Status Badge */}
+            <Chip
+              label={office.isActive ? 'Active' : 'Inactive'}
+              size="small"
+              color={office.isActive ? 'success' : 'default'}
+              variant="outlined"
+              sx={{ mt: 0.5 }}
+            />
+          </Box>
         </Box>
 
         {/* User Count */}
@@ -104,8 +139,20 @@ export function OfficeCard({
       </CardContent>
 
       {/* Action buttons */}
-      {(onEdit !== undefined || onDelete !== undefined) && (
+      {hasActions && (
         <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+          {onSettings && (
+            <Tooltip title="Office settings">
+              <IconButton
+                size="small"
+                onClick={e => handleActionClick(e, onSettings)}
+                aria-label={`Settings for ${office.name}`}
+                data-testid={`settings-office-${office.id}`}
+              >
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           {onEdit && (
             <Tooltip title="Edit office">
               <IconButton

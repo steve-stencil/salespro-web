@@ -4,6 +4,22 @@
  */
 
 // ============================================================================
+// Company Logo Types
+// ============================================================================
+
+/** Company logo information */
+export type CompanyLogoInfo = {
+  /** Logo file ID */
+  id: string;
+  /** Signed URL for full logo */
+  url: string;
+  /** Signed URL for thumbnail (may be null) */
+  thumbnailUrl: string | null;
+  /** Original filename */
+  filename: string;
+};
+
+// ============================================================================
 // Company Settings Types
 // ============================================================================
 
@@ -15,6 +31,8 @@ export type CompanySettings = {
   companyName: string;
   /** Whether MFA is required for all users in this company */
   mfaRequired: boolean;
+  /** Company logo information (null if no logo set) */
+  logo: CompanyLogoInfo | null;
   /** Last update timestamp */
   updatedAt: string;
 };
