@@ -29,6 +29,9 @@ import {
   Office,
   UserOffice,
   UserRole,
+  File,
+  OfficeSettings,
+  OfficeIntegration,
 } from '../src/entities';
 import { PERMISSIONS } from '../src/lib/permissions';
 
@@ -196,7 +199,18 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
   return {
     clientUrl: databaseUrl,
     driver: PostgreSqlDriver,
-    entities: [Role, Company, User, Session, Office, UserOffice, UserRole],
+    entities: [
+      Role,
+      Company,
+      User,
+      Session,
+      Office,
+      UserOffice,
+      UserRole,
+      File,
+      OfficeSettings,
+      OfficeIntegration,
+    ],
     debug: false,
     allowGlobalContext: true,
   };

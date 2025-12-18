@@ -9,6 +9,9 @@
  *   --force              Clear existing seed data before seeding
  *   --email <email>      Set admin user email (or use SEED_ADMIN_EMAIL env var)
  *   --password <pass>    Set admin user password (or use SEED_ADMIN_PASSWORD env var)
+ *   --offices <n>        Number of offices to create per company (default: 0)
+ *   --users <n>          Number of additional users to create per company (default: 0)
+ *   --roles <n>          Number of custom roles to create per company (default: 0)
  *
  * Environment Variables:
  *   SEED_ADMIN_EMAIL     Admin user email (default: admin@salespro.dev)
@@ -16,6 +19,7 @@
  *
  * Examples:
  *   pnpm db:seed --email user@example.com --password MySecurePass123!
+ *   pnpm db:seed --offices 5 --users 20 --roles 3
  *   SEED_ADMIN_EMAIL=user@example.com SEED_ADMIN_PASSWORD=pass pnpm db:seed
  */
 
@@ -33,6 +37,9 @@ import {
   Office,
   UserOffice,
   UserCompany,
+  File,
+  OfficeSettings,
+  OfficeIntegration,
   SubscriptionTier,
   SessionLimitStrategy,
   DEFAULT_PASSWORD_POLICY,
@@ -44,27 +51,42 @@ import { hashPassword } from '../src/lib/crypto';
 import { PERMISSIONS } from '../src/lib/permissions';
 
 /**
- * Parse command line arguments for --email and --password
+ * Parse command line arguments
  */
 function parseCliArgs(): {
   email: string | undefined;
   password: string | undefined;
+  offices: number;
+  users: number;
+  roles: number;
 } {
   const args = process.argv.slice(2);
   let email: string | undefined;
   let password: string | undefined;
+  let offices = 0;
+  let users = 0;
+  let roles = 0;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--email' && args[i + 1]) {
       email = args[i + 1];
-      i++; // Skip next arg
+      i++;
     } else if (args[i] === '--password' && args[i + 1]) {
       password = args[i + 1];
-      i++; // Skip next arg
+      i++;
+    } else if (args[i] === '--offices' && args[i + 1]) {
+      offices = parseInt(args[i + 1]!, 10) || 0;
+      i++;
+    } else if (args[i] === '--users' && args[i + 1]) {
+      users = parseInt(args[i + 1]!, 10) || 0;
+      i++;
+    } else if (args[i] === '--roles' && args[i + 1]) {
+      roles = parseInt(args[i + 1]!, 10) || 0;
+      i++;
     }
   }
 
-  return { email, password };
+  return { email, password, offices, users, roles };
 }
 
 /** Company configuration type */
@@ -77,10 +99,8 @@ type CompanyConfig = {
   mfaRequired: boolean;
 };
 
-/**
- * Get seed configuration with CLI args and env vars taking precedence
- */
-function getSeedConfig(): {
+/** Seed configuration type */
+type SeedConfig = {
   companies: CompanyConfig[];
   user: {
     email: string;
@@ -90,7 +110,15 @@ function getSeedConfig(): {
     emailVerified: boolean;
     maxSessions: number;
   };
-} {
+  officeCount: number;
+  userCount: number;
+  roleCount: number;
+};
+
+/**
+ * Get seed configuration with CLI args and env vars taking precedence
+ */
+function getSeedConfig(): SeedConfig {
   const cliArgs = parseCliArgs();
 
   // Priority: CLI args > Environment variables > Defaults
@@ -107,7 +135,7 @@ function getSeedConfig(): {
     companies: [
       {
         name: 'SalesPro Demo Company',
-        maxSeats: 10,
+        maxSeats: 100,
         maxSessionsPerUser: 3,
         tier: SubscriptionTier.PROFESSIONAL,
         sessionLimitStrategy: SessionLimitStrategy.REVOKE_OLDEST,
@@ -115,7 +143,7 @@ function getSeedConfig(): {
       },
       {
         name: 'Acme Corporation',
-        maxSeats: 25,
+        maxSeats: 100,
         maxSessionsPerUser: 5,
         tier: SubscriptionTier.ENTERPRISE,
         sessionLimitStrategy: SessionLimitStrategy.REVOKE_OLDEST,
@@ -130,6 +158,9 @@ function getSeedConfig(): {
       emailVerified: true,
       maxSessions: 5,
     },
+    officeCount: cliArgs.offices,
+    userCount: cliArgs.users,
+    roleCount: cliArgs.roles,
   };
 }
 
@@ -179,6 +210,9 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
       Office,
       UserOffice,
       UserCompany,
+      File,
+      OfficeSettings,
+      OfficeIntegration,
     ],
     debug: false,
     allowGlobalContext: true,
@@ -475,13 +509,326 @@ async function assignCompanyRole(
   return userRole;
 }
 
+// Sample data for generating realistic seed data
+const FIRST_NAMES = [
+  'James',
+  'Mary',
+  'Robert',
+  'Patricia',
+  'John',
+  'Jennifer',
+  'Michael',
+  'Linda',
+  'David',
+  'Elizabeth',
+  'William',
+  'Barbara',
+  'Richard',
+  'Susan',
+  'Joseph',
+  'Jessica',
+  'Thomas',
+  'Sarah',
+  'Christopher',
+  'Karen',
+  'Charles',
+  'Lisa',
+  'Daniel',
+  'Nancy',
+  'Matthew',
+  'Betty',
+  'Anthony',
+  'Margaret',
+  'Mark',
+  'Sandra',
+  'Donald',
+  'Ashley',
+  'Steven',
+  'Kimberly',
+  'Paul',
+  'Emily',
+  'Andrew',
+  'Donna',
+  'Joshua',
+  'Michelle',
+];
+
+const LAST_NAMES = [
+  'Smith',
+  'Johnson',
+  'Williams',
+  'Brown',
+  'Jones',
+  'Garcia',
+  'Miller',
+  'Davis',
+  'Rodriguez',
+  'Martinez',
+  'Hernandez',
+  'Lopez',
+  'Gonzalez',
+  'Wilson',
+  'Anderson',
+  'Thomas',
+  'Taylor',
+  'Moore',
+  'Jackson',
+  'Martin',
+  'Lee',
+  'Perez',
+  'Thompson',
+  'White',
+  'Harris',
+  'Sanchez',
+  'Clark',
+  'Ramirez',
+  'Lewis',
+  'Robinson',
+  'Walker',
+  'Young',
+  'Allen',
+  'King',
+  'Wright',
+  'Scott',
+  'Torres',
+  'Nguyen',
+  'Hill',
+  'Flores',
+];
+
+const OFFICE_LOCATIONS = [
+  'Downtown',
+  'Midtown',
+  'Uptown',
+  'Westside',
+  'Eastside',
+  'Northside',
+  'Southside',
+  'Central',
+  'Harbor',
+  'Riverside',
+  'Lakeside',
+  'Hillside',
+  'Valley',
+  'Heights',
+  'Park',
+  'Plaza',
+  'Square',
+  'Commons',
+  'Gateway',
+  'Crossing',
+  'Junction',
+  'Station',
+  'Metro',
+  'Urban',
+  'Suburban',
+  'Regional',
+  'Main Street',
+  'Corporate',
+  'Tech Hub',
+];
+
+const ROLE_NAMES = [
+  {
+    name: 'salesRep',
+    displayName: 'Sales Representative',
+    permissions: ['customer:read', 'customer:create', 'customer:update'],
+  },
+  {
+    name: 'salesManager',
+    displayName: 'Sales Manager',
+    permissions: ['customer:*', 'user:read', 'report:read'],
+  },
+  {
+    name: 'accountManager',
+    displayName: 'Account Manager',
+    permissions: ['customer:*', 'report:read', 'report:export'],
+  },
+  {
+    name: 'teamLead',
+    displayName: 'Team Lead',
+    permissions: ['customer:*', 'user:read', 'user:update', 'report:read'],
+  },
+  {
+    name: 'analyst',
+    displayName: 'Business Analyst',
+    permissions: ['customer:read', 'report:*'],
+  },
+  {
+    name: 'support',
+    displayName: 'Support Specialist',
+    permissions: ['customer:read', 'customer:update'],
+  },
+  {
+    name: 'coordinator',
+    displayName: 'Sales Coordinator',
+    permissions: ['customer:read', 'office:read'],
+  },
+  {
+    name: 'trainer',
+    displayName: 'Training Specialist',
+    permissions: ['user:read', 'customer:read'],
+  },
+  {
+    name: 'qualityAssurance',
+    displayName: 'QA Specialist',
+    permissions: ['customer:read', 'report:read'],
+  },
+  {
+    name: 'regional',
+    displayName: 'Regional Manager',
+    permissions: ['customer:*', 'user:*', 'office:read', 'report:*'],
+  },
+];
+
+/**
+ * Get a random element from an array
+ */
+function randomElement<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!;
+}
+
+/**
+ * Create an office for a company
+ */
+async function createOffice(
+  orm: MikroORM,
+  company: Company,
+  name: string,
+): Promise<Office> {
+  const em = orm.em.fork();
+
+  const companyRef = em.getReference(Company, company.id);
+
+  const office = new Office();
+  office.name = name;
+  office.company = companyRef;
+  office.isActive = true;
+
+  await em.persistAndFlush(office);
+  return office;
+}
+
+/**
+ * Create an additional user for a company
+ * Returns null if user with that email already exists
+ */
+async function createAdditionalUser(
+  orm: MikroORM,
+  company: Company,
+  index: number,
+  defaultPassword: string,
+): Promise<User | null> {
+  const em = orm.em.fork();
+
+  const companyRef = em.getReference(Company, company.id);
+  const firstName = randomElement(FIRST_NAMES);
+  const lastName = randomElement(LAST_NAMES);
+  // Include company short name in email to make it unique across companies
+  const companySlug = company.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 10);
+  const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${index}.${companySlug}@example.com`;
+
+  // Check if user already exists
+  const existing = await em.findOne(User, { email });
+  if (existing) {
+    return null;
+  }
+
+  const passwordHash = await hashPassword(defaultPassword);
+
+  const user = new User();
+  user.email = email;
+  user.passwordHash = passwordHash;
+  user.nameFirst = firstName;
+  user.nameLast = lastName;
+  user.company = companyRef;
+  user.isActive = Math.random() > 0.1; // 90% active
+  user.emailVerified = Math.random() > 0.2; // 80% verified
+  user.maxSessions = 3;
+  user.mfaEnabled = false;
+  user.needsResetPassword = false;
+  user.failedLoginAttempts = 0;
+  user.userType = UserType.COMPANY;
+
+  await em.persistAndFlush(user);
+  return user;
+}
+
+/**
+ * Create a custom role for a company
+ */
+async function createCustomRole(
+  orm: MikroORM,
+  company: Company,
+  roleConfig: (typeof ROLE_NAMES)[number],
+): Promise<Role> {
+  const em = orm.em.fork();
+
+  const companyRef = em.getReference(Company, company.id);
+
+  // Check if role already exists for this company
+  const existing = await em.findOne(Role, {
+    name: roleConfig.name,
+    company: company.id,
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  const role = new Role();
+  role.name = roleConfig.name;
+  role.displayName = roleConfig.displayName;
+  role.description = `${roleConfig.displayName} role with standard permissions.`;
+  role.type = RoleType.COMPANY;
+  role.company = companyRef;
+  role.permissions = roleConfig.permissions;
+  role.isDefault = roleConfig.name === 'salesRep';
+
+  await em.persistAndFlush(role);
+  return role;
+}
+
+/**
+ * Assign user to an office
+ */
+async function assignUserToOffice(
+  orm: MikroORM,
+  user: User,
+  office: Office,
+): Promise<UserOffice> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const officeRef = em.getReference(Office, office.id);
+
+  const userOffice = new UserOffice();
+  userOffice.user = userRef;
+  userOffice.office = officeRef;
+  userOffice.assignedAt = new Date();
+
+  await em.persistAndFlush(userOffice);
+  return userOffice;
+}
+
+/** Summary statistics type */
+type SeedSummary = {
+  officesCreated: number;
+  usersCreated: number;
+  rolesCreated: number;
+};
+
 /**
  * Print seed summary
  */
 function printSummary(
   companies: Company[],
   user: User,
-  seedConfig: ReturnType<typeof getSeedConfig>,
+  seedConfig: SeedConfig,
+  summary: SeedSummary,
 ): void {
   console.log('');
   console.log(
@@ -513,6 +860,25 @@ function printSummary(
   console.log(`  1. Platform Administrator (platform-level operations)`);
   console.log(`  2. Administrator (in each company)`);
   console.log('');
+
+  if (
+    summary.officesCreated > 0 ||
+    summary.usersCreated > 0 ||
+    summary.rolesCreated > 0
+  ) {
+    console.log(`${colors.cyan}Additional Seed Data:${colors.reset}`);
+    if (summary.officesCreated > 0) {
+      console.log(`  Offices created: ${summary.officesCreated}`);
+    }
+    if (summary.usersCreated > 0) {
+      console.log(`  Users created: ${summary.usersCreated}`);
+    }
+    if (summary.rolesCreated > 0) {
+      console.log(`  Custom roles created: ${summary.rolesCreated}`);
+    }
+    console.log('');
+  }
+
   console.log(
     `${colors.green}✓ This user can SWITCH between ${companies.length} companies!${colors.reset}`,
   );
@@ -541,7 +907,22 @@ async function seed(): Promise<void> {
   log(`Admin Email: ${seedConfig.user.email}`, 'info');
   log(`Companies to create: ${seedConfig.companies.length}`, 'info');
 
+  if (seedConfig.officeCount > 0) {
+    log(`Offices per company: ${seedConfig.officeCount}`, 'info');
+  }
+  if (seedConfig.userCount > 0) {
+    log(`Users per company: ${seedConfig.userCount}`, 'info');
+  }
+  if (seedConfig.roleCount > 0) {
+    log(`Custom roles per company: ${seedConfig.roleCount}`, 'info');
+  }
+
   let orm: MikroORM | null = null;
+  const summary: SeedSummary = {
+    officesCreated: 0,
+    usersCreated: 0,
+    rolesCreated: 0,
+  };
 
   try {
     // Initialize ORM
@@ -612,8 +993,111 @@ async function seed(): Promise<void> {
       log(`Admin role assigned for ${company.name}`, 'success');
     }
 
+    // Create additional seed data for each company
+    for (const company of companies) {
+      // Create offices
+      const officesForCompany: Office[] = [];
+      if (seedConfig.officeCount > 0) {
+        log(
+          `Creating ${seedConfig.officeCount} offices for ${company.name}...`,
+          'info',
+        );
+        for (let i = 0; i < seedConfig.officeCount; i++) {
+          const locationName = OFFICE_LOCATIONS[i % OFFICE_LOCATIONS.length]!;
+          const officeName = `${locationName} Office`;
+          const office = await createOffice(orm, company, officeName);
+          officesForCompany.push(office);
+          summary.officesCreated++;
+        }
+        log(
+          `Created ${seedConfig.officeCount} offices for ${company.name}`,
+          'success',
+        );
+      }
+
+      // Create custom roles
+      const rolesForCompany: Role[] = [];
+      if (seedConfig.roleCount > 0) {
+        log(
+          `Creating ${seedConfig.roleCount} custom roles for ${company.name}...`,
+          'info',
+        );
+        const rolesToCreate = Math.min(seedConfig.roleCount, ROLE_NAMES.length);
+        for (let i = 0; i < rolesToCreate; i++) {
+          const roleConfig = ROLE_NAMES[i]!;
+          const role = await createCustomRole(orm, company, roleConfig);
+          rolesForCompany.push(role);
+          summary.rolesCreated++;
+        }
+        log(
+          `Created ${rolesToCreate} custom roles for ${company.name}`,
+          'success',
+        );
+      }
+
+      // Create additional users
+      if (seedConfig.userCount > 0) {
+        log(
+          `Creating ${seedConfig.userCount} users for ${company.name}...`,
+          'info',
+        );
+        const defaultPassword = 'Password123!';
+        let skippedUsers = 0;
+
+        for (let i = 0; i < seedConfig.userCount; i++) {
+          const newUser = await createAdditionalUser(
+            orm,
+            company,
+            i,
+            defaultPassword,
+          );
+
+          // Skip if user already exists
+          if (!newUser) {
+            skippedUsers++;
+            continue;
+          }
+
+          // Add user to company membership
+          await createUserCompanyMembership(orm, newUser, company, false);
+
+          // Assign to a random office if offices exist
+          if (officesForCompany.length > 0) {
+            const randomOffice = randomElement(officesForCompany);
+            await assignUserToOffice(orm, newUser, randomOffice);
+          }
+
+          // Assign a random role if custom roles exist, otherwise assign admin role
+          if (rolesForCompany.length > 0) {
+            const randomRole = randomElement(rolesForCompany);
+            await assignCompanyRole(orm, newUser, randomRole, company);
+          } else {
+            await assignCompanyRole(orm, newUser, adminRole, company);
+          }
+
+          summary.usersCreated++;
+
+          // Log progress every 10 users
+          if ((i + 1) % 10 === 0) {
+            log(`  Created ${i + 1}/${seedConfig.userCount} users...`, 'info');
+          }
+        }
+
+        if (skippedUsers > 0) {
+          log(
+            `Skipped ${skippedUsers} users (already exist) for ${company.name}`,
+            'warn',
+          );
+        }
+        log(
+          `Created ${seedConfig.userCount - skippedUsers} users for ${company.name}`,
+          'success',
+        );
+      }
+    }
+
     // Print summary
-    printSummary(companies, user, seedConfig);
+    printSummary(companies, user, seedConfig, summary);
   } catch (error) {
     log(
       `Seeding failed: ${error instanceof Error ? error.message : String(error)}`,

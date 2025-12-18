@@ -227,6 +227,8 @@ router.get(
  * GET /roles/me
  * Get current user's roles and permissions
  * NOTE: This route MUST be defined BEFORE /:id routes to avoid "me" being parsed as an ID
+ *
+ * For internal users, this also includes platform-level roles and permissions.
  */
 router.get('/me', requireAuth(), async (req: Request, res: Response) => {
   try {
@@ -243,20 +245,57 @@ router.get('/me', requireAuth(), async (req: Request, res: Response) => {
     const em = orm.em.fork();
     const permissionService = new PermissionService(em);
 
-    const roles = await permissionService.getUserRoles(user.id, company.id);
-    const permissions = await permissionService.getUserPermissions(
+    // Get company-level roles and permissions
+    const companyRoles = await permissionService.getUserRoles(
+      user.id,
+      company.id,
+    );
+    const companyPermissions = await permissionService.getUserPermissions(
       user.id,
       company.id,
     );
 
+    // For internal users, also include platform-level roles and permissions
+    const isInternalUser =
+      (user.userType as UserType) === UserType.INTERNAL ||
+      authReq.isInternalUser;
+
+    let allRoles = companyRoles;
+    let allPermissions = companyPermissions;
+
+    if (isInternalUser) {
+      // Get platform role for internal users
+      const platformRole = await permissionService.getInternalUserPlatformRole(
+        user.id,
+      );
+      if (platformRole) {
+        // Add platform role if not already included
+        const platformRoleExists = allRoles.some(r => r.id === platformRole.id);
+        if (!platformRoleExists) {
+          allRoles = [...allRoles, platformRole];
+        }
+      }
+
+      // Get platform permissions
+      const platformPermissions =
+        await permissionService.getInternalUserPlatformPermissions(user.id);
+
+      // Merge permissions, avoiding duplicates
+      const permissionSet = new Set([
+        ...companyPermissions,
+        ...platformPermissions,
+      ]);
+      allPermissions = Array.from(permissionSet);
+    }
+
     res.status(200).json({
-      roles: roles.map(r => ({
+      roles: allRoles.map(r => ({
         id: r.id,
         name: r.name,
         displayName: r.displayName,
         type: r.type,
       })),
-      permissions,
+      permissions: allPermissions,
     });
   } catch (err) {
     req.log.error({ err }, 'Get my roles error');

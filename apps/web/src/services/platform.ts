@@ -9,12 +9,93 @@ import type {
   AddInternalUserCompanyResponse,
   RemoveInternalUserCompanyResponse,
   PlatformCompaniesResponse,
+  InternalUsersListResponse,
+  InternalUserDetailResponse,
+  PlatformRolesResponse,
+  CreateInternalUserRequest,
+  CreateInternalUserResponse,
+  UpdateInternalUserRequest,
+  UpdateInternalUserResponse,
 } from '../types/platform';
 
 /**
  * Platform API methods.
  */
 export const platformApi = {
+  // ============================================================================
+  // Internal User CRUD Methods
+  // ============================================================================
+
+  /**
+   * Lists all internal platform users.
+   *
+   * @returns List of internal users with their platform roles
+   */
+  getInternalUsers: async (): Promise<InternalUsersListResponse> => {
+    return apiClient.get<InternalUsersListResponse>('/internal-users');
+  },
+
+  /**
+   * Gets details of a specific internal user.
+   *
+   * @param userId - The internal user's ID
+   * @returns Internal user details
+   */
+  getInternalUser: async (
+    userId: string,
+  ): Promise<InternalUserDetailResponse> => {
+    return apiClient.get<InternalUserDetailResponse>(
+      `/internal-users/${userId}`,
+    );
+  },
+
+  /**
+   * Lists all available platform roles.
+   *
+   * @returns List of platform roles
+   */
+  getPlatformRoles: async (): Promise<PlatformRolesResponse> => {
+    return apiClient.get<PlatformRolesResponse>('/internal-users/roles');
+  },
+
+  /**
+   * Creates a new internal platform user.
+   *
+   * @param data - User creation data
+   * @returns Created user details
+   */
+  createInternalUser: async (
+    data: CreateInternalUserRequest,
+  ): Promise<CreateInternalUserResponse> => {
+    return apiClient.post<CreateInternalUserResponse>('/internal-users', data);
+  },
+
+  /**
+   * Updates an internal platform user.
+   *
+   * @param userId - The internal user's ID
+   * @param data - User update data
+   * @returns Updated user details
+   */
+  updateInternalUser: async (
+    userId: string,
+    data: UpdateInternalUserRequest,
+  ): Promise<UpdateInternalUserResponse> => {
+    return apiClient.patch<UpdateInternalUserResponse>(
+      `/internal-users/${userId}`,
+      data,
+    );
+  },
+
+  /**
+   * Soft deletes an internal platform user.
+   *
+   * @param userId - The internal user's ID
+   */
+  deleteInternalUser: async (userId: string): Promise<void> => {
+    await apiClient.delete(`/internal-users/${userId}`);
+  },
+
   // ============================================================================
   // Company Access Methods (for internal users)
   // ============================================================================

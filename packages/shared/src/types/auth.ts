@@ -71,10 +71,11 @@ export type CurrentUser = {
   emailVerified: boolean;
   mfaEnabled: boolean;
   userType: UserType;
+  /** User's active company (null if no company selected yet, e.g. internal users) */
   company: {
     id: string;
     name: string;
-  };
+  } | null;
   /** True if user has access to multiple companies and can switch between them */
   canSwitchCompanies?: boolean;
 };

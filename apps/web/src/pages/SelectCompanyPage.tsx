@@ -50,10 +50,10 @@ export function SelectCompanyPage(): React.ReactElement {
 
   // Pre-select the user's current company when the page loads
   useEffect(() => {
-    if (user?.company.id && selectedCompanyId === null) {
+    if (user?.company?.id && selectedCompanyId === null) {
       setSelectedCompanyId(user.company.id);
     }
-  }, [user?.company.id, selectedCompanyId]);
+  }, [user?.company?.id, selectedCompanyId]);
 
   // Get the intended destination from navigation state
   const from =
@@ -278,7 +278,7 @@ export function SelectCompanyPage(): React.ReactElement {
               <List disablePadding>
                 {allCompanies.map(company => {
                   const isSelected = selectedCompanyId === company.id;
-                  const isCurrent = user?.company.id === company.id;
+                  const isCurrent = user?.company?.id === company.id;
 
                   return (
                     <ListItemButton
