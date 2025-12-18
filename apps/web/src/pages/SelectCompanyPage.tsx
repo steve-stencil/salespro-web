@@ -7,6 +7,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SearchIcon from '@mui/icons-material/Search';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Container from '@mui/material/Container';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -23,6 +24,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { LeapLogo } from '../components/LeapLogo';
 import { useAuth } from '../hooks/useAuth';
 import { useUserCompanies, useSwitchCompany } from '../hooks/useCompanies';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
 import type { CompanyInfo } from '../types/company';
 import type { ChangeEvent } from 'react';
@@ -41,19 +43,28 @@ export function SelectCompanyPage(): React.ReactElement {
     refreshUser,
   } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
     null,
   );
+
+  // Pre-select the user's current company when the page loads
+  useEffect(() => {
+    if (user?.company.id && selectedCompanyId === null) {
+      setSelectedCompanyId(user.company.id);
+    }
+  }, [user?.company.id, selectedCompanyId]);
 
   // Get the intended destination from navigation state
   const from =
     (location.state as { from?: string } | null)?.from ?? '/dashboard';
 
-  // Fetch available companies
-  const { data: companiesData, isLoading: companiesLoading } = useUserCompanies(
-    searchTerm || undefined,
-    isAuthenticated,
-  );
+  // Fetch available companies using debounced search term
+  const {
+    data: companiesData,
+    isLoading: companiesLoading,
+    isFetching: companiesFetching,
+  } = useUserCompanies(debouncedSearchTerm || undefined, isAuthenticated);
 
   const {
     switchCompany,
@@ -76,10 +87,17 @@ export function SelectCompanyPage(): React.ReactElement {
   }, [authLoading, user, navigate, from]);
 
   /**
-   * Get all companies from the response, combining recent and pinned.
+   * Get companies to display based on whether user is searching.
+   * When searching, only show filtered results.
+   * Otherwise, combine recent, pinned, and results.
    */
   const allCompanies = useMemo((): CompanyInfo[] => {
     if (!companiesData) return [];
+
+    // When searching, only show filtered results
+    if (debouncedSearchTerm) {
+      return companiesData.results;
+    }
 
     // Combine all companies, removing duplicates
     const companyMap = new Map<string, CompanyInfo>();
@@ -98,7 +116,10 @@ export function SelectCompanyPage(): React.ReactElement {
     }
 
     return Array.from(companyMap.values());
-  }, [companiesData]);
+  }, [companiesData, debouncedSearchTerm]);
+
+  // Only show search field if there are more than 5 companies
+  const showSearchField = (companiesData?.total ?? 0) > 5;
 
   /**
    * Handle search input change.
@@ -108,28 +129,38 @@ export function SelectCompanyPage(): React.ReactElement {
   }
 
   /**
-   * Handle company selection.
+   * Handle company click - just selects the company for confirmation.
    */
-  async function handleSelectCompany(companyId: string): Promise<void> {
+  function handleCompanyClick(companyId: string): void {
     setSelectedCompanyId(companyId);
+  }
+
+  /**
+   * Handle confirm button click - switches to the selected company.
+   */
+  async function handleConfirmSelection(): Promise<void> {
+    if (!selectedCompanyId) return;
+
     try {
-      await switchCompany(companyId);
+      await switchCompany(selectedCompanyId);
       // Refresh user data to get the new active company
       await refreshUser();
       // Navigate to the dashboard
       void navigate(from, { replace: true });
     } catch {
       // Error is handled by the hook
-      setSelectedCompanyId(null);
     }
   }
 
   /**
    * Click handler wrapper for void return.
    */
-  function onCompanyClick(companyId: string): void {
-    void handleSelectCompany(companyId);
+  function onConfirmClick(): void {
+    void handleConfirmSelection();
   }
+
+  // Check if a company is selected
+  const hasSelection = selectedCompanyId !== null;
 
   // Show loading while checking auth or loading companies
   if (
@@ -199,28 +230,39 @@ export function SelectCompanyPage(): React.ReactElement {
             </Alert>
           )}
 
-          {/* Search field */}
-          <TextField
-            fullWidth
-            placeholder="Search companies..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            disabled={isSwitching}
-            sx={{ mb: 2 }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon color="action" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+          {/* Search field - only shown when there are many companies */}
+          {showSearchField && (
+            <TextField
+              fullWidth
+              placeholder="Search companies..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              disabled={isSwitching}
+              sx={{ mb: 2 }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          )}
 
           {/* Company list */}
-          <Paper variant="outlined" sx={{ maxHeight: 400, overflow: 'auto' }}>
-            {companiesLoading ? (
+          <Paper
+            variant="outlined"
+            sx={{
+              maxHeight: 400,
+              overflow: 'auto',
+              position: 'relative',
+              opacity: companiesFetching ? 0.7 : 1,
+              transition: 'opacity 0.2s',
+            }}
+          >
+            {companiesLoading && allCompanies.length === 0 ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <CircularProgress size={32} />
               </Box>
@@ -241,9 +283,9 @@ export function SelectCompanyPage(): React.ReactElement {
                   return (
                     <ListItemButton
                       key={company.id}
-                      onClick={() => onCompanyClick(company.id)}
+                      onClick={() => handleCompanyClick(company.id)}
                       disabled={isSwitching}
-                      selected={isCurrent}
+                      selected={isSelected || (isCurrent && !selectedCompanyId)}
                       sx={{
                         borderBottom: '1px solid',
                         borderColor: 'divider',
@@ -251,9 +293,7 @@ export function SelectCompanyPage(): React.ReactElement {
                       }}
                     >
                       <ListItemIcon sx={{ minWidth: 40 }}>
-                        {isSelected && isSwitching ? (
-                          <CircularProgress size={24} />
-                        ) : isCurrent ? (
+                        {isSelected ? (
                           <CheckCircleIcon color="primary" />
                         ) : (
                           <BusinessIcon color="action" />
@@ -261,9 +301,8 @@ export function SelectCompanyPage(): React.ReactElement {
                       </ListItemIcon>
                       <ListItemText
                         primary={company.name}
-                        secondary={isCurrent ? 'Currently selected' : undefined}
                         primaryTypographyProps={{
-                          fontWeight: isCurrent ? 600 : 400,
+                          fontWeight: isSelected || isCurrent ? 600 : 400,
                         }}
                       />
                     </ListItemButton>
@@ -273,9 +312,25 @@ export function SelectCompanyPage(): React.ReactElement {
             )}
           </Paper>
 
+          {/* Confirm button */}
+          <Button
+            fullWidth
+            variant="contained"
+            size="large"
+            onClick={onConfirmClick}
+            disabled={!hasSelection || isSwitching}
+            sx={{ mt: 3 }}
+          >
+            {isSwitching ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              'Continue'
+            )}
+          </Button>
+
           {/* User info */}
           {user && (
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 Logged in as {user.email}
               </Typography>
