@@ -19,6 +19,26 @@ import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
 
+/**
+ * Parse session ID from signed cookie.
+ * Express-session signed cookies have format: s:UUID.signature
+ * This extracts just the UUID part.
+ */
+function parseSessionIdFromCookie(cookieValue: string): string | null {
+  if (!cookieValue) return null;
+
+  // If it's a signed cookie (starts with s:), extract the session ID
+  if (cookieValue.startsWith('s:')) {
+    const dotIndex = cookieValue.indexOf('.');
+    if (dotIndex !== -1) {
+      return cookieValue.substring(2, dotIndex);
+    }
+  }
+
+  // If not signed, use as-is (shouldn't happen in production)
+  return cookieValue;
+}
+
 // ============================================================================
 // Validation Schemas
 // ============================================================================
@@ -385,12 +405,13 @@ router.post(
       const rawCookie = (req.cookies as Record<string, string | undefined>)[
         'sid'
       ];
-      if (!rawCookie) {
+      const sessionId = rawCookie ? parseSessionIdFromCookie(rawCookie) : null;
+      if (!sessionId) {
         res.status(400).json({ error: 'No active session' });
         return;
       }
 
-      const session = await em.findOne(Session, { sid: rawCookie });
+      const session = await em.findOne(Session, { sid: sessionId });
       if (!session) {
         res.status(400).json({ error: 'Session not found' });
         return;

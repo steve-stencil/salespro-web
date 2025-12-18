@@ -42,16 +42,25 @@ export function MfaVerifyPage(): React.ReactElement {
   const [trustDevice, setTrustDevice] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Get the intended destination from navigation state
-  const from =
-    (location.state as { from?: string } | null)?.from ?? '/dashboard';
+  // Get the intended destination and canSwitchCompanies from navigation state
+  const locationState = location.state as {
+    from?: string;
+    canSwitchCompanies?: boolean;
+  } | null;
+  const from = locationState?.from ?? '/dashboard';
+  const canSwitchCompanies = locationState?.canSwitchCompanies ?? false;
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      void navigate(from, { replace: true });
+      // If user has multiple companies, redirect to company selection
+      if (canSwitchCompanies) {
+        void navigate('/select-company', { state: { from }, replace: true });
+      } else {
+        void navigate(from, { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, navigate, from, canSwitchCompanies]);
 
   // Redirect if MFA is not required (user navigated directly to this page)
   useEffect(() => {
