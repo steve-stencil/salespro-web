@@ -126,9 +126,16 @@ import type {
 
 ```typescript
 import type {
+  // Company settings
   CompanySettings,
   CompanySettingsResponse,
   CompanySettingsUpdate,
+
+  // Multi-company access
+  CompanyInfo,
+  UserCompaniesResponse,
+  SwitchCompanyResponse,
+  PinCompanyResponse,
 } from '@shared/core';
 ```
 
