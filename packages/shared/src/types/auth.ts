@@ -43,6 +43,8 @@ export type LoginResponse = {
   user?: LoginUser;
   /** True if MFA verification is required before login completes */
   requiresMfa?: boolean;
+  /** True if user has access to multiple companies and can switch between them */
+  canSwitchCompanies?: boolean;
   error?: string;
   errorCode?: LoginErrorCode;
 };
@@ -73,6 +75,8 @@ export type CurrentUser = {
     id: string;
     name: string;
   };
+  /** True if user has access to multiple companies and can switch between them */
+  canSwitchCompanies?: boolean;
 };
 
 /**

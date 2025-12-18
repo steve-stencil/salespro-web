@@ -51,6 +51,8 @@ export type CreateInviteResponse = {
       name: string;
     };
     allowedOffices: string[];
+    /** True if the invite is for an existing user (adding to another company) */
+    isExistingUserInvite?: boolean;
   };
   /** Token returned only in development mode for testing */
   token?: string;
@@ -89,6 +91,8 @@ export type ValidateInviteResponse = {
   valid: boolean;
   email: string;
   companyName: string;
+  /** True if the invite is for an existing user (adding to another company) */
+  isExistingUserInvite?: boolean;
 };
 
 /** Accept invite response (public endpoint) */
@@ -126,7 +130,8 @@ export type UpdateInviteRequest = {
 /** Accept invite request (public endpoint) */
 export type AcceptInviteRequest = {
   token: string;
-  password: string;
+  /** Password is required for new users, optional for existing users */
+  password?: string;
   nameFirst?: string;
   nameLast?: string;
 };
