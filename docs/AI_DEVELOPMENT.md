@@ -184,8 +184,32 @@ This is a **production-ready web application monorepo** designed for AI-assisted
 2. **Check existing patterns** in `apps/api/src/routes/`
 3. **Create route handler** with Zod validation
 4. **Add MikroORM entity** if needed
-5. **Write integration tests**
-6. **Update API documentation**
+5. **Add shared types** if the endpoint needs new request/response types:
+   - Add types to `packages/shared/src/types/`
+   - Run `pnpm --filter @shared/core build`
+6. **Write integration tests**
+7. **Update API documentation**
+
+#### "Add shared types"
+
+When creating types that need to be used by both API and web:
+
+1. **Add types** to `packages/shared/src/types/` (in the appropriate domain file)
+2. **Export from index** in `packages/shared/src/types/index.ts` if new file
+3. **Build the package**: `pnpm --filter @shared/core build`
+4. **Import in apps**:
+   ```typescript
+   import type { MyNewType } from '@shared/core';
+   ```
+
+**Type categories:**
+
+- `auth.ts` - Authentication types (login, session, MFA)
+- `users.ts` - User, role, office types
+- `invites.ts` - User invitation types
+- `company.ts` - Company settings types
+- `api/pagination.ts` - Pagination types
+- `errors.ts` - Error codes and helpers
 
 #### "Add a new page/component"
 

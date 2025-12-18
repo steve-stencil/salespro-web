@@ -36,7 +36,7 @@ The API uses **session-based authentication** with HTTP-only cookies. When a use
 ### API Base URL
 
 ```
-Development: http://localhost:3001/api
+Development: http://localhost:4000/api
 Production:  https://api.yourdomain.com/api
 ```
 
@@ -416,7 +416,7 @@ async function checkAuthStatus(): Promise<User | null> {
 ```tsx
 import { useState } from 'react';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = 'http://localhost:4000/api';
 
 type LoginFormData = {
   email: string;
@@ -556,7 +556,7 @@ export function LoginPage() {
 // services/api.ts
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+  import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 type FetchOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';

@@ -84,6 +84,16 @@ When adding new permissions:
 - Document in `apps/api/src/lib/permissions.ts`
 - Update system roles if needed
 
+### 9. Shared Types Changes
+
+When adding or modifying shared types:
+
+- Add types to appropriate file in `packages/shared/src/types/`
+- Export from `packages/shared/src/types/index.ts`
+- Update `packages/shared/README.md` with new types
+- Rebuild with `pnpm --filter @shared/core build`
+- Update consuming apps if breaking changes
+
 ## Architecture Decision Records (ADRs)
 
 When making significant architectural decisions, create an ADR in `docs/adr/`:
@@ -168,6 +178,7 @@ Before marking any task complete, verify:
 - [ ] New hooks are documented in hooks README
 - [ ] Environment variable changes are documented
 - [ ] Permission changes are documented
+- [ ] Shared type changes are documented in `packages/shared/README.md`
 
 ### Code Clarity
 
