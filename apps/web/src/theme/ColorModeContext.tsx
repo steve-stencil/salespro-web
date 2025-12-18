@@ -1,34 +1,17 @@
 /**
- * Color mode context for managing light/dark theme toggle.
+ * Color mode provider for managing light/dark theme toggle.
  * Detects system preference by default and allows manual override.
  */
 
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { ColorModeContext } from './colorModeContextDef';
 import { darkTheme, lightTheme } from './theme';
 
 type ColorMode = 'light' | 'dark' | 'system';
-
-type ColorModeContextType = {
-  mode: ColorMode;
-  actualMode: 'light' | 'dark';
-  setMode: (mode: ColorMode) => void;
-  toggleMode: () => void;
-};
-
-const ColorModeContext = createContext<ColorModeContextType | undefined>(
-  undefined,
-);
 
 const STORAGE_KEY = 'leap-color-mode';
 
@@ -98,16 +81,4 @@ export function ColorModeProvider({
       </ThemeProvider>
     </ColorModeContext.Provider>
   );
-}
-
-/**
- * Hook to access color mode context.
- * @throws Error if used outside ColorModeProvider
- */
-export function useColorMode(): ColorModeContextType {
-  const context = useContext(ColorModeContext);
-  if (!context) {
-    throw new Error('useColorMode must be used within a ColorModeProvider');
-  }
-  return context;
 }

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 
 import { Router } from 'express';
 
+import { UserType } from '../../entities';
 import { getORM } from '../../lib/db';
 import { AuthService, LoginErrorCode } from '../../services';
 import { sendMfaCode } from '../../services/auth/mfa';
@@ -296,9 +297,7 @@ router.get('/me', async (req: Request, res: Response) => {
   try {
     const orm = getORM();
     const em = orm.em.fork();
-    const { Session, User, UserCompany, UserType } = await import(
-      '../../entities'
-    );
+    const { Session, User, UserCompany } = await import('../../entities');
 
     // First try express-session (may be undefined when saveUninitialized: false)
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
