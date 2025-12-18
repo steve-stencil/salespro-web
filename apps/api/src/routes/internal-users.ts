@@ -2,13 +2,7 @@ import bcrypt from 'bcrypt';
 import { Router } from 'express';
 import { z } from 'zod';
 
-import {
-  User,
-  Role,
-  UserRole,
-  Company,
-  InternalUserCompany,
-} from '../entities';
+import { User, Role, UserRole, Company, UserCompany } from '../entities';
 import { UserType, RoleType } from '../entities/types';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
@@ -502,7 +496,7 @@ router.delete(
 /**
  * GET /internal-users/:id/companies
  * List companies an internal user has restricted access to.
- * If the user has no InternalUserCompany records, they have unrestricted access.
+ * If the user has no UserCompany records, they have unrestricted access.
  * Requires internal user with platform:manage_internal_users permission.
  */
 router.get(
@@ -536,28 +530,24 @@ router.get(
 
       // Get company access records
       const companyAccess = await em.find(
-        InternalUserCompany,
+        UserCompany,
         { user: id },
-        { populate: ['company', 'grantedBy'], orderBy: { grantedAt: 'DESC' } },
+        {
+          populate: ['company', 'deactivatedBy'],
+          orderBy: { joinedAt: 'DESC' },
+        },
       );
 
       res.json({
         hasRestrictions: companyAccess.length > 0,
-        companies: companyAccess.map(iuc => ({
-          id: iuc.company.id,
-          name: iuc.company.name,
-          isActive: iuc.company.isActive,
-          isPinned: iuc.isPinned,
-          grantedAt: iuc.grantedAt,
-          lastAccessedAt: iuc.lastAccessedAt,
-          grantedBy: iuc.grantedBy
-            ? {
-                id: iuc.grantedBy.id,
-                email: iuc.grantedBy.email,
-                nameFirst: iuc.grantedBy.nameFirst,
-                nameLast: iuc.grantedBy.nameLast,
-              }
-            : null,
+        companies: companyAccess.map(uc => ({
+          id: uc.company.id,
+          name: uc.company.name,
+          isActive: uc.company.isActive,
+          isPinned: uc.isPinned,
+          grantedAt: uc.joinedAt,
+          lastAccessedAt: uc.lastAccessedAt,
+          grantedBy: null, // UserCompany doesn't track who granted access
         })),
         total: companyAccess.length,
       });
@@ -629,7 +619,7 @@ router.post(
       }
 
       // Check if access already exists
-      const existing = await em.findOne(InternalUserCompany, {
+      const existing = await em.findOne(UserCompany, {
         user: id,
         company: companyId,
       });
@@ -641,13 +631,13 @@ router.post(
         return;
       }
 
-      // Create company access record
-      const internalUserCompany = new InternalUserCompany();
-      internalUserCompany.user = em.getReference(User, id);
-      internalUserCompany.company = em.getReference(Company, companyId);
-      internalUserCompany.grantedBy = em.getReference(User, currentUser.id);
+      // Create company access record using UserCompany
+      const userCompany = new UserCompany();
+      userCompany.user = em.getReference(User, id);
+      userCompany.company = em.getReference(Company, companyId);
+      userCompany.isActive = true;
 
-      await em.persistAndFlush(internalUserCompany);
+      await em.persistAndFlush(userCompany);
 
       req.log.info(
         { targetUserId: id, companyId, grantedBy: currentUser.id },
@@ -657,10 +647,10 @@ router.post(
       res.status(201).json({
         message: 'Company access granted',
         companyAccess: {
-          id: internalUserCompany.id,
+          id: userCompany.id,
           companyId: company.id,
           companyName: company.name,
-          grantedAt: internalUserCompany.grantedAt,
+          grantedAt: userCompany.joinedAt,
         },
       });
     } catch (err) {
@@ -711,7 +701,7 @@ router.delete(
       }
 
       // Find the access record
-      const accessRecord = await em.findOne(InternalUserCompany, {
+      const accessRecord = await em.findOne(UserCompany, {
         user: id,
         company: companyId,
       });

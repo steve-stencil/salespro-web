@@ -138,7 +138,19 @@ export async function login(
     );
 
     const firstMembership = activeUserCompanies[0];
-    if (!firstMembership) {
+    if (firstMembership) {
+      // Auto-select the most recently accessed company
+      activeCompany = firstMembership.company;
+      canSwitchCompanies = activeUserCompanies.length > 1;
+
+      // Update lastAccessedAt for the selected company
+      firstMembership.lastAccessedAt = new Date();
+    } else if (user.company) {
+      // Fallback to user.company for backward compatibility
+      // This handles legacy users or tests that don't have UserCompany records
+      activeCompany = user.company;
+    } else {
+      // No active companies and no fallback
       attempt.success = false;
       attempt.failureReason = 'no_active_companies';
       em.persist(attempt);
@@ -149,13 +161,6 @@ export async function login(
         errorCode: LoginErrorCode.NO_ACTIVE_COMPANIES,
       };
     }
-
-    // Auto-select the most recently accessed company
-    activeCompany = firstMembership.company;
-    canSwitchCompanies = activeUserCompanies.length > 1;
-
-    // Update lastAccessedAt for the selected company
-    firstMembership.lastAccessedAt = new Date();
   } else {
     // For internal users, use their home company if set
     activeCompany = user.company;

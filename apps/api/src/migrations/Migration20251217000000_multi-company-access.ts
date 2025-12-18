@@ -3,9 +3,10 @@ import { Migration } from '@mikro-orm/migrations';
 /**
  * Migration to add multi-company user access.
  *
- * Creates two new tables:
- * - user_company: Junction table for company user multi-company memberships
- * - internal_user_company: Restricts which companies internal users can access
+ * Creates user_company junction table for multi-company memberships.
+ * Works for both:
+ * - Company users: Having records = can access those companies
+ * - Internal users: Having records = restricted to those companies (no records = unrestricted)
  *
  * Also includes backfill logic to migrate existing User.company relationships
  * to UserCompany entries.
@@ -56,47 +57,6 @@ export class Migration20251217000000_MultiCompanyAccess extends Migration {
       `alter table "user_company" add constraint "user_company_deactivated_by_id_foreign" foreign key ("deactivated_by_id") references "user" ("id") on update cascade on delete set null;`,
     );
 
-    // Create internal_user_company junction table
-    this.addSql(
-      `create table "internal_user_company" (
-        "id" uuid not null,
-        "user_id" uuid not null,
-        "company_id" uuid not null,
-        "is_pinned" boolean not null default false,
-        "granted_at" timestamptz not null,
-        "last_accessed_at" timestamptz null,
-        "granted_by_id" uuid null,
-        constraint "internal_user_company_pkey" primary key ("id")
-      );`,
-    );
-
-    // Create indexes for internal_user_company
-    this.addSql(
-      `create index "internal_user_company_user_id_index" on "internal_user_company" ("user_id");`,
-    );
-    this.addSql(
-      `create index "internal_user_company_company_id_index" on "internal_user_company" ("company_id");`,
-    );
-    this.addSql(
-      `create index "internal_user_company_last_accessed_at_index" on "internal_user_company" ("last_accessed_at");`,
-    );
-
-    // Unique constraint to prevent duplicate assignments
-    this.addSql(
-      `alter table "internal_user_company" add constraint "internal_user_company_user_id_company_id_unique" unique ("user_id", "company_id");`,
-    );
-
-    // Add foreign key constraints for internal_user_company table
-    this.addSql(
-      `alter table "internal_user_company" add constraint "internal_user_company_user_id_foreign" foreign key ("user_id") references "user" ("id") on update cascade on delete cascade;`,
-    );
-    this.addSql(
-      `alter table "internal_user_company" add constraint "internal_user_company_company_id_foreign" foreign key ("company_id") references "company" ("id") on update cascade on delete cascade;`,
-    );
-    this.addSql(
-      `alter table "internal_user_company" add constraint "internal_user_company_granted_by_id_foreign" foreign key ("granted_by_id") references "user" ("id") on update cascade on delete set null;`,
-    );
-
     // Backfill: Create UserCompany entries for existing company users
     // This ensures existing users continue to work with the new system
     this.addSql(
@@ -111,20 +71,6 @@ export class Migration20251217000000_MultiCompanyAccess extends Migration {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   override async down(): Promise<void> {
-    // Drop foreign key constraints from internal_user_company
-    this.addSql(
-      `alter table "internal_user_company" drop constraint if exists "internal_user_company_granted_by_id_foreign";`,
-    );
-    this.addSql(
-      `alter table "internal_user_company" drop constraint if exists "internal_user_company_company_id_foreign";`,
-    );
-    this.addSql(
-      `alter table "internal_user_company" drop constraint if exists "internal_user_company_user_id_foreign";`,
-    );
-
-    // Drop internal_user_company table
-    this.addSql(`drop table if exists "internal_user_company" cascade;`);
-
     // Drop foreign key constraints from user_company
     this.addSql(
       `alter table "user_company" drop constraint if exists "user_company_deactivated_by_id_foreign";`,

@@ -15,7 +15,6 @@ import { v4 as uuid } from 'uuid';
 import { UserType } from './types';
 
 import type { Company } from './Company.entity';
-import type { InternalUserCompany } from './InternalUserCompany.entity';
 import type { Office } from './Office.entity';
 import type { Session } from './Session.entity';
 import type { UserCompany } from './UserCompany.entity';
@@ -84,19 +83,13 @@ export class User {
   officeAccess = new Collection<UserOffice>(this);
 
   /**
-   * Collection of companies the user has access to (for company users).
+   * Collection of companies the user has access to.
+   * For company users: Having records = can access those companies
+   * For internal users: Having records = restricted to those companies (no records = unrestricted)
    * Managed through the UserCompany join entity.
    */
   @OneToMany('UserCompany', 'user')
   companyAccess = new Collection<UserCompany>(this);
-
-  /**
-   * Collection of companies the internal user is restricted to (for internal users).
-   * If empty, internal user has access to all companies.
-   * Managed through the InternalUserCompany join entity.
-   */
-  @OneToMany('InternalUserCompany', 'user')
-  restrictedCompanies = new Collection<InternalUserCompany>(this);
 
   /** Per-user session limit (overrides company default if set) */
   @Property({ type: 'integer' })

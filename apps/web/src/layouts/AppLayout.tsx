@@ -13,6 +13,7 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 
+import { CompanySwitcher } from '../components/CompanySwitcher';
 import { MobileMenuButton, Sidebar } from '../components/Sidebar';
 import { useAuth } from '../hooks/useAuth';
 
@@ -90,6 +91,9 @@ export function AppLayout(): React.ReactElement {
 
             {/* Spacer */}
             <Box sx={{ flexGrow: 1 }} />
+
+            {/* Company switcher (for users with multi-company access) */}
+            <CompanySwitcher />
 
             {/* User info and logout */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

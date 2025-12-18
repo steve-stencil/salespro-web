@@ -1,12 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 
-import {
-  User,
-  UserCompany,
-  InternalUserCompany,
-  Session,
-} from '../../entities';
+import { User, UserCompany, Session } from '../../entities';
 import {
   UserType,
   SessionSource,
@@ -331,7 +326,7 @@ describe('Multi-Company Access Integration Tests', () => {
         .send({ companyId: company2.id });
 
       expect(response.status).toBe(200);
-      expect(response.body.message).toBe('Switched to company successfully');
+      expect(response.body.message).toBe('Company switched successfully');
       expect(response.body.activeCompany.id).toBe(company2.id);
     });
 
@@ -467,7 +462,7 @@ describe('Multi-Company Access Integration Tests', () => {
       expect(response.body.results.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should restrict internal user to specific companies when InternalUserCompany records exist', async () => {
+    it('should restrict internal user to specific companies when UserCompany records exist', async () => {
       const orm = getORM();
       const em = orm.em.fork();
       const companyA = await createTestCompany(em, {
@@ -484,21 +479,23 @@ describe('Multi-Company Access Integration Tests', () => {
       );
       const { user, cookie } = await createInternalUser(em, platformRole);
 
-      // Add internal user company restrictions
-      const iuc1 = em.create(InternalUserCompany, {
+      // Add internal user company restrictions using UserCompany
+      const uc1 = em.create(UserCompany, {
         id: uuid(),
         user,
         company: companyA,
-        grantedAt: new Date(),
+        isActive: true,
+        joinedAt: new Date(),
       });
-      const iuc2 = em.create(InternalUserCompany, {
+      const uc2 = em.create(UserCompany, {
         id: uuid(),
         user,
         company: companyB,
-        grantedAt: new Date(),
+        isActive: true,
+        joinedAt: new Date(),
       });
-      em.persist(iuc1);
-      em.persist(iuc2);
+      em.persist(uc1);
+      em.persist(uc2);
       await em.flush();
 
       const response = await makeRequest()
@@ -687,17 +684,18 @@ describe('Multi-Company Access Integration Tests', () => {
         email: 'target@platform.com',
       });
 
-      // Add company restrictions
+      // Add company restrictions using UserCompany
       const company = await createTestCompany(em, {
         name: 'Restricted Company',
       });
-      const iuc = em.create(InternalUserCompany, {
+      const uc = em.create(UserCompany, {
         id: uuid(),
         user: targetUser,
         company,
-        grantedAt: new Date(),
+        isActive: true,
+        joinedAt: new Date(),
       });
-      em.persist(iuc);
+      em.persist(uc);
       await em.flush();
 
       const response = await makeRequest()
@@ -758,13 +756,14 @@ describe('Multi-Company Access Integration Tests', () => {
       const company = await createTestCompany(em, {
         name: 'Restricted Company',
       });
-      const iuc = em.create(InternalUserCompany, {
+      const uc = em.create(UserCompany, {
         id: uuid(),
         user: targetUser,
         company,
-        grantedAt: new Date(),
+        isActive: true,
+        joinedAt: new Date(),
       });
-      em.persist(iuc);
+      em.persist(uc);
       await em.flush();
 
       const response = await makeRequest()

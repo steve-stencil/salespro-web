@@ -15,7 +15,6 @@ import {
   DEFAULT_PASSWORD_POLICY,
 } from './types';
 
-import type { InternalUserCompany } from './InternalUserCompany.entity';
 import type { PasswordPolicy } from './types';
 import type { User } from './User.entity';
 import type { UserCompany } from './UserCompany.entity';
@@ -71,14 +70,8 @@ export class Company {
   /**
    * Collection of user memberships in this company.
    * Used for multi-company access where users can belong to multiple companies.
+   * Works for both company users (membership) and internal users (restriction).
    */
   @OneToMany('UserCompany', 'company')
   memberUsers = new Collection<UserCompany>(this);
-
-  /**
-   * Collection of internal users with restricted access to this company.
-   * Used when internal users are limited to specific companies.
-   */
-  @OneToMany('InternalUserCompany', 'company')
-  internalUserAccess = new Collection<InternalUserCompany>(this);
 }

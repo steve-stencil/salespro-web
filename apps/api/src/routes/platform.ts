@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { Company, Session, InternalUserCompany } from '../entities';
+import { Company, Session, UserCompany } from '../entities';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import {
@@ -49,8 +49,8 @@ const switchCompanySchema = z.object({
 /**
  * GET /platform/companies
  * List companies in the platform that the internal user has access to.
- * If the internal user has InternalUserCompany records, only those companies are returned.
- * If no InternalUserCompany records exist, all companies are returned (unrestricted access).
+ * If the internal user has UserCompany records, only those companies are returned (restricted).
+ * If no UserCompany records exist, all companies are returned (unrestricted access).
  * Requires internal user with platform:view_companies permission.
  */
 router.get(
@@ -70,10 +70,10 @@ router.get(
       const orm = getORM();
       const em = orm.em.fork();
 
-      // Check if user has restricted company access
+      // Check if user has restricted company access (UserCompany records)
       const restrictedAccess = await em.find(
-        InternalUserCompany,
-        { user: user.id },
+        UserCompany,
+        { user: user.id, isActive: true },
         { populate: ['company'] },
       );
 
@@ -82,7 +82,7 @@ router.get(
       if (restrictedAccess.length > 0) {
         // User has restricted access - only return allowed companies
         companies = restrictedAccess
-          .map(iuc => iuc.company)
+          .map(uc => uc.company)
           .sort((a, b) => a.name.localeCompare(b.name));
       } else {
         // User has unrestricted access - return all companies
@@ -187,7 +187,7 @@ router.get(
 /**
  * POST /platform/switch-company
  * Switch the active company for the internal user.
- * If the internal user has InternalUserCompany restrictions, they can only
+ * If the internal user has UserCompany restrictions, they can only
  * switch to companies they have access to.
  * Requires internal user with platform:switch_company permission.
  */
@@ -232,16 +232,18 @@ router.post(
         return;
       }
 
-      // Check if user has restricted company access
-      const restrictedCount = await em.count(InternalUserCompany, {
+      // Check if user has restricted company access (UserCompany records)
+      const restrictedCount = await em.count(UserCompany, {
         user: user.id,
+        isActive: true,
       });
 
       if (restrictedCount > 0) {
         // User has restrictions - verify they can access this company
-        const access = await em.findOne(InternalUserCompany, {
+        const access = await em.findOne(UserCompany, {
           user: user.id,
           company: companyId,
+          isActive: true,
         });
 
         if (!access) {

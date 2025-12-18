@@ -6,7 +6,6 @@ import {
   Office,
   UserOffice,
   UserCompany,
-  InternalUserCompany,
   UserType,
   Session,
 } from '../entities';
@@ -146,12 +145,12 @@ router.get(
         });
       } else {
         // For internal users, check if they have restricted access
-        const restrictedCount = await em.count(InternalUserCompany, {
+        const restrictedCount = await em.count(UserCompany, {
           user: user.id,
         });
 
         if (restrictedCount > 0) {
-          // Internal user with restricted access - fetch from InternalUserCompany
+          // Internal user with restricted access - fetch from UserCompany
           const baseWhere: Record<string, unknown> = { user: user.id };
 
           const searchWhere =
@@ -161,7 +160,7 @@ router.get(
 
           // Get recent companies
           const recentCompanies = await em.find(
-            InternalUserCompany,
+            UserCompany,
             { user: user.id, lastAccessedAt: { $ne: null } },
             {
               orderBy: { lastAccessedAt: 'DESC' },
@@ -172,14 +171,14 @@ router.get(
 
           // Get pinned companies
           const pinnedCompanies = await em.find(
-            InternalUserCompany,
+            UserCompany,
             { user: user.id, isPinned: true },
             { populate: ['company'] },
           );
 
           // Get total and results
-          const total = await em.count(InternalUserCompany, searchWhere);
-          const results = await em.find(InternalUserCompany, searchWhere, {
+          const total = await em.count(UserCompany, searchWhere);
+          const results = await em.find(UserCompany, searchWhere, {
             limit: limitNum,
             offset: offsetNum,
             orderBy: { company: { name: 'ASC' } },
@@ -358,13 +357,13 @@ router.post(
         userCompany.lastAccessedAt = new Date();
       } else {
         // For internal users, check if they have restricted access
-        const restrictedCount = await em.count(InternalUserCompany, {
+        const restrictedCount = await em.count(UserCompany, {
           user: user.id,
         });
 
         if (restrictedCount > 0) {
-          // Check InternalUserCompany access
-          const internalUserCompany = await em.findOne(InternalUserCompany, {
+          // Check UserCompany access
+          const internalUserCompany = await em.findOne(UserCompany, {
             user: user.id,
             company: companyId,
           });
@@ -470,8 +469,8 @@ router.patch(
         userCompany.isPinned = isPinned;
         await em.flush();
       } else {
-        // For internal users with restricted access, update InternalUserCompany
-        const internalUserCompany = await em.findOne(InternalUserCompany, {
+        // For internal users with restricted access, update UserCompany
+        const internalUserCompany = await em.findOne(UserCompany, {
           user: user.id,
           company: companyId,
         });
