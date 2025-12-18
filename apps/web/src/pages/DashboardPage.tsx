@@ -73,7 +73,10 @@ export function DashboardPage(): React.ReactElement {
                   label="Name"
                   value={`${user?.nameFirst ?? ''} ${user?.nameLast ?? ''}`}
                 />
-                <InfoItem label="Company" value={user?.company.name ?? 'N/A'} />
+                <InfoItem
+                  label="Company"
+                  value={user?.company?.name ?? 'N/A'}
+                />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography
                     component="dt"

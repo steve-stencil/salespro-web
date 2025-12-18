@@ -12,6 +12,7 @@ import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { CompanySettingsPage } from './pages/CompanySettingsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { InternalUsersPage } from './pages/InternalUsersPage';
 import { LoginPage } from './pages/LoginPage';
 import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { OfficesPage } from './pages/OfficesPage';
@@ -37,6 +38,7 @@ import { UsersPage } from './pages/UsersPage';
  * - /roles - Role management
  * - /offices - Office management
  * - /admin/settings - Company settings (admin)
+ * - /platform/internal-users - Platform internal user management
  * - / - Redirects to /dashboard
  */
 export const router = createBrowserRouter([
@@ -107,6 +109,16 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.COMPANY_UPDATE}>
             <CompanySettingsPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/platform/internal-users',
+        element: (
+          <PermissionGuard
+            permission={PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS}
+          >
+            <InternalUsersPage />
           </PermissionGuard>
         ),
       },

@@ -40,22 +40,9 @@ import {
   Office,
   UserOffice,
   UserCompany,
+  File,
   OfficeSettings,
   OfficeIntegration,
-  File,
-  OAuthClient,
-  OAuthToken,
-  OAuthAuthorizationCode,
-  LoginAttempt,
-  LoginEvent,
-  PasswordResetToken,
-  PasswordHistory,
-  UserInvite,
-  EmailVerificationToken,
-  MfaRecoveryCode,
-  TrustedDevice,
-  RememberMeToken,
-  ApiKey,
   SubscriptionTier,
   SessionLimitStrategy,
   DEFAULT_PASSWORD_POLICY,
@@ -188,10 +175,10 @@ function parseCliArgs(): {
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--email' && args[i + 1]) {
       email = args[i + 1];
-      i++; // Skip next arg
+      i++;
     } else if (args[i] === '--password' && args[i + 1]) {
       password = args[i + 1];
-      i++; // Skip next arg
+      i++;
     } else if (args[i] === '--offices' && args[i + 1]) {
       offices = Math.max(1, parseInt(args[i + 1]!, 10) || 1);
       i++;
@@ -271,7 +258,7 @@ function getSeedConfig(): {
     companies: [
       {
         name: 'SalesPro Demo Company',
-        maxSeats: Math.max(10, seedCounts.users + 1), // Ensure enough seats
+        maxSeats: Math.max(100, seedCounts.users + 1), // Ensure enough seats
         maxSessionsPerUser: 3,
         tier: SubscriptionTier.PROFESSIONAL,
         sessionLimitStrategy: SessionLimitStrategy.REVOKE_OLDEST,
@@ -287,7 +274,7 @@ function getSeedConfig(): {
       },
       {
         name: 'Acme Corporation',
-        maxSeats: 25,
+        maxSeats: 100,
         maxSessionsPerUser: 5,
         tier: SubscriptionTier.ENTERPRISE,
         sessionLimitStrategy: SessionLimitStrategy.REVOKE_OLDEST,
@@ -354,22 +341,9 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
       Office,
       UserOffice,
       UserCompany,
+      File,
       OfficeSettings,
       OfficeIntegration,
-      File,
-      OAuthClient,
-      OAuthToken,
-      OAuthAuthorizationCode,
-      LoginAttempt,
-      LoginEvent,
-      PasswordResetToken,
-      PasswordHistory,
-      UserInvite,
-      EmailVerificationToken,
-      MfaRecoveryCode,
-      TrustedDevice,
-      RememberMeToken,
-      ApiKey,
     ],
     debug: false,
     allowGlobalContext: true,

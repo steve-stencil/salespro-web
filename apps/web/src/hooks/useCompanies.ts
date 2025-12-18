@@ -2,11 +2,16 @@
  * Custom hooks for multi-company access functionality.
  * Provides company switching, pinning, and listing capabilities.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query';
 
 import { companyApi } from '../services/company';
 
-import type { UserCompaniesResponse, CompanyInfo } from '../types/company';
+import type { UserCompaniesResponse, CompanyInfo } from '@shared/core';
 
 /** Query key for user companies */
 const USER_COMPANIES_KEY = ['userCompanies'] as const;
@@ -14,6 +19,7 @@ const USER_COMPANIES_KEY = ['userCompanies'] as const;
 /**
  * Hook to fetch the current user's companies.
  * Returns recent, pinned, and search results.
+ * Uses keepPreviousData to maintain UI stability during search.
  *
  * @param search - Optional search term to filter companies
  * @param enabled - Whether to enable the query (default: true)
@@ -24,6 +30,7 @@ export function useUserCompanies(
 ): {
   data: UserCompaniesResponse | undefined;
   isLoading: boolean;
+  isFetching: boolean;
   error: Error | null;
   refetch: () => void;
 } {
@@ -32,11 +39,13 @@ export function useUserCompanies(
     queryFn: () => companyApi.getUserCompanies(search),
     enabled,
     staleTime: 30000, // Cache for 30 seconds
+    placeholderData: keepPreviousData, // Keep previous data while fetching new search results
   });
 
   return {
     data: query.data,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     error: query.error,
     refetch: () => void query.refetch(),
   };

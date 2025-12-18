@@ -67,6 +67,21 @@ const mockCompaniesResponse: UserCompaniesResponse = {
   hasMore: false,
 };
 
+const mockManyCompaniesResponse: UserCompaniesResponse = {
+  recent: [],
+  pinned: [],
+  results: [
+    { id: 'company-1', name: 'Company A', isActive: true },
+    { id: 'company-2', name: 'Company B', isActive: true },
+    { id: 'company-3', name: 'Company C', isActive: true },
+    { id: 'company-4', name: 'Company D', isActive: true },
+    { id: 'company-5', name: 'Company E', isActive: true },
+    { id: 'company-6', name: 'Company F', isActive: true },
+  ],
+  total: 6,
+  hasMore: false,
+};
+
 function createMockAuthContext(
   overrides: Partial<AuthContextType> = {},
 ): AuthContextType {
@@ -165,11 +180,13 @@ describe('SelectCompanyPage', () => {
       });
     });
 
-    it('should mark current company as selected', async () => {
+    it('should display Continue button', async () => {
       renderSelectCompanyPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/currently selected/i)).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: /continue/i }),
+        ).toBeInTheDocument();
       });
     });
   });
@@ -184,7 +201,40 @@ describe('SelectCompanyPage', () => {
   });
 
   describe('company selection', () => {
-    it('should call switchCompany when a company is clicked', async () => {
+    it('should pre-select the current company on page load', async () => {
+      renderSelectCompanyPage();
+
+      await waitFor(() => {
+        // Continue button should be enabled since current company is pre-selected
+        const continueButton = screen.getByRole('button', {
+          name: /continue/i,
+        });
+        expect(continueButton).not.toBeDisabled();
+      });
+    });
+
+    it('should select a company when clicked without switching immediately', async () => {
+      renderSelectCompanyPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /company b/i }),
+        ).toBeInTheDocument();
+      });
+
+      // Click on Company B
+      const companyBButton = screen.getByRole('button', { name: /company b/i });
+      fireEvent.click(companyBButton);
+
+      // switchCompany should NOT have been called yet
+      expect(companyApi.switchCompany).not.toHaveBeenCalled();
+
+      // Continue button should still be enabled
+      const continueButton = screen.getByRole('button', { name: /continue/i });
+      expect(continueButton).not.toBeDisabled();
+    });
+
+    it('should switch company when Continue is clicked after selection', async () => {
       const mockSwitchResponse: SwitchCompanyResponse = {
         message: 'Company switched successfully',
         activeCompany: { id: 'company-2', name: 'Company B' },
@@ -203,12 +253,47 @@ describe('SelectCompanyPage', () => {
         ).toBeInTheDocument();
       });
 
-      // Click on Company B (not the current company)
+      // Select Company B
       const companyBButton = screen.getByRole('button', { name: /company b/i });
       fireEvent.click(companyBButton);
 
+      // Click Continue
+      const continueButton = screen.getByRole('button', { name: /continue/i });
+      fireEvent.click(continueButton);
+
       await waitFor(() => {
         expect(companyApi.switchCompany).toHaveBeenCalledWith('company-2');
+      });
+
+      await waitFor(() => {
+        expect(mockRefreshUser).toHaveBeenCalled();
+      });
+    });
+
+    it('should allow selecting the current company and continuing', async () => {
+      const mockSwitchResponse: SwitchCompanyResponse = {
+        message: 'Company switched successfully',
+        activeCompany: { id: 'company-1', name: 'Company A' },
+      };
+      vi.mocked(companyApi.switchCompany).mockResolvedValue(mockSwitchResponse);
+
+      renderSelectCompanyPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /company a/i }),
+        ).toBeInTheDocument();
+      });
+
+      // Current company should be pre-selected, Continue should be enabled
+      const continueButton = screen.getByRole('button', { name: /continue/i });
+      expect(continueButton).not.toBeDisabled();
+
+      // Click Continue with current company selected
+      fireEvent.click(continueButton);
+
+      await waitFor(() => {
+        expect(companyApi.switchCompany).toHaveBeenCalledWith('company-1');
       });
     });
 
@@ -225,12 +310,47 @@ describe('SelectCompanyPage', () => {
         ).toBeInTheDocument();
       });
 
+      // Select and confirm
       const companyBButton = screen.getByRole('button', { name: /company b/i });
       fireEvent.click(companyBButton);
+
+      const continueButton = screen.getByRole('button', { name: /continue/i });
+      fireEvent.click(continueButton);
 
       await waitFor(() => {
         expect(
           screen.getByText(/failed to switch company/i),
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('search functionality', () => {
+    it('should hide search field when there are 5 or fewer companies', async () => {
+      renderSelectCompanyPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /company a/i }),
+        ).toBeInTheDocument();
+      });
+
+      // Search field should not be present
+      expect(
+        screen.queryByPlaceholderText(/search companies/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it('should show search field when there are more than 5 companies', async () => {
+      vi.mocked(companyApi.getUserCompanies).mockResolvedValue(
+        mockManyCompaniesResponse,
+      );
+
+      renderSelectCompanyPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText(/search companies/i),
         ).toBeInTheDocument();
       });
     });

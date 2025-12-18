@@ -119,7 +119,7 @@ export function CompanySwitcher(): React.ReactElement | null {
 
   // Extract values early for hooks dependencies
   const canSwitch = Boolean(user?.canSwitchCompanies);
-  const currentCompanyId = user?.company.id;
+  const currentCompanyId = user?.company?.id;
 
   const { data: companiesData, isLoading } = useUserCompanies(
     searchTerm || undefined,
@@ -175,7 +175,7 @@ export function CompanySwitcher(): React.ReactElement | null {
   };
 
   const handleSelectCompany = async (companyId: string): Promise<void> => {
-    if (companyId === user.company.id) {
+    if (companyId === user.company?.id) {
       handleClose();
       return;
     }
@@ -231,7 +231,7 @@ export function CompanySwitcher(): React.ReactElement | null {
           noWrap
           sx={{ maxWidth: 150, fontWeight: 500 }}
         >
-          {user.company.name}
+          {user.company?.name ?? 'Select Company'}
         </Typography>
       </Button>
 
@@ -280,18 +280,22 @@ export function CompanySwitcher(): React.ReactElement | null {
             subheader={<li />}
           >
             {/* Current company */}
-            <ListSubheader
-              sx={{ bgcolor: 'background.paper', lineHeight: 2.5 }}
-            >
-              Current
-            </ListSubheader>
-            <CompanyListItem
-              company={{ ...user.company, isPinned: false }}
-              isActive={true}
-              onSelect={() => handleClose()}
-              onTogglePin={(id, pinned) => void handleTogglePin(id, pinned)}
-              isPinPending={isPinPending}
-            />
+            {user.company && (
+              <>
+                <ListSubheader
+                  sx={{ bgcolor: 'background.paper', lineHeight: 2.5 }}
+                >
+                  Current
+                </ListSubheader>
+                <CompanyListItem
+                  company={{ ...user.company, isPinned: false }}
+                  isActive={true}
+                  onSelect={() => handleClose()}
+                  onTogglePin={(id, pinned) => void handleTogglePin(id, pinned)}
+                  isPinPending={isPinPending}
+                />
+              </>
+            )}
 
             {/* Recent companies */}
             {recentCompanies.length > 0 && (

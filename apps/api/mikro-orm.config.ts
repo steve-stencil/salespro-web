@@ -23,6 +23,8 @@ import {
   RememberMeToken,
   ApiKey,
   File,
+  OfficeSettings,
+  OfficeIntegration,
 } from './src/entities';
 
 /**
@@ -56,6 +58,8 @@ export default defineConfig({
     RememberMeToken,
     ApiKey,
     File,
+    OfficeSettings,
+    OfficeIntegration,
   ],
   migrations: {
     path: './src/migrations',

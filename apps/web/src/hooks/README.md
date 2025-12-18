@@ -6,14 +6,17 @@ This folder contains custom React hooks that encapsulate reusable stateful logic
 
 ## Structure
 
-| Hook                | Purpose                            |
-| ------------------- | ---------------------------------- |
-| `useAuth.ts`        | Authentication context access      |
-| `useApiError.ts`    | API error handling utilities       |
-| `useOffices.ts`     | Office data fetching and mutations |
-| `usePermissions.ts` | Permission checking utilities      |
-| `useRoles.ts`       | Role data fetching and mutations   |
-| `useUsers.ts`       | User data fetching and mutations   |
+| Hook                   | Purpose                             |
+| ---------------------- | ----------------------------------- |
+| `useAuth.ts`           | Authentication context access       |
+| `useApiError.ts`       | API error handling utilities        |
+| `useCompanies.ts`      | Multi-company access and switching  |
+| `useDebouncedValue.ts` | Debounce values for delayed updates |
+| `useOffices.ts`        | Office data fetching and mutations  |
+| `usePermissions.ts`    | Permission checking utilities       |
+| `usePlatform.ts`       | Platform detection utilities        |
+| `useRoles.ts`          | Role data fetching and mutations    |
+| `useUsers.ts`          | User data fetching and mutations    |
 
 ## Hook Reference
 
@@ -173,6 +176,99 @@ function MyComponent() {
   );
 }
 ```
+
+### useCompanies
+
+Manage multi-company access, switching, and pinning.
+
+```tsx
+import {
+  useUserCompanies,
+  useSwitchCompany,
+  usePinCompany,
+} from '../hooks/useCompanies';
+
+function CompanySelector() {
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  // Fetch companies with search
+  const { data, isLoading, isFetching } = useUserCompanies(
+    debouncedSearch || undefined,
+    true, // enabled
+  );
+
+  // Switch active company
+  const { switchCompany, isPending } = useSwitchCompany();
+
+  // Pin/unpin companies
+  const { pinCompany } = usePinCompany();
+
+  const handleSelect = async (companyId: string) => {
+    await switchCompany(companyId);
+    // User context is automatically refreshed
+  };
+
+  return (
+    <div>
+      <input value={search} onChange={e => setSearch(e.target.value)} />
+      {data?.results.map(company => (
+        <button key={company.id} onClick={() => handleSelect(company.id)}>
+          {company.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+**Key features:**
+
+- Uses `keepPreviousData` to maintain UI stability during search
+- Returns `isFetching` for subtle loading indicators during background updates
+- Automatically invalidates queries after company switch
+
+### useDebouncedValue
+
+Debounce a value to delay updates until user stops changing it. Useful for search inputs to reduce API calls.
+
+```tsx
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+
+function SearchInput() {
+  const [searchTerm, setSearchTerm] = useState('');
+  // Only updates 300ms after user stops typing
+  const debouncedSearch = useDebouncedValue(searchTerm, 300);
+
+  // API call uses debounced value - fewer requests
+  const { data } = useQuery({
+    queryKey: ['search', debouncedSearch],
+    queryFn: () => api.search(debouncedSearch),
+  });
+
+  return (
+    <input
+      value={searchTerm} // Immediate feedback
+      onChange={e => setSearchTerm(e.target.value)}
+    />
+  );
+}
+```
+
+**Parameters:**
+
+| Parameter | Type     | Default | Description           |
+| --------- | -------- | ------- | --------------------- |
+| `value`   | `T`      | -       | The value to debounce |
+| `delay`   | `number` | `300`   | Delay in milliseconds |
+
+**Returns:** The debounced value of type `T`
+
+**Use cases:**
+
+- Search inputs (reduce API calls while typing)
+- Form validation (validate after user stops typing)
+- Window resize handlers (debounce expensive calculations)
 
 ## Patterns
 
