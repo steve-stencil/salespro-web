@@ -595,10 +595,7 @@ router.get(
       // Fetch roles for each user
       const usersWithRoles = await Promise.all(
         users.map(async u => {
-          const roles = await permissionService.getUserRoles(
-            u.id,
-            user.company!.id,
-          );
+          const roles = await permissionService.getUserRoles(u.id, company.id);
           return {
             id: u.id,
             email: u.email,
@@ -647,8 +644,11 @@ router.get(
   requirePermission(PERMISSIONS.USER_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -666,7 +666,7 @@ router.get(
       // Find user in the same company (exclude soft-deleted)
       const targetUser = await em.findOne(
         User,
-        { id, company: user.company.id, deletedAt: null },
+        { id, company: company.id, deletedAt: null },
         { populate: ['currentOffice'] },
       );
 
@@ -676,7 +676,7 @@ router.get(
       }
 
       // Get user's roles
-      const roles = await permissionService.getUserRoles(id, user.company.id);
+      const roles = await permissionService.getUserRoles(id, company.id);
 
       // Get user's allowed offices
       const officeAccess = await em.find(
@@ -733,8 +733,11 @@ router.patch(
   requirePermission(PERMISSIONS.USER_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -759,7 +762,7 @@ router.patch(
 
       const targetUser = await em.findOne(User, {
         id,
-        company: user.company.id,
+        company: company.id,
         deletedAt: null,
       });
 
@@ -800,8 +803,11 @@ router.post(
   requirePermission(PERMISSIONS.USER_ACTIVATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -832,7 +838,7 @@ router.post(
 
       const targetUser = await em.findOne(User, {
         id,
-        company: user.company.id,
+        company: company.id,
         deletedAt: null,
       });
 
@@ -870,8 +876,11 @@ router.delete(
   requirePermission(PERMISSIONS.USER_DELETE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -893,7 +902,7 @@ router.delete(
 
       const targetUser = await em.findOne(User, {
         id,
-        company: user.company.id,
+        company: company.id,
         deletedAt: null,
       });
 
@@ -931,8 +940,11 @@ router.get(
   requirePermission(PERMISSIONS.USER_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -949,7 +961,7 @@ router.get(
       // Verify user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(User, {
         id,
-        company: user.company.id,
+        company: company.id,
         deletedAt: null,
       });
 
@@ -998,8 +1010,11 @@ router.post(
   requirePermission(PERMISSIONS.USER_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -1026,7 +1041,7 @@ router.post(
       // Verify target user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(User, {
         id,
-        company: user.company.id,
+        company: company.id,
         deletedAt: null,
       });
 
@@ -1038,7 +1053,7 @@ router.post(
       // Verify office belongs to the same company
       const office = await em.findOne(Office, {
         id: officeId,
-        company: user.company.id,
+        company: company.id,
       });
 
       if (!office) {
@@ -1093,8 +1108,11 @@ router.delete(
   requirePermission(PERMISSIONS.USER_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -1111,7 +1129,7 @@ router.delete(
       // Verify target user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(
         User,
-        { id, company: user.company.id, deletedAt: null },
+        { id, company: company.id, deletedAt: null },
         { populate: ['currentOffice'] },
       );
 
@@ -1158,8 +1176,11 @@ router.patch(
   requirePermission(PERMISSIONS.USER_UPDATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -1186,7 +1207,7 @@ router.patch(
       // Verify target user belongs to the same company (exclude soft-deleted)
       const targetUser = await em.findOne(User, {
         id,
-        company: user.company.id,
+        company: company.id,
         deletedAt: null,
       });
 

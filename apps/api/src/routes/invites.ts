@@ -18,17 +18,10 @@ import {
   listPendingInvites,
 } from '../services';
 
-import type { User, Company } from '../entities';
+import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
-
-/**
- * Request type with authenticated user
- */
-type AuthenticatedRequest = Request & {
-  user?: User & { company?: Company };
-};
 
 // ============================================================================
 // Validation Schemas
@@ -77,8 +70,11 @@ router.post(
   requirePermission(PERMISSIONS.USER_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -99,7 +95,7 @@ router.post(
 
       const result = await createInvite(em, {
         email,
-        companyId: user.company.id,
+        companyId: company.id,
         invitedById: user.id,
         roles,
         inviterName: user.fullName,
@@ -159,8 +155,11 @@ router.get(
   requirePermission(PERMISSIONS.USER_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -175,7 +174,7 @@ router.get(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const { invites, total } = await listPendingInvites(em, user.company.id, {
+      const { invites, total } = await listPendingInvites(em, company.id, {
         page: pageNum,
         limit: limitNum,
       });
@@ -229,8 +228,11 @@ router.delete(
   requirePermission(PERMISSIONS.USER_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -244,7 +246,7 @@ router.delete(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const result = await revokeInvite(em, id, user.company.id);
+      const result = await revokeInvite(em, id, company.id);
 
       if (!result.success) {
         res.status(404).json({ error: result.error });
@@ -269,8 +271,11 @@ router.patch(
   requirePermission(PERMISSIONS.USER_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -299,7 +304,7 @@ router.patch(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const result = await updateInvite(em, id, user.company.id, {
+      const result = await updateInvite(em, id, company.id, {
         roles,
         currentOfficeId,
         allowedOfficeIds,
@@ -341,8 +346,11 @@ router.post(
   requirePermission(PERMISSIONS.USER_CREATE),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -356,7 +364,7 @@ router.post(
       const orm = getORM();
       const em = orm.em.fork();
 
-      const result = await resendInvite(em, id, user.company.id, user.fullName);
+      const result = await resendInvite(em, id, company.id, user.fullName);
 
       if (!result.success) {
         res.status(400).json({ error: result.error });

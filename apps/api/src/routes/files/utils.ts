@@ -11,9 +11,12 @@ import type { Response } from 'express';
 
 /**
  * Request type with authenticated user.
+ * Extends the middleware's AuthenticatedRequest with file upload support.
  */
 export type AuthenticatedFileRequest = {
-  user?: User & { company?: Company };
+  user?: User;
+  /** Company context for this request (from companyContext middleware) */
+  companyContext?: Company;
   file?: Express.Multer.File;
 };
 

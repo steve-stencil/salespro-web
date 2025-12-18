@@ -28,8 +28,11 @@ router.get(
   requirePermission(PERMISSIONS.FILE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -49,7 +52,7 @@ router.get(
       const em = orm.em.fork();
       const fileService = new FileService(em);
 
-      const result = await fileService.listFiles(user.company.id, {
+      const result = await fileService.listFiles(company.id, {
         ...(page !== undefined && { page }),
         ...(limit !== undefined && { limit }),
         ...(uploadedBy && { uploadedBy }),
@@ -83,8 +86,11 @@ router.get(
   requirePermission(PERMISSIONS.FILE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -99,7 +105,7 @@ router.get(
       const em = orm.em.fork();
       const fileService = new FileService(em);
 
-      const file = await fileService.getFile(id, user.company.id, user.id);
+      const file = await fileService.getFile(id, company.id, user.id);
       if (!file) {
         res.status(404).json({ error: 'File not found' });
         return;
@@ -123,8 +129,11 @@ router.get(
   requirePermission(PERMISSIONS.FILE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -141,7 +150,7 @@ router.get(
 
       const downloadUrl = await fileService.getDownloadUrl(
         id,
-        user.company.id,
+        company.id,
         user.id,
       );
 
@@ -167,8 +176,11 @@ router.get(
   requirePermission(PERMISSIONS.FILE_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as Request & AuthenticatedFileRequest).user;
-      if (!user?.company) {
+      const authReq = req as Request & AuthenticatedFileRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -185,7 +197,7 @@ router.get(
 
       const thumbnailUrl = await fileService.getThumbnailUrl(
         id,
-        user.company.id,
+        company.id,
         user.id,
       );
 

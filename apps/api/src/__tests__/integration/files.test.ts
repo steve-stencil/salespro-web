@@ -225,8 +225,8 @@ describe('File Routes Integration Tests', () => {
     });
   });
 
-  // TODO: Implement presigned URL upload feature
-  describe.skip('POST /api/files/presign', () => {
+  // S3 is mocked in this file via isS3Configured mock
+  describe('POST /api/files/presign', () => {
     it('should generate a presigned upload URL', async () => {
       const response = await makeRequest()
         .post('/api/files/presign')
@@ -257,8 +257,8 @@ describe('File Routes Integration Tests', () => {
     });
   });
 
-  // TODO: Implement presigned URL upload confirmation
-  describe.skip('POST /api/files/confirm', () => {
+  // S3 is mocked in this file via isS3Configured mock
+  describe('POST /api/files/confirm', () => {
     it('should confirm a presigned upload', async () => {
       const orm = getORM();
       const em = orm.em.fork();

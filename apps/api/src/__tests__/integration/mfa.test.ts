@@ -521,9 +521,8 @@ describe('MFA Routes Integration Tests', () => {
     });
   });
 
-  // TODO: These tests require email service (SES) to be configured
-  // Skip in CI where email service isn't available
-  describe.skip('Email-based MFA Flow', () => {
+  // Email service is now mocked globally in server-setup.ts
+  describe('Email-based MFA Flow', () => {
     it('should automatically send MFA code via email during login when MFA is required', async () => {
       // Enable MFA for the user
       const orm = getORM();
@@ -914,8 +913,8 @@ describe('MFA Routes Integration Tests', () => {
     });
   });
 
-  // TODO: These tests require email service (SES) to be configured
-  describe.skip('Signed Cookie Handling', () => {
+  // Email service is now mocked globally in server-setup.ts
+  describe('Signed Cookie Handling', () => {
     it('should correctly verify MFA with signed session cookies', async () => {
       // This tests that the signed cookie (s:UUID.signature) is correctly parsed
       const orm = getORM();
