@@ -1,14 +1,16 @@
 /**
  * Company settings API service.
  * Provides methods for fetching and updating company-wide settings,
- * and multi-company access functionality.
+ * logo management, and multi-company access functionality.
  */
-import { apiClient } from '../lib/api-client';
+import { apiClient, axiosInstance } from '../lib/api-client';
 
 import type {
   CompanySettingsResponse,
   CompanySettingsUpdate,
   CompanySettingsUpdateResponse,
+  UploadCompanyLogoResponse,
+  RemoveCompanyLogoResponse,
   UserCompaniesResponse,
   SwitchCompanyResponse,
   PinCompanyResponse,
@@ -41,6 +43,45 @@ export const companyApi = {
     return apiClient.patch<CompanySettingsUpdateResponse>(
       '/companies/settings',
       settings,
+    );
+  },
+
+  // ============================================================================
+  // Company Logo Methods
+  // ============================================================================
+
+  /**
+   * Upload or update company logo.
+   * Requires company:update permission.
+   *
+   * @param file - Logo image file to upload
+   * @returns Updated company settings with logo info
+   */
+  uploadLogo: async (file: File): Promise<UploadCompanyLogoResponse> => {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const response = await axiosInstance.post<UploadCompanyLogoResponse>(
+      '/companies/settings/logo',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+    return response.data;
+  },
+
+  /**
+   * Remove company logo.
+   * Requires company:update permission.
+   *
+   * @returns Updated company settings without logo
+   */
+  removeLogo: async (): Promise<RemoveCompanyLogoResponse> => {
+    return apiClient.delete<RemoveCompanyLogoResponse>(
+      '/companies/settings/logo',
     );
   },
 
