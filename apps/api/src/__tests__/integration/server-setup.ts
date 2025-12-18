@@ -1,5 +1,32 @@
 import { beforeAll, afterAll, vi } from 'vitest';
 
+// Mock KMS module BEFORE any imports that use it
+// Note: crypto.randomBytes is called inside the factory to avoid hoisting issues
+vi.mock('../../lib/kms', async () => {
+  const crypto = await import('crypto');
+  const mockPlaintextKey = crypto.randomBytes(32);
+  const mockEncryptedKey = crypto.randomBytes(64).toString('base64');
+
+  return {
+    generateDataKey: vi.fn().mockResolvedValue({
+      plaintextKey: mockPlaintextKey,
+      encryptedKey: mockEncryptedKey,
+    }),
+    decryptDataKey: vi.fn().mockResolvedValue(mockPlaintextKey),
+    isKmsConfigured: vi.fn().mockReturnValue(true),
+    KmsError: class KmsError extends Error {},
+  };
+});
+
+// Mock sharp for image processing (office logo tests)
+vi.mock('sharp', () => ({
+  default: vi.fn(() => ({
+    metadata: vi.fn().mockResolvedValue({ width: 256, height: 256 }),
+    resize: vi.fn().mockReturnThis(),
+    toBuffer: vi.fn().mockResolvedValue(Buffer.from('thumbnail')),
+  })),
+}));
+
 // Mock email service BEFORE any imports that use it to prevent SES API calls
 vi.mock('../../lib/email', () => ({
   isEmailServiceConfigured: vi.fn(() => true),

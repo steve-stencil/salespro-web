@@ -1,8 +1,7 @@
 /**
  * Integration tests for office integrations routes.
+ * KMS is mocked in server-setup.ts
  */
-
-import crypto from 'crypto';
 
 import { v4 as uuid } from 'uuid';
 import {
@@ -31,20 +30,6 @@ import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 
 import { makeRequest, waitForDatabase } from './helpers';
-
-// Generate mock keys for testing
-const mockPlaintextKey = crypto.randomBytes(32);
-const mockEncryptedKey = crypto.randomBytes(64).toString('base64');
-
-// Mock KMS module
-vi.mock('../../lib/kms', () => ({
-  generateDataKey: vi.fn().mockResolvedValue({
-    plaintextKey: mockPlaintextKey,
-    encryptedKey: mockEncryptedKey,
-  }),
-  decryptDataKey: vi.fn().mockResolvedValue(mockPlaintextKey),
-  isKmsConfigured: vi.fn().mockReturnValue(true),
-}));
 
 describe('Office Integrations Routes Integration Tests', () => {
   let testCompany: Company;
@@ -386,8 +371,8 @@ describe('Office Integrations Routes Integration Tests', () => {
       expect(saved).not.toBeNull();
       expect(saved!.encryptedCredentials).toBeDefined();
       expect(saved!.encryptedDataKey).toBeDefined();
-      // Encrypted data key should be the mock value
-      expect(saved!.encryptedDataKey).toBe(mockEncryptedKey);
+      // Encrypted data key should be a base64 string from the mock
+      expect(saved!.encryptedDataKey).toMatch(/^[A-Za-z0-9+/=]+$/);
       // Encrypted credentials should not contain the plaintext
       expect(saved!.encryptedCredentials).not.toContain('secret-api-key-123');
     });

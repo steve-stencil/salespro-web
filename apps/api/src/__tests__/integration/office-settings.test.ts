@@ -1,5 +1,6 @@
 /**
  * Integration tests for office settings routes.
+ * Storage and sharp are mocked in server-setup.ts
  */
 
 import { v4 as uuid } from 'uuid';
@@ -32,44 +33,6 @@ import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 
 import { makeRequest, waitForDatabase } from './helpers';
-
-// Mock storage adapter for tests
-vi.mock('../../lib/storage', () => ({
-  getStorageAdapter: vi.fn(() => ({
-    upload: vi.fn().mockResolvedValue({
-      key: 'test-key',
-      size: 1000,
-      etag: '"abc123"',
-    }),
-    download: vi.fn().mockResolvedValue({
-      // eslint-disable-next-line @typescript-eslint/require-await
-      [Symbol.asyncIterator]: async function* () {
-        yield Buffer.from('test content');
-      },
-    }),
-    delete: vi.fn().mockResolvedValue(undefined),
-    exists: vi.fn().mockResolvedValue(true),
-    getSignedDownloadUrl: vi
-      .fn()
-      .mockResolvedValue('https://example.com/signed-url'),
-  })),
-  isS3Configured: vi.fn().mockReturnValue(true),
-  generateStorageKey: vi.fn(
-    (companyId: string, fileId: string, ext: string) =>
-      `${companyId}/files/${fileId}.${ext}`,
-  ),
-  getFileExtension: vi.fn((filename: string) => filename.split('.').pop()),
-  sanitizeFilename: vi.fn((filename: string) => filename),
-}));
-
-// Mock sharp for image processing
-vi.mock('sharp', () => ({
-  default: vi.fn(() => ({
-    metadata: vi.fn().mockResolvedValue({ width: 256, height: 256 }),
-    resize: vi.fn().mockReturnThis(),
-    toBuffer: vi.fn().mockResolvedValue(Buffer.from('thumbnail')),
-  })),
-}));
 
 describe('Office Settings Routes Integration Tests', () => {
   let testCompany: Company;

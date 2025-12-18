@@ -25,6 +25,8 @@ import {
   RememberMeToken,
   ApiKey,
   File,
+  OfficeSettings,
+  OfficeIntegration,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -55,6 +57,8 @@ const entities = [
   RememberMeToken,
   ApiKey,
   File,
+  OfficeSettings,
+  OfficeIntegration,
 ];
 
 /**
