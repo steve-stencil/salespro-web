@@ -517,12 +517,14 @@ describe('Roles Routes Integration Tests', () => {
 
       // Create session for internal user with activeCompany
       const internalSessionId = uuid();
+      const sessionExpiry = new Date(Date.now() + 86400000);
       const internalSession = em.create(Session, {
         sid: internalSessionId,
         user: internalUser,
         activeCompany: testCompany,
         data: { userId: internalUser.id },
-        expiresAt: new Date(Date.now() + 86400000),
+        expiresAt: sessionExpiry,
+        absoluteExpiresAt: sessionExpiry,
         source: SessionSource.WEB,
       });
       em.persist(internalSession);
@@ -610,12 +612,14 @@ describe('Roles Routes Integration Tests', () => {
 
       // Create session
       const internalSessionId = uuid();
+      const sessionExpiry = new Date(Date.now() + 86400000);
       const internalSession = em.create(Session, {
         sid: internalSessionId,
         user: internalUser,
         activeCompany: testCompany,
         data: { userId: internalUser.id },
-        expiresAt: new Date(Date.now() + 86400000),
+        expiresAt: sessionExpiry,
+        absoluteExpiresAt: sessionExpiry,
         source: SessionSource.WEB,
       });
       em.persist(internalSession);
