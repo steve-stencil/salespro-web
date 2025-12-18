@@ -60,6 +60,17 @@ OAuth 2.0 endpoints:
 | `schemas.ts`          | Zod validation schemas  |
 | `utils.ts`            | OAuth utilities         |
 
+#### `office-settings/`
+
+Office-level settings and integrations:
+
+| File                     | Purpose                                       |
+| ------------------------ | --------------------------------------------- |
+| `index.ts`               | Combined router for settings and integrations |
+| `settings.routes.ts`     | Office settings (logo upload/remove)          |
+| `integrations.routes.ts` | Third-party integration CRUD with encryption  |
+| `schemas.ts`             | Zod validation schemas for integrations       |
+
 ## API Endpoint Reference
 
 ### Health Checks
@@ -124,6 +135,25 @@ OAuth 2.0 endpoints:
 | POST   | `/offices`     | Create office |
 | PATCH  | `/offices/:id` | Update office |
 | DELETE | `/offices/:id` | Delete office |
+
+### Office Settings (`/api/offices/:id/settings`)
+
+| Method | Endpoint                     | Description               |
+| ------ | ---------------------------- | ------------------------- |
+| GET    | `/offices/:id/settings`      | Get office settings       |
+| POST   | `/offices/:id/settings/logo` | Upload/update office logo |
+| DELETE | `/offices/:id/settings/logo` | Remove office logo        |
+
+### Office Integrations (`/api/offices/:id/integrations`)
+
+| Method | Endpoint                         | Description               |
+| ------ | -------------------------------- | ------------------------- |
+| GET    | `/offices/:id/integrations`      | List all integrations     |
+| GET    | `/offices/:id/integrations/:key` | Get specific integration  |
+| PUT    | `/offices/:id/integrations/:key` | Create/update integration |
+| DELETE | `/offices/:id/integrations/:key` | Delete integration        |
+
+**Note:** Integration credentials are encrypted using AWS KMS envelope encryption. Credentials are never returned in API responses; only `hasCredentials: true/false` is included.
 
 ### Files (`/api/files`)
 
