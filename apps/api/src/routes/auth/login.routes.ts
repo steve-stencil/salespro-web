@@ -2,6 +2,7 @@ import crypto from 'crypto';
 
 import { Router } from 'express';
 
+import { UserType } from '../../entities';
 import { getORM } from '../../lib/db';
 import { AuthService, LoginErrorCode } from '../../services';
 import { sendMfaCode } from '../../services/auth/mfa';
@@ -107,8 +108,13 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     if (!result.success) {
-      const status =
-        result.errorCode === LoginErrorCode.ACCOUNT_LOCKED ? 423 : 401;
+      // Map error codes to appropriate HTTP status codes
+      let status = 401;
+      if (result.errorCode === LoginErrorCode.ACCOUNT_LOCKED) {
+        status = 423;
+      } else if (result.errorCode === LoginErrorCode.NO_ACTIVE_COMPANIES) {
+        status = 403;
+      }
       res.status(status).json({
         error: result.error,
         errorCode: result.errorCode,
@@ -188,11 +194,15 @@ router.post('/login', async (req: Request, res: Response) => {
         message: string;
         expiresIn?: number;
         code?: string;
+        activeCompany?: { id: string; name: string };
+        canSwitchCompanies?: boolean;
       } = {
         requiresMfa: true,
         message:
           'MFA verification required. A code has been sent to your email.',
         expiresIn: mfaResult.expiresIn,
+        activeCompany: result.activeCompany,
+        canSwitchCompanies: result.canSwitchCompanies,
       };
 
       // Include code in development mode for testing
@@ -209,7 +219,8 @@ router.post('/login', async (req: Request, res: Response) => {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (result.user && req.session) {
       req.session.userId = result.user.id;
-      req.session.companyId = result.user.company?.id;
+      req.session.companyId =
+        result.activeCompany?.id ?? result.user.company?.id;
     }
 
     // Set session cookie manually since we created the session directly in DB
@@ -230,8 +241,11 @@ router.post('/login', async (req: Request, res: Response) => {
             email: result.user.email,
             nameFirst: result.user.nameFirst,
             nameLast: result.user.nameLast,
+            userType: result.user.userType,
           }
         : undefined,
+      activeCompany: result.activeCompany,
+      canSwitchCompanies: result.canSwitchCompanies,
     });
   } catch (err) {
     req.log.error({ err }, 'Login error');
@@ -281,32 +295,33 @@ router.post('/logout', async (req: Request, res: Response) => {
  */
 router.get('/me', async (req: Request, res: Response) => {
   try {
+    const orm = getORM();
+    const em = orm.em.fork();
+    const { Session, User, UserCompany } = await import('../../entities');
+
     // First try express-session (may be undefined when saveUninitialized: false)
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     let userId = req.session?.userId;
     let mfaVerified = true; // Assume verified unless we find otherwise
+    let activeCompanyId: string | undefined;
 
     // If no session, try to look up session from our custom cookie
-    if (!userId) {
-      const rawCookie = (req.cookies as Record<string, string | undefined>)[
-        'sid'
-      ];
-      const sessionId = rawCookie ? parseSessionIdFromCookie(rawCookie) : null;
-      if (sessionId) {
-        const orm = getORM();
-        const em = orm.em.fork();
-        const { Session } = await import('../../entities');
+    const rawCookie = (req.cookies as Record<string, string | undefined>)[
+      'sid'
+    ];
+    const sessionId = rawCookie ? parseSessionIdFromCookie(rawCookie) : null;
 
-        const session = await em.findOne(
-          Session,
-          { sid: sessionId },
-          { populate: ['user'] },
-        );
+    if (sessionId) {
+      const session = await em.findOne(
+        Session,
+        { sid: sessionId },
+        { populate: ['user', 'activeCompany'] },
+      );
 
-        if (session?.user && !session.isExpired) {
-          userId = session.user.id;
-          mfaVerified = session.mfaVerified;
-        }
+      if (session?.user && !session.isExpired) {
+        userId = session.user.id;
+        mfaVerified = session.mfaVerified;
+        activeCompanyId = session.activeCompany?.id;
       }
     }
 
@@ -322,10 +337,6 @@ router.get('/me', async (req: Request, res: Response) => {
       return;
     }
 
-    const orm = getORM();
-    const em = orm.em.fork();
-    const { User } = await import('../../entities');
-
     const user = await em.findOne(
       User,
       { id: userId },
@@ -337,6 +348,31 @@ router.get('/me', async (req: Request, res: Response) => {
       return;
     }
 
+    // Check if user can switch between multiple companies
+    let canSwitchCompanies = false;
+    if ((user.userType as UserType) === UserType.COMPANY) {
+      const companyCount = await em.count(UserCompany, {
+        user: userId,
+        isActive: true,
+      });
+      canSwitchCompanies = companyCount > 1;
+    }
+
+    // Determine which company to return:
+    // - Use activeCompany from session if available (for multi-company users)
+    // - Fall back to user.company (home company)
+    let companyInfo: { id: string; name: string } | null = null;
+    if (activeCompanyId) {
+      const { Company } = await import('../../entities');
+      const activeCompany = await em.findOne(Company, { id: activeCompanyId });
+      if (activeCompany) {
+        companyInfo = { id: activeCompany.id, name: activeCompany.name };
+      }
+    }
+    if (!companyInfo && user.company) {
+      companyInfo = { id: user.company.id, name: user.company.name };
+    }
+
     res.status(200).json({
       id: user.id,
       email: user.email,
@@ -345,12 +381,8 @@ router.get('/me', async (req: Request, res: Response) => {
       emailVerified: user.emailVerified,
       mfaEnabled: user.mfaEnabled,
       userType: user.userType,
-      company: user.company
-        ? {
-            id: user.company.id,
-            name: user.company.name,
-          }
-        : null,
+      company: companyInfo,
+      canSwitchCompanies,
     });
   } catch (err) {
     req.log.error({ err }, 'Get current user error');

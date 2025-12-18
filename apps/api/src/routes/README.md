@@ -84,13 +84,17 @@ OAuth 2.0 endpoints:
 
 ### Users (`/api/users`)
 
-| Method | Endpoint              | Description            |
-| ------ | --------------------- | ---------------------- |
-| GET    | `/users`              | List users (paginated) |
-| GET    | `/users/:id`          | Get user details       |
-| PATCH  | `/users/:id`          | Update user            |
-| DELETE | `/users/:id`          | Deactivate user        |
-| POST   | `/users/:id/activate` | Activate user          |
+| Method | Endpoint                   | Description                |
+| ------ | -------------------------- | -------------------------- |
+| GET    | `/users`                   | List users (paginated)     |
+| GET    | `/users/:id`               | Get user details           |
+| PATCH  | `/users/:id`               | Update user                |
+| DELETE | `/users/:id`               | Deactivate user            |
+| POST   | `/users/:id/activate`      | Activate user              |
+| GET    | `/users/me/companies`      | List user's companies      |
+| GET    | `/users/me/active-company` | Get current active company |
+| POST   | `/users/me/switch-company` | Switch to another company  |
+| PATCH  | `/users/me/companies/:id`  | Pin/unpin a company        |
 
 ### Invites (`/api/invites`, `/api/users/invites`)
 
@@ -148,6 +152,20 @@ OAuth 2.0 endpoints:
 | GET    | `/platform/companies`      | List all companies    |
 | POST   | `/platform/switch-company` | Switch active company |
 | GET    | `/platform/active-company` | Get active company    |
+
+### Internal Users (`/api/internal-users`) - Platform Admin Only
+
+| Method | Endpoint                                   | Description                      |
+| ------ | ------------------------------------------ | -------------------------------- |
+| GET    | `/internal-users`                          | List internal users              |
+| POST   | `/internal-users`                          | Create internal user             |
+| GET    | `/internal-users/:id`                      | Get internal user details        |
+| PATCH  | `/internal-users/:id`                      | Update internal user             |
+| DELETE | `/internal-users/:id`                      | Soft delete internal user        |
+| GET    | `/internal-users/roles`                    | List platform roles              |
+| GET    | `/internal-users/:id/companies`            | List user's company restrictions |
+| POST   | `/internal-users/:id/companies`            | Add company restriction          |
+| DELETE | `/internal-users/:id/companies/:companyId` | Remove company restriction       |
 
 ## Patterns
 

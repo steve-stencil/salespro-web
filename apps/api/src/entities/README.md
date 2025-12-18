@@ -48,10 +48,12 @@ This folder contains all MikroORM entity definitions for the SalesPro Dashboard 
 
 ### User Management
 
-| Entity                             | Purpose                   |
-| ---------------------------------- | ------------------------- |
-| `UserInvite.entity.ts`             | Pending user invitations  |
-| `EmailVerificationToken.entity.ts` | Email verification tokens |
+| Entity                             | Purpose                                        |
+| ---------------------------------- | ---------------------------------------------- |
+| `UserInvite.entity.ts`             | Pending user invitations                       |
+| `EmailVerificationToken.entity.ts` | Email verification tokens                      |
+| `UserCompany.entity.ts`            | Junction table for multi-company user access   |
+| `InternalUserCompany.entity.ts`    | Restricts internal users to specific companies |
 
 ### MFA (Multi-Factor Authentication)
 
@@ -86,10 +88,14 @@ This folder contains all MikroORM entity definitions for the SalesPro Dashboard 
 Company (1) ──────┬──── (*) User
                   ├──── (*) Role
                   ├──── (*) Office
-                  └──── (*) File
+                  ├──── (*) File
+                  ├──── (*) UserCompany ───────── User (multi-company access)
+                  └──── (*) InternalUserCompany ─ User (internal user restrictions)
 
 User (1) ─────────┬──── (*) UserRole ──── Role
                   ├──── (*) UserOffice ── Office
+                  ├──── (*) UserCompany ── Company (multi-company access)
+                  ├──── (*) InternalUserCompany ── Company (internal restrictions)
                   ├──── (*) Session
                   ├──── (*) LoginEvent
                   └──── (*) File (uploadedBy)

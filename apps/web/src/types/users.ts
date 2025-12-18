@@ -339,6 +339,8 @@ export type CreateInviteResponse = {
       name: string;
     };
     allowedOffices: string[];
+    /** True if this is an invite for an existing user to join another company */
+    isExistingUserInvite?: boolean;
   };
   /** Token returned only in development mode */
   token?: string;
@@ -361,12 +363,15 @@ export type ValidateInviteResponse = {
   valid: boolean;
   email: string;
   companyName: string;
+  /** True if this is an invite for an existing user to join another company */
+  isExistingUserInvite?: boolean;
 };
 
 /** Accept invite request */
 export type AcceptInviteRequest = {
   token: string;
-  password: string;
+  /** Password is required for new users, optional for existing users */
+  password?: string;
   nameFirst?: string;
   nameLast?: string;
 };
@@ -380,6 +385,8 @@ export type AcceptInviteResponse = {
     nameFirst?: string;
     nameLast?: string;
   };
+  /** True if this was an existing user joining a company */
+  isExistingUserInvite?: boolean;
 };
 
 /** Invites list query params */

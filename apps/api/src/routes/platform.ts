@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { Company, Session } from '../entities';
+import { Company, Session, UserCompany } from '../entities';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import {
@@ -48,7 +48,9 @@ const switchCompanySchema = z.object({
 
 /**
  * GET /platform/companies
- * List all companies in the platform.
+ * List companies in the platform that the internal user has access to.
+ * If the internal user has UserCompany records, only those companies are returned (restricted).
+ * If no UserCompany records exist, all companies are returned (unrestricted access).
  * Requires internal user with platform:view_companies permission.
  */
 router.get(
@@ -58,17 +60,34 @@ router.get(
   requirePermission(PERMISSIONS.PLATFORM_VIEW_COMPANIES),
   async (req: Request, res: Response): Promise<void> => {
     try {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      if (!user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
       const orm = getORM();
       const em = orm.em.fork();
 
-      const companies = await em.find(
-        Company,
-        {},
-        {
-          orderBy: { name: 'asc' },
-          fields: ['id', 'name', 'isActive', 'createdAt'],
-        },
+      // Check if user has restricted company access (UserCompany records)
+      const restrictedAccess = await em.find(
+        UserCompany,
+        { user: user.id, isActive: true },
+        { populate: ['company'] },
       );
+
+      let companies: Company[];
+
+      if (restrictedAccess.length > 0) {
+        // User has restricted access - only return allowed companies
+        companies = restrictedAccess
+          .map(uc => uc.company)
+          .sort((a, b) => a.name.localeCompare(b.name));
+      } else {
+        // User has unrestricted access - return all companies
+        companies = await em.find(Company, {}, { orderBy: { name: 'asc' } });
+      }
 
       res.json({
         companies: companies.map(c => ({
@@ -168,6 +187,8 @@ router.get(
 /**
  * POST /platform/switch-company
  * Switch the active company for the internal user.
+ * If the internal user has UserCompany restrictions, they can only
+ * switch to companies they have access to.
  * Requires internal user with platform:switch_company permission.
  */
 router.post(
@@ -177,6 +198,13 @@ router.post(
   requirePermission(PERMISSIONS.PLATFORM_SWITCH_COMPANY),
   async (req: Request, res: Response): Promise<void> => {
     try {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      if (!user) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
       const parseResult = switchCompanySchema.safeParse(req.body);
       if (!parseResult.success) {
         res.status(400).json({
@@ -202,6 +230,31 @@ router.post(
       if (!company.isActive) {
         res.status(400).json({ error: 'Cannot switch to inactive company' });
         return;
+      }
+
+      // Check if user has restricted company access (UserCompany records)
+      const restrictedCount = await em.count(UserCompany, {
+        user: user.id,
+        isActive: true,
+      });
+
+      if (restrictedCount > 0) {
+        // User has restrictions - verify they can access this company
+        const access = await em.findOne(UserCompany, {
+          user: user.id,
+          company: companyId,
+          isActive: true,
+        });
+
+        if (!access) {
+          res
+            .status(403)
+            .json({ error: 'You do not have access to this company' });
+          return;
+        }
+
+        // Update lastAccessedAt for tracking
+        access.lastAccessedAt = new Date();
       }
 
       // Get session ID from cookie

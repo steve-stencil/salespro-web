@@ -255,13 +255,15 @@ describe('Invite Routes Integration Tests', () => {
       expect(response.body.error).toBe('Validation failed');
     });
 
-    it('should return 400 for missing password', async () => {
+    it('should return 400 for missing password with invalid token', async () => {
+      // With password now optional for existing user invites, schema validation passes
+      // But token validation will fail first for invalid tokens
       const response = await makeRequest().post('/api/invites/accept').send({
         token: 'some-token',
       });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('Validation failed');
+      expect(response.body.error).toBe('Invalid invitation token');
     });
 
     it('should return 400 for short password', async () => {
