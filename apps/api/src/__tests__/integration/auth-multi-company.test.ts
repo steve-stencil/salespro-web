@@ -72,7 +72,7 @@ async function createMultiCompanyUser(
     userAgent: 'Test Agent',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     absoluteExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    mfaVerified: false,
+    mfaVerified: true,
   });
   em.persist(session);
 
@@ -139,7 +139,7 @@ async function createSingleCompanyUser(
     userAgent: 'Test Agent',
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     absoluteExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    mfaVerified: false,
+    mfaVerified: true,
   });
   em.persist(session);
 

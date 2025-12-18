@@ -124,7 +124,6 @@ describe('Multi-Company Access Integration Tests', () => {
     // Clean up test data after each test
     const orm = getORM();
     const em = orm.em.fork();
-    await em.nativeDelete('internal_user_company', {});
     await em.nativeDelete('user_company', {});
     await em.nativeDelete('user_invite', {});
     await em.nativeDelete('user_office', {});
