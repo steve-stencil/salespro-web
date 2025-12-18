@@ -235,10 +235,32 @@ async function clearSeedData(
     log(`Removed existing user: ${user.email}`, 'warn');
   }
 
-  // Then remove the companies
+  // Then remove the companies (need to delete related records first due to FK)
   for (const companyConfig of seedConfig.companies) {
     const company = await em.findOne(Company, { name: companyConfig.name });
     if (company) {
+      // Delete all UserCompany records for this company (from any user)
+      const ucDeleted = await em.nativeDelete(UserCompany, {
+        company: company.id,
+      });
+      if (ucDeleted > 0) {
+        log(
+          `Removed ${ucDeleted} user-company memberships for: ${company.name}`,
+          'warn',
+        );
+      }
+
+      // Delete offices associated with this company
+      const officesDeleted = await em.nativeDelete(Office, {
+        company: company.id,
+      });
+      if (officesDeleted > 0) {
+        log(
+          `Removed ${officesDeleted} offices for company: ${company.name}`,
+          'warn',
+        );
+      }
+
       em.remove(company);
       log(`Removed existing company: ${company.name}`, 'warn');
     }
