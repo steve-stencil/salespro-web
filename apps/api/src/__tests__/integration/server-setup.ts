@@ -23,7 +23,8 @@ vi.mock('../../lib/email', () => ({
 
 // Mock storage service to enable S3 presigned URL tests without actual S3 config
 vi.mock('../../lib/storage', async importOriginal => {
-  const original = await importOriginal();
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+  const original = await importOriginal<typeof import('../../lib/storage')>();
   return {
     ...original,
     isS3Configured: vi.fn(() => true),
