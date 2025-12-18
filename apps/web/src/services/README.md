@@ -6,13 +6,14 @@ This folder contains API service modules that encapsulate HTTP requests to the b
 
 ## Structure
 
-| Service      | Purpose                                                 |
-| ------------ | ------------------------------------------------------- |
-| `auth.ts`    | Authentication API (login, logout, password reset, MFA) |
-| `company.ts` | Company settings API                                    |
-| `offices.ts` | Office management API                                   |
-| `roles.ts`   | Role and permission API                                 |
-| `users.ts`   | User management API                                     |
+| Service              | Purpose                                                 |
+| -------------------- | ------------------------------------------------------- |
+| `auth.ts`            | Authentication API (login, logout, password reset, MFA) |
+| `company.ts`         | Company settings API                                    |
+| `offices.ts`         | Office management API                                   |
+| `office-settings.ts` | Office settings and logo management API                 |
+| `roles.ts`           | Role and permission API                                 |
+| `users.ts`           | User management API                                     |
 
 ## Service Reference
 
@@ -104,6 +105,27 @@ await officesApi.update(officeId, { name: 'HQ' });
 
 // Delete office
 await officesApi.delete(officeId);
+```
+
+### officeSettingsApi
+
+Office settings and logo management.
+
+```typescript
+import { officeSettingsApi } from '../services/office-settings';
+
+// Get office settings
+const { settings } = await officeSettingsApi.getSettings(officeId);
+
+// Upload logo
+const logoFile = new File(['...'], 'logo.png', { type: 'image/png' });
+const { settings: updated } = await officeSettingsApi.uploadLogo(
+  officeId,
+  logoFile,
+);
+
+// Remove logo
+await officeSettingsApi.removeLogo(officeId);
 ```
 
 ### companyApi

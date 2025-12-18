@@ -23,13 +23,16 @@ This folder contains reusable React components for the SalesPro Dashboard. Compo
 
 Office management components:
 
-| Component                | Purpose                      |
-| ------------------------ | ---------------------------- |
-| `index.ts`               | Component exports            |
-| `OfficeCard.tsx`         | Office display card          |
-| `OfficeDeleteDialog.tsx` | Office deletion confirmation |
-| `OfficeEditDialog.tsx`   | Office create/edit form      |
-| `OfficeFilters.tsx`      | Office list filtering        |
+| Component                  | Purpose                           |
+| -------------------------- | --------------------------------- |
+| `index.ts`                 | Component exports                 |
+| `OfficeCard.tsx`           | Office display card with logo     |
+| `OfficeDeleteDialog.tsx`   | Office deletion confirmation      |
+| `OfficeEditDialog.tsx`     | Office create/edit form           |
+| `OfficeFilters.tsx`        | Office list filtering             |
+| `OfficeLogo.tsx`           | Office logo display with fallback |
+| `OfficeLogoUpload.tsx`     | Logo upload with drag & drop      |
+| `OfficeSettingsDialog.tsx` | Office settings management dialog |
 
 #### `roles/`
 
