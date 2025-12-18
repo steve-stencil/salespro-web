@@ -78,6 +78,16 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+/** Platform navigation items - for internal users only */
+const PLATFORM_NAV_ITEMS: NavItem[] = [
+  {
+    label: 'Internal Users',
+    path: '/platform/internal-users',
+    icon: <PeopleIcon />,
+    permission: PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
+  },
+];
+
 type SidebarProps = {
   mobileOpen: boolean;
   onMobileClose: () => void;
@@ -128,6 +138,16 @@ function DrawerContent(): React.ReactElement {
    */
   const visibleAdminItems = useMemo(() => {
     return ADMIN_NAV_ITEMS.filter(item => {
+      if (!item.permission) return true;
+      return hasPermission(item.permission);
+    });
+  }, [hasPermission]);
+
+  /**
+   * Filter platform navigation items based on user permissions.
+   */
+  const visiblePlatformItems = useMemo(() => {
+    return PLATFORM_NAV_ITEMS.filter(item => {
       if (!item.permission) return true;
       return hasPermission(item.permission);
     });
@@ -255,6 +275,79 @@ function DrawerContent(): React.ReactElement {
                           },
                           '& .MuiListItemIcon-root': {
                             color: 'primary.contrastText',
+                          },
+                        },
+                      }}
+                    >
+                      <ListItemIcon
+                        sx={{
+                          minWidth: 40,
+                          color: isActive ? 'inherit' : 'text.secondary',
+                        }}
+                      >
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontWeight: isActive ? 600 : 400,
+                        }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Box>
+        </>
+      )}
+
+      {/* Platform Section - Only shown if user has platform permissions */}
+      {!isLoading && visiblePlatformItems.length > 0 && (
+        <>
+          <Divider />
+          <Box sx={{ px: 1, py: 2 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                mb: 1,
+              }}
+            >
+              <AdminPanelSettingsIcon
+                sx={{ fontSize: 18, color: 'warning.main' }}
+              />
+              <Typography
+                variant="caption"
+                color="warning.main"
+                fontWeight={600}
+                sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Platform
+              </Typography>
+            </Box>
+            <List disablePadding data-testid="platform-nav-list">
+              {visiblePlatformItems.map(item => {
+                const isActive = location.pathname === item.path;
+
+                return (
+                  <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemButton
+                      onClick={() => handleNavClick(item.path)}
+                      selected={isActive}
+                      data-testid={`nav-item-${item.path.replace(/\//g, '-').slice(1)}`}
+                      sx={{
+                        borderRadius: 2,
+                        '&.Mui-selected': {
+                          bgcolor: 'warning.main',
+                          color: 'warning.contrastText',
+                          '&:hover': {
+                            bgcolor: 'warning.dark',
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: 'warning.contrastText',
                           },
                         },
                       }}

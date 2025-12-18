@@ -6,6 +6,16 @@
 // Internal User Types
 // ============================================================================
 
+/** Platform role info */
+export type PlatformRole = {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  companyAccessLevel?: 'full' | 'restricted' | 'readonly';
+  permissions?: string[];
+};
+
 /** Internal user in list view */
 export type InternalUserListItem = {
   id: string;
@@ -13,23 +23,79 @@ export type InternalUserListItem = {
   nameFirst?: string;
   nameLast?: string;
   isActive: boolean;
-  mfaEnabled: boolean;
-  emailVerified: boolean;
-  accessLevel: 'full' | 'restricted' | 'readonly';
-  lastLoginDate?: string;
   createdAt: string;
+  lastLoginDate?: string;
+  platformRole: PlatformRole | null;
 };
 
 /** Full internal user details */
 export type InternalUserDetail = {
-  needsResetPassword: boolean;
+  id: string;
+  email: string;
+  nameFirst?: string;
+  nameLast?: string;
+  isActive: boolean;
+  createdAt: string;
   updatedAt: string;
-  roles: {
-    id: string;
-    name: string;
-    displayName: string;
-  }[];
-} & InternalUserListItem;
+  lastLoginDate?: string;
+  platformRole: PlatformRole | null;
+};
+
+// ============================================================================
+// Internal User API Request/Response Types
+// ============================================================================
+
+/** Response from GET /internal-users */
+export type InternalUsersListResponse = {
+  users: InternalUserListItem[];
+  total: number;
+};
+
+/** Response from GET /internal-users/:id */
+export type InternalUserDetailResponse = InternalUserDetail;
+
+/** Response from GET /internal-users/roles */
+export type PlatformRolesResponse = {
+  roles: PlatformRole[];
+};
+
+/** Request body for POST /internal-users */
+export type CreateInternalUserRequest = {
+  email: string;
+  password: string;
+  nameFirst?: string;
+  nameLast?: string;
+  platformRoleId: string;
+};
+
+/** Response from POST /internal-users */
+export type CreateInternalUserResponse = {
+  id: string;
+  email: string;
+  nameFirst?: string;
+  nameLast?: string;
+  isActive: boolean;
+  platformRole: PlatformRole;
+};
+
+/** Request body for PATCH /internal-users/:id */
+export type UpdateInternalUserRequest = {
+  email?: string;
+  nameFirst?: string;
+  nameLast?: string;
+  isActive?: boolean;
+  platformRoleId?: string;
+};
+
+/** Response from PATCH /internal-users/:id */
+export type UpdateInternalUserResponse = {
+  id: string;
+  email: string;
+  nameFirst?: string;
+  nameLast?: string;
+  isActive: boolean;
+  platformRole: PlatformRole | null;
+};
 
 // ============================================================================
 // Internal User Company Access Types
