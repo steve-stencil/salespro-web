@@ -45,5 +45,9 @@ export { ApiKey } from './ApiKey.entity';
 // File entities
 export { File } from './File.entity';
 
+// Office settings entities
+export { OfficeSettings } from './OfficeSettings.entity';
+export { OfficeIntegration } from './OfficeIntegration.entity';
+
 // Types and enums
 export * from './types';

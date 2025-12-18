@@ -42,6 +42,10 @@ S3_REGION="us-east-1"  # defaults to AWS_REGION if not set
 # File Upload Limits
 MAX_FILE_SIZE_MB=10  # Maximum file size in MB (default: 10)
 ALLOWED_FILE_TYPES="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+
+# AWS KMS (required for integration credentials)
+# Can be key ID, ARN, alias name, or alias ARN
+KMS_KEY_ID="alias/salespro-credentials"
 ```
 
 ### Database Setup
@@ -156,6 +160,62 @@ Files support three visibility levels:
 - `file:create` - Upload files
 - `file:update` - Update file metadata
 - `file:delete` - Delete files
+
+### Office Settings System
+
+The API includes office-level settings for managing logos and third-party integrations.
+
+#### Office Settings Endpoints
+
+| Method | Endpoint                         | Description               |
+| ------ | -------------------------------- | ------------------------- |
+| GET    | `/api/offices/:id/settings`      | Get office settings       |
+| POST   | `/api/offices/:id/settings/logo` | Upload/update office logo |
+| DELETE | `/api/offices/:id/settings/logo` | Remove office logo        |
+
+**Required Permissions:** `office:read` for GET, `settings:update` for POST/DELETE
+
+#### Office Integrations Endpoints
+
+| Method | Endpoint                             | Description               |
+| ------ | ------------------------------------ | ------------------------- |
+| GET    | `/api/offices/:id/integrations`      | List all integrations     |
+| GET    | `/api/offices/:id/integrations/:key` | Get specific integration  |
+| PUT    | `/api/offices/:id/integrations/:key` | Create/update integration |
+| DELETE | `/api/offices/:id/integrations/:key` | Delete integration        |
+
+**Required Permissions:** `settings:read` for GET, `settings:update` for PUT/DELETE
+
+#### Integration Credentials
+
+Integration credentials are encrypted using AWS KMS envelope encryption:
+
+- KMS generates unique data keys for each integration
+- Data is encrypted locally with AES-256-GCM
+- Master key never leaves AWS HSM
+- Automatic key rotation supported
+
+The `KMS_KEY_ID` environment variable is required for credential storage.
+
+Example integration request:
+
+```json
+{
+  "displayName": "Salesforce CRM",
+  "credentials": {
+    "clientId": "xxx",
+    "clientSecret": "yyy"
+  },
+  "config": {
+    "instanceUrl": "https://mycompany.salesforce.com"
+  },
+  "isEnabled": true
+}
+```
+
+**Note:** Credentials are never returned in API responses. Only `hasCredentials: true/false` is returned.
+
+See [ADR-001: Credential Encryption](../../docs/adr/ADR-001-credential-encryption.md) for encryption architecture.
 
 ### Shared packages
 

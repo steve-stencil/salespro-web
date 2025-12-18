@@ -3,12 +3,17 @@ import {
   PrimaryKey,
   Property,
   ManyToOne,
+  OneToOne,
+  OneToMany,
+  Collection,
   Index,
   Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
 import type { Company } from './Company.entity';
+import type { OfficeIntegration } from './OfficeIntegration.entity';
+import type { OfficeSettings } from './OfficeSettings.entity';
 
 /**
  * Office entity representing a named grouping within a Company.
@@ -40,4 +45,12 @@ export class Office {
 
   @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Opt<Date> = new Date();
+
+  /** Office settings (logo, branding, etc.) */
+  @OneToOne('OfficeSettings', 'office', { nullable: true })
+  settings?: OfficeSettings;
+
+  /** Third-party integrations for this office */
+  @OneToMany('OfficeIntegration', 'office')
+  integrations = new Collection<OfficeIntegration>(this);
 }

@@ -58,10 +58,11 @@ Use lowercase with hyphens for the title portion.
 
 ## Index of ADRs
 
-| ADR                                         | Title               | Status   | Date       |
-| ------------------------------------------- | ------------------- | -------- | ---------- |
-| [ADR-000](ADR-000-template.md)              | ADR Template        | Accepted | 2024-12-16 |
-| [ADR-001](./ADR-001-mfa-trusted-devices.md) | MFA Trusted Devices | Accepted | 2024-12-16 |
+| ADR                                           | Title                                   | Status   | Date       |
+| --------------------------------------------- | --------------------------------------- | -------- | ---------- |
+| [ADR-000](ADR-000-template.md)                | ADR Template                            | Accepted | 2024-12-16 |
+| [ADR-001](./ADR-001-mfa-trusted-devices.md)   | MFA Trusted Devices                     | Accepted | 2024-12-16 |
+| [ADR-002](./ADR-002-credential-encryption.md) | Credential Encryption with Key Rotation | Accepted | 2024-12-16 |
 
 <!-- Add new ADRs to this table as they are created -->
 

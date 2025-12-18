@@ -43,6 +43,27 @@ File management service:
 | `queries.ts`   | File query builders             |
 | `thumbnail.ts` | Image thumbnail generation      |
 
+#### `office-settings/`
+
+Office settings management:
+
+| File        | Purpose                                 |
+| ----------- | --------------------------------------- |
+| `index.ts`  | OfficeSettingsService class and exports |
+| `types.ts`  | Settings type definitions and errors    |
+| `config.ts` | Logo validation configuration           |
+
+#### `office-integration/`
+
+Third-party integration management with encryption:
+
+| File       | Purpose                                    |
+| ---------- | ------------------------------------------ |
+| `index.ts` | OfficeIntegrationService class and exports |
+| `types.ts` | Integration type definitions and errors    |
+
+**Note:** Uses AWS KMS envelope encryption for credential storage. See [ADR-002](../../../docs/adr/ADR-002-credential-encryption.md).
+
 ## Patterns
 
 ### Using AuthService
@@ -167,6 +188,64 @@ const { user } = await acceptInvite(em, {
   lastName: 'Doe',
   password: 'securePassword123',
 });
+```
+
+### Using OfficeSettingsService
+
+```typescript
+import { OfficeSettingsService } from '../services';
+
+const settingsService = new OfficeSettingsService(em);
+
+// Get settings (creates if not exists)
+const settings = await settingsService.getSettings(officeId, companyId);
+
+// Upload logo
+const updated = await settingsService.updateLogo({
+  officeId,
+  companyId,
+  file: { buffer, filename: 'logo.png', mimeType: 'image/png' },
+  user: { id: userId, company: { id: companyId } },
+});
+
+// Remove logo
+await settingsService.removeLogo(officeId, companyId);
+```
+
+### Using OfficeIntegrationService
+
+```typescript
+import { OfficeIntegrationService } from '../services';
+
+const integrationService = new OfficeIntegrationService(em);
+
+// List integrations
+const integrations = await integrationService.listIntegrations(
+  officeId,
+  companyId,
+  { enabledOnly: true },
+);
+
+// Create/update integration with encrypted credentials
+const integration = await integrationService.upsertIntegration({
+  officeId,
+  companyId,
+  integrationKey: 'salesforce',
+  displayName: 'Salesforce CRM',
+  credentials: { clientId: 'xxx', clientSecret: 'yyy' },
+  config: { instanceUrl: 'https://mycompany.salesforce.com' },
+  isEnabled: true,
+});
+
+// Get integration with decrypted credentials (use sparingly)
+const withCreds = await integrationService.getDecryptedCredentials(
+  officeId,
+  companyId,
+  'salesforce',
+);
+
+// Delete integration
+await integrationService.deleteIntegration(officeId, companyId, 'salesforce');
 ```
 
 ## Service Design Principles

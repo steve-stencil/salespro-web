@@ -6,11 +6,15 @@ import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import { requireAuth, requirePermission } from '../middleware';
 
+import officeSettingsRoutes from './office-settings';
+
 import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
 
+// Mount office settings and integrations routes under /:id
+router.use('/:id', officeSettingsRoutes);
 // ============================================================================
 // Validation Schemas
 // ============================================================================

@@ -14,7 +14,9 @@ This folder contains shared utility libraries, helpers, and core infrastructure 
 | `db.ts`              | Database connection and MikroORM initialization           |
 | `email.ts`           | Email sending service (AWS SES integration)               |
 | `email-templates.ts` | HTML email templates for various notifications            |
+| `encryption.ts`      | AES-256-GCM encryption for use with KMS data keys         |
 | `errors.ts`          | Custom error classes and error handling utilities         |
+| `kms.ts`             | AWS Key Management Service for envelope encryption        |
 | `permissions.ts`     | RBAC permission constants and metadata                    |
 
 ### Subfolders
@@ -72,6 +74,39 @@ const isValid = await verifyPassword('user-password', hash);
 // Generate secure tokens
 const token = generateSecureToken(32); // 32 bytes of entropy
 ```
+
+### Using KMS Encryption
+
+```typescript
+import { generateDataKey, decryptDataKey, isKmsConfigured } from '../lib/kms';
+
+// Generate a new data key for encryption
+const { plaintextKey, encryptedKey } = await generateDataKey();
+
+// Decrypt a stored data key
+const plaintextKey = await decryptDataKey(encryptedKey);
+```
+
+**Features:**
+
+- Master key never leaves AWS HSM
+- Automatic key rotation support
+- Full audit trail in CloudTrail
+- IAM-based access control
+
+### Using Local AES Encryption
+
+```typescript
+import { encrypt, decrypt, generateRandomKey } from '../lib/encryption';
+
+// Encrypt with a data key from KMS
+const ciphertext = encrypt(plaintext, dataKey);
+const plaintext = decrypt(ciphertext, dataKey);
+```
+
+**Ciphertext Format:** `{iv}:{authTag}:{encrypted}` (all base64)
+
+See [ADR-001](../../../docs/adr/ADR-001-credential-encryption.md) for architecture details.
 
 ### Using the Permission System
 
@@ -145,10 +180,23 @@ await sendEmail({
 });
 ```
 
+## Environment Variables
+
+| Variable         | Description                         | Required       |
+| ---------------- | ----------------------------------- | -------------- |
+| `DATABASE_URL`   | PostgreSQL connection string        | Yes            |
+| `SESSION_SECRET` | Secret for session cookies          | Production     |
+| `KMS_KEY_ID`     | AWS KMS key ID/alias for encryption | Production     |
+| `AWS_REGION`     | AWS region for KMS/SES/S3           | Yes            |
+| `AWS_PROFILE`    | AWS profile for credentials         | Local dev      |
+| `SES_FROM_EMAIL` | Verified sender email               | For email      |
+| `S3_BUCKET`      | S3 bucket name                      | For S3 storage |
+
 ## Dependencies
 
 - **argon2** - Password hashing
 - **otplib** - TOTP generation and verification
+- **@aws-sdk/client-kms** - KMS encryption
 - **@aws-sdk/client-ses** - Email sending
 - **@aws-sdk/client-s3** - File storage
 - **express-session** - Session middleware
@@ -159,3 +207,4 @@ await sendEmail({
 - [Middleware](../middleware/README.md) - Uses lib utilities
 - [Services](../services/README.md) - Uses lib utilities
 - [Configuration](../config/) - Environment-based configuration
+- [ADR-001: Credential Encryption](../../../docs/adr/ADR-001-credential-encryption.md)
