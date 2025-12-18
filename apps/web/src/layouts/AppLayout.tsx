@@ -122,7 +122,7 @@ export function AppLayout(): React.ReactElement {
                     color="text.secondary"
                     sx={{ lineHeight: 1.2 }}
                   >
-                    {user?.company.name}
+                    {user?.company?.name}
                   </Typography>
                 </Box>
               </Box>
