@@ -5,6 +5,7 @@ import {
   Enum,
   Collection,
   OneToMany,
+  ManyToOne,
   Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
@@ -15,6 +16,7 @@ import {
   DEFAULT_PASSWORD_POLICY,
 } from './types';
 
+import type { File } from './File.entity';
 import type { PasswordPolicy } from './types';
 import type { User } from './User.entity';
 import type { UserCompany } from './UserCompany.entity';
@@ -54,6 +56,10 @@ export class Company {
   /** Require MFA for all users in this company */
   @Property({ type: 'boolean' })
   mfaRequired: Opt<boolean> = false;
+
+  /** Company logo file reference (nullable - company may not have a logo) */
+  @ManyToOne('File', { nullable: true })
+  logoFile?: File;
 
   @Property({ type: 'boolean' })
   isActive: Opt<boolean> = true;
