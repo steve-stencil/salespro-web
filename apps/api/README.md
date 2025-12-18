@@ -74,8 +74,15 @@ pnpm db:seed
 
 This creates:
 
-- **Company**: "SalesPro Demo Company" (Professional tier)
+- **Companies**: "SalesPro Demo Company" and "Acme Corporation"
 - **Admin User**: `admin@salespro.dev` / `SalesProAdmin123!`
+
+**Generate additional test data:**
+
+```bash
+# Create offices, users, and roles for testing
+pnpm db:seed --offices 5 --users 20 --roles 3
+```
 
 To reseed (clear and recreate):
 

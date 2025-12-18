@@ -78,6 +78,48 @@ SEED_ADMIN_EMAIL=myemail@example.com SEED_ADMIN_PASSWORD=MySecurePass123! pnpm d
 | CLI     | `--email`          | `--password`          |
 | Env Var | `SEED_ADMIN_EMAIL` | `SEED_ADMIN_PASSWORD` |
 
+### Generate Additional Seed Data
+
+For testing pagination, list views, and realistic scenarios, you can generate additional offices, users, and roles:
+
+```bash
+pnpm db:seed --offices 5 --users 20 --roles 3
+```
+
+**Available options:**
+
+| Option      | Description                             | Default |
+| ----------- | --------------------------------------- | ------- |
+| `--offices` | Number of offices to create per company | 0       |
+| `--users`   | Number of additional users per company  | 0       |
+| `--roles`   | Number of custom roles per company      | 0       |
+
+**Example with all options:**
+
+```bash
+pnpm db:seed --force \
+  --email admin@example.com \
+  --password MyPass123! \
+  --offices 5 \
+  --users 20 \
+  --roles 3
+```
+
+This creates:
+
+- 2 companies (SalesPro Demo Company, Acme Corporation)
+- 1 admin user with the specified credentials
+- 5 offices per company (Downtown Office, Midtown Office, etc.)
+- 20 additional users per company (random names, assigned to random offices)
+- 3 custom roles per company (Sales Rep, Sales Manager, Account Manager)
+
+**Additional user details:**
+
+- Email format: `firstname.lastname{index}.{companyslug}@example.com`
+- Default password: `Password123!`
+- 90% are active, 80% have verified emails
+- Each user is assigned to a random office and role
+
 ### Force Reseed
 
 If seed data already exists, you can force a reseed:

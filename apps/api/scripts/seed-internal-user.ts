@@ -508,6 +508,31 @@ async function assignUserToOffice(
 }
 
 /**
+ * Create UserCompany membership (required for login)
+ */
+async function createUserCompanyMembership(
+  orm: MikroORM,
+  user: User,
+  company: Company,
+): Promise<UserCompany> {
+  const em = orm.em.fork();
+
+  const userRef = em.getReference(User, user.id);
+  const companyRef = em.getReference(Company, company.id);
+
+  const userCompany = new UserCompany();
+  userCompany.user = userRef;
+  userCompany.company = companyRef;
+  userCompany.isActive = true;
+  userCompany.isPinned = true;
+  userCompany.joinedAt = new Date();
+  userCompany.lastAccessedAt = new Date();
+
+  await em.persistAndFlush(userCompany);
+  return userCompany;
+}
+
+/**
  * Print seed summary
  */
 function printSummary(
@@ -645,6 +670,11 @@ async function seed(): Promise<void> {
     log('Creating internal platform user...', 'info');
     const user = await createInternalUser(orm, company, seedConfig);
     log(`Internal user created: ${user.email}`, 'success');
+
+    // Create UserCompany membership (required for login)
+    log('Creating company membership...', 'info');
+    await createUserCompanyMembership(orm, user, company);
+    log('Company membership created', 'success');
 
     // Assign platform role to user (for platform operations)
     log('Assigning platform admin role...', 'info');
