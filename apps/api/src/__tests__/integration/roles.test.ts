@@ -461,6 +461,187 @@ describe('Roles Routes Integration Tests', () => {
 
       expect(response.status).toBe(401);
     });
+
+    it('should return platform permissions for internal users', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Create a platform role with platform permissions
+      const platformRole = em.create(Role, {
+        id: uuid(),
+        name: `platformRole-${Date.now()}`,
+        displayName: 'Platform Role',
+        type: RoleType.PLATFORM,
+        companyAccessLevel: CompanyAccessLevel.FULL,
+        permissions: [
+          'platform:admin',
+          'platform:view_companies',
+          'platform:manage_internal_users',
+        ],
+      });
+      em.persist(platformRole);
+
+      // Create internal user
+      const internalUser = em.create(User, {
+        id: uuid(),
+        email: `internal-${Date.now()}@test.com`,
+        passwordHash: await hashPassword('TestPassword123!'),
+        nameFirst: 'Internal',
+        nameLast: 'User',
+        isActive: true,
+        emailVerified: true,
+        mfaEnabled: false,
+        userType: UserType.INTERNAL,
+        company: testCompany,
+      });
+      em.persist(internalUser);
+      await em.flush();
+
+      // Assign platform role to internal user (no company context)
+      const platformUserRole = em.create(UserRole, {
+        user: internalUser,
+        role: platformRole,
+        assignedAt: new Date(),
+      });
+      em.persist(platformUserRole);
+
+      // Also assign company role for company-level access
+      const companyUserRole = em.create(UserRole, {
+        user: internalUser,
+        role: adminRole,
+        company: testCompany,
+        assignedAt: new Date(),
+      });
+      em.persist(companyUserRole);
+      await em.flush();
+
+      // Create session for internal user with activeCompany
+      const internalSessionId = uuid();
+      const internalSession = em.create(Session, {
+        sid: internalSessionId,
+        user: internalUser,
+        activeCompany: testCompany,
+        data: { userId: internalUser.id },
+        expiresAt: new Date(Date.now() + 86400000),
+        source: SessionSource.WEB,
+      });
+      em.persist(internalSession);
+      await em.flush();
+
+      const internalCookie = `sid=s%3A${internalSessionId}.fakesignature`;
+
+      // Make request as internal user
+      const response = await makeRequest()
+        .get('/api/roles/me')
+        .set('Cookie', internalCookie);
+
+      expect(response.status).toBe(200);
+
+      // Should include both company and platform permissions
+      expect(response.body.permissions).toBeDefined();
+      expect(response.body.permissions).toContain('platform:admin');
+      expect(response.body.permissions).toContain('platform:view_companies');
+      expect(response.body.permissions).toContain(
+        'platform:manage_internal_users',
+      );
+
+      // Should include both roles
+      expect(response.body.roles).toBeDefined();
+      const hasPlatformRole = response.body.roles.some(
+        (r: { type: string }) => r.type === 'platform',
+      );
+      expect(hasPlatformRole).toBe(true);
+
+      // Cleanup
+      await em.nativeDelete(Session, { sid: internalSessionId });
+      await em.nativeDelete(UserRole, { user: internalUser.id });
+      await em.nativeDelete(User, { id: internalUser.id });
+      await em.nativeDelete(Role, { id: platformRole.id });
+    });
+
+    it('should include platform role in roles array for internal users', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Create a platform role
+      const platformRole = em.create(Role, {
+        id: uuid(),
+        name: `platformRole2-${Date.now()}`,
+        displayName: 'Platform Role 2',
+        type: RoleType.PLATFORM,
+        companyAccessLevel: CompanyAccessLevel.FULL,
+        permissions: ['platform:view_companies'],
+      });
+      em.persist(platformRole);
+
+      // Create internal user
+      const internalUser = em.create(User, {
+        id: uuid(),
+        email: `internal2-${Date.now()}@test.com`,
+        passwordHash: await hashPassword('TestPassword123!'),
+        nameFirst: 'Internal',
+        nameLast: 'User2',
+        isActive: true,
+        emailVerified: true,
+        mfaEnabled: false,
+        userType: UserType.INTERNAL,
+        company: testCompany,
+      });
+      em.persist(internalUser);
+      await em.flush();
+
+      // Assign platform role
+      const platformUserRole = em.create(UserRole, {
+        user: internalUser,
+        role: platformRole,
+        assignedAt: new Date(),
+      });
+      em.persist(platformUserRole);
+
+      // Assign company role
+      const companyUserRole = em.create(UserRole, {
+        user: internalUser,
+        role: adminRole,
+        company: testCompany,
+        assignedAt: new Date(),
+      });
+      em.persist(companyUserRole);
+      await em.flush();
+
+      // Create session
+      const internalSessionId = uuid();
+      const internalSession = em.create(Session, {
+        sid: internalSessionId,
+        user: internalUser,
+        activeCompany: testCompany,
+        data: { userId: internalUser.id },
+        expiresAt: new Date(Date.now() + 86400000),
+        source: SessionSource.WEB,
+      });
+      em.persist(internalSession);
+      await em.flush();
+
+      const internalCookie = `sid=s%3A${internalSessionId}.fakesignature`;
+
+      const response = await makeRequest()
+        .get('/api/roles/me')
+        .set('Cookie', internalCookie);
+
+      expect(response.status).toBe(200);
+
+      // Verify platform role is in the response
+      const platformRoleInResponse = response.body.roles.find(
+        (r: { name: string }) => r.name === platformRole.name,
+      );
+      expect(platformRoleInResponse).toBeDefined();
+      expect(platformRoleInResponse.type).toBe('platform');
+
+      // Cleanup
+      await em.nativeDelete(Session, { sid: internalSessionId });
+      await em.nativeDelete(UserRole, { user: internalUser.id });
+      await em.nativeDelete(User, { id: internalUser.id });
+      await em.nativeDelete(Role, { id: platformRole.id });
+    });
   });
 
   describe('GET /api/roles/users/:userId', () => {
