@@ -6,6 +6,10 @@ import {
   LoginEventType,
   UserType,
   UserCompany,
+  UserRole,
+  Company,
+  RoleType,
+  CompanyAccessLevel,
 } from '../../entities';
 import { verifyPassword } from '../../lib/crypto';
 
@@ -18,7 +22,7 @@ import {
 import { LoginErrorCode } from './types';
 
 import type { LoginParams, LoginResult, ActiveCompanyInfo } from './types';
-import type { Company, SessionSource } from '../../entities';
+import type { SessionSource } from '../../entities';
 import type { EntityManager } from '@mikro-orm/core';
 
 /**
@@ -162,8 +166,43 @@ export async function login(
       };
     }
   } else {
-    // For internal users, use their home company if set
+    // For internal users, check their platform role's company access level
     activeCompany = user.company;
+
+    // Get the user's platform role to check companyAccessLevel
+    const platformRoleAssignment = await em.findOne(
+      UserRole,
+      { user: user.id, role: { type: RoleType.PLATFORM } },
+      { populate: ['role'] },
+    );
+
+    const hasFullAccess =
+      platformRoleAssignment?.role.companyAccessLevel ===
+      CompanyAccessLevel.FULL;
+
+    if (hasFullAccess) {
+      // User has FULL access - they can switch to any company
+      const totalCompanies = await em.count(Company, {});
+      canSwitchCompanies = totalCompanies > 1;
+    } else {
+      // Check UserCompany records for restricted internal users
+      const activeUserCompanies = await em.find(
+        UserCompany,
+        { user: user.id, isActive: true },
+        { populate: ['company'] },
+      );
+      canSwitchCompanies = activeUserCompanies.length > 1;
+
+      // If they have UserCompany records, use the most recent one
+      if (activeUserCompanies.length > 0) {
+        const sorted = activeUserCompanies.sort((a, b) => {
+          const aTime = a.lastAccessedAt?.getTime() ?? 0;
+          const bTime = b.lastAccessedAt?.getTime() ?? 0;
+          return bTime - aTime;
+        });
+        activeCompany = sorted[0]?.company ?? user.company;
+      }
+    }
   }
 
   if (user.mfaEnabled || activeCompany?.mfaRequired) {

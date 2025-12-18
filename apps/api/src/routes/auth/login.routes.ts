@@ -2,7 +2,13 @@ import crypto from 'crypto';
 
 import { Router } from 'express';
 
-import { UserType } from '../../entities';
+import {
+  UserType,
+  RoleType,
+  CompanyAccessLevel,
+  UserRole,
+  Company,
+} from '../../entities';
 import { getORM } from '../../lib/db';
 import { AuthService, LoginErrorCode } from '../../services';
 import { sendMfaCode } from '../../services/auth/mfa';
@@ -356,6 +362,30 @@ router.get('/me', async (req: Request, res: Response) => {
         isActive: true,
       });
       canSwitchCompanies = companyCount > 1;
+    } else if ((user.userType as UserType) === UserType.INTERNAL) {
+      // For internal users, check their platform role's company access level
+      const platformRoleAssignment = await em.findOne(
+        UserRole,
+        { user: userId, role: { type: RoleType.PLATFORM } },
+        { populate: ['role'] },
+      );
+
+      const hasFullAccess =
+        platformRoleAssignment?.role.companyAccessLevel ===
+        CompanyAccessLevel.FULL;
+
+      if (hasFullAccess) {
+        // User has FULL access - they can switch to any company
+        const totalCompanies = await em.count(Company, {});
+        canSwitchCompanies = totalCompanies > 1;
+      } else {
+        // Check UserCompany records for restricted internal users
+        const companyCount = await em.count(UserCompany, {
+          user: userId,
+          isActive: true,
+        });
+        canSwitchCompanies = companyCount > 1;
+      }
     }
 
     // Determine which company to return:
@@ -363,7 +393,6 @@ router.get('/me', async (req: Request, res: Response) => {
     // - Fall back to user.company (home company)
     let companyInfo: { id: string; name: string } | null = null;
     if (activeCompanyId) {
-      const { Company } = await import('../../entities');
       const activeCompany = await em.findOne(Company, { id: activeCompanyId });
       if (activeCompany) {
         companyInfo = { id: activeCompany.id, name: activeCompany.name };
