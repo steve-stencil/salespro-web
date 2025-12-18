@@ -15,17 +15,10 @@ import { PERMISSIONS } from '../lib/permissions';
 import { requireAuth, requirePermission } from '../middleware';
 import { PermissionService } from '../services/PermissionService';
 
-import type { Company } from '../entities';
+import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
-
-/**
- * Request type with authenticated user
- */
-type AuthenticatedRequest = Request & {
-  user?: User & { company?: Company };
-};
 
 // ============================================================================
 // Validation Schemas
@@ -509,6 +502,9 @@ router.patch(
 /**
  * GET /users
  * List all users in the company with pagination and optional office filter
+ *
+ * Note: Uses companyContext for proper multi-company support.
+ * The middleware sets companyContext from session.activeCompany (or falls back to user.company).
  */
 router.get(
   '/',
@@ -516,8 +512,11 @@ router.get(
   requirePermission(PERMISSIONS.USER_READ),
   async (req: Request, res: Response) => {
     try {
-      const user = (req as AuthenticatedRequest).user;
-      if (!user?.company) {
+      const authReq = req as AuthenticatedRequest;
+      const user = authReq.user;
+      const company = authReq.companyContext;
+
+      if (!user || !company) {
         res.status(401).json({ error: 'Not authenticated' });
         return;
       }
@@ -542,7 +541,7 @@ router.get(
 
       // Build query filters - exclude soft-deleted users
       const where: Record<string, unknown> = {
-        company: user.company.id,
+        company: company.id,
         deletedAt: null,
       };
 

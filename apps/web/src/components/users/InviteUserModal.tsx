@@ -1,8 +1,10 @@
 /**
- * Modal dialog for inviting new users to the company.
+ * Modal dialog for inviting users to the company.
+ * Supports inviting both new users and existing users (multi-company access).
  * Allows selecting roles and offices to assign to the invited user.
  */
 import CloseIcon from '@mui/icons-material/Close';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SendIcon from '@mui/icons-material/Send';
 import Alert from '@mui/material/Alert';
@@ -23,6 +25,7 @@ import FormGroup from '@mui/material/FormGroup';
 import FormHelperText from '@mui/material/FormHelperText';
 import FormLabel from '@mui/material/FormLabel';
 import IconButton from '@mui/material/IconButton';
+import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState, useEffect, useMemo } from 'react';
@@ -67,6 +70,9 @@ export function InviteUserModal({
   const [existingInviteId, setExistingInviteId] = useState<string | null>(null);
   const [duplicateEmail, setDuplicateEmail] = useState<string>('');
 
+  // Success message state for existing user invites
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const { data: rolesData, isLoading: loadingRoles } = useRolesList();
   const { data: officesData, isLoading: loadingOffices } = useOfficesList({
     isActive: true,
@@ -99,6 +105,7 @@ export function InviteUserModal({
       setShowDuplicateDialog(false);
       setExistingInviteId(null);
       setDuplicateEmail('');
+      setSuccessMessage(null);
     }
   }, [open]);
 
@@ -192,14 +199,30 @@ export function InviteUserModal({
     setEmailError(null);
 
     try {
-      await sendInviteMutation.mutateAsync({
+      const result = await sendInviteMutation.mutateAsync({
         email: email.trim(),
         roles: selectedRoles,
         currentOfficeId: selectedCurrentOffice.id,
         allowedOfficeIds: selectedAllowedOffices,
       });
-      onSuccess();
-      onClose();
+
+      // Check if this was an existing user invite (multi-company access)
+      if (result.invite.isExistingUserInvite) {
+        setSuccessMessage(
+          `Invitation sent to existing user ${email.trim()}. They will be added to your company when they accept.`,
+        );
+      } else {
+        setSuccessMessage(
+          `Invitation sent to ${email.trim()}. They can create their account using the link in the email.`,
+        );
+      }
+
+      // Delay closing to show success message
+      setTimeout(() => {
+        setSuccessMessage(null);
+        onSuccess();
+        onClose();
+      }, 2000);
     } catch (err) {
       // Check if this is a duplicate invite error with an existing invite ID
       if (err instanceof ApiClientError && err.response?.data) {
@@ -290,8 +313,8 @@ export function InviteUserModal({
 
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Send an invitation email to a new user. They will receive a link to
-          create their account and join your company.
+          Send an invitation email to join your company. New users will create
+          an account, while existing platform users will be added directly.
         </Typography>
 
         {error && (
@@ -503,6 +526,23 @@ export function InviteUserModal({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Success message snackbar */}
+      <Snackbar
+        open={!!successMessage}
+        autoHideDuration={3000}
+        onClose={() => setSuccessMessage(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSuccessMessage(null)}
+          severity="success"
+          icon={<PersonAddIcon />}
+          sx={{ width: '100%' }}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 }

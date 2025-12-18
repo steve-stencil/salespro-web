@@ -293,19 +293,27 @@ function validateOfficeFields(
 }
 
 /**
- * Check if company has available seats
+ * Check if company has available seats.
+ * Uses UserCompany count for accurate billing - each active membership counts as a seat.
+ * This properly handles multi-company users who count as a seat in each company.
  */
 async function checkSeatLimit(
   em: EntityManager,
   company: Company,
 ): Promise<CreateInviteResult> {
-  const userCount = await em.count(User, { company: company.id });
+  // Count active UserCompany memberships for accurate billing
+  // This correctly counts multi-company users as a seat in each company
+  const activeUserCompanies = await em.count(UserCompany, {
+    company: company.id,
+    isActive: true,
+  });
+
   const pendingInvites = await em.count(UserInvite, {
     company: company.id,
     status: InviteStatus.PENDING,
   });
 
-  if (userCount + pendingInvites >= company.maxSeats) {
+  if (activeUserCompanies + pendingInvites >= company.maxSeats) {
     return {
       success: false,
       error: `Company has reached maximum seats (${company.maxSeats})`,

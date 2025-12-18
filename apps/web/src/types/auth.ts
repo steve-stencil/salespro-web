@@ -56,6 +56,8 @@ export type User = {
     id: string;
     name: string;
   };
+  /** Whether user has access to multiple companies and can switch */
+  canSwitchCompanies?: boolean;
 };
 
 /**

@@ -1,7 +1,9 @@
 /**
  * Accept invitation page component.
- * Allows invited users to create their account.
+ * Allows invited users to create their account or join an additional company.
+ * Supports both new user invites (requires password) and existing user invites.
  */
+import BusinessIcon from '@mui/icons-material/Business';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import Alert from '@mui/material/Alert';
@@ -41,7 +43,7 @@ type FormErrors = {
 const MIN_PASSWORD_LENGTH = 8;
 
 /**
- * Page for accepting an invitation and creating a user account.
+ * Page for accepting an invitation and creating a user account or joining a company.
  */
 export function AcceptInvitePage(): React.ReactElement {
   const [searchParams] = useSearchParams();
@@ -66,6 +68,9 @@ export function AcceptInvitePage(): React.ReactElement {
   } = useValidateInviteToken(token);
   const acceptInviteMutation = useAcceptInvite();
 
+  // Determine if this is an existing user invite
+  const isExistingUserInvite = inviteData?.isExistingUserInvite ?? false;
+
   /**
    * Handles input field changes.
    */
@@ -83,21 +88,24 @@ export function AcceptInvitePage(): React.ReactElement {
   }
 
   /**
-   * Validates form fields.
+   * Validates form fields based on invite type.
    */
   function validateForm(): boolean {
     const errors: FormErrors = {};
 
-    if (!formData.password) {
-      errors.password = 'Password is required';
-    } else if (formData.password.length < MIN_PASSWORD_LENGTH) {
-      errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
-    }
+    // Password fields only required for new user invites
+    if (!isExistingUserInvite) {
+      if (!formData.password) {
+        errors.password = 'Password is required';
+      } else if (formData.password.length < MIN_PASSWORD_LENGTH) {
+        errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
+      }
 
-    if (!formData.confirmPassword) {
-      errors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+      if (!formData.confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
+      }
     }
 
     setFormErrors(errors);
@@ -118,7 +126,8 @@ export function AcceptInvitePage(): React.ReactElement {
     try {
       await acceptInviteMutation.mutateAsync({
         token,
-        password: formData.password,
+        // Only include password for new user invites
+        ...(isExistingUserInvite ? {} : { password: formData.password }),
         ...(formData.nameFirst && { nameFirst: formData.nameFirst }),
         ...(formData.nameLast && { nameLast: formData.nameLast }),
       });
@@ -268,12 +277,15 @@ export function AcceptInvitePage(): React.ReactElement {
             </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
-              Welcome to {inviteData.companyName}!
+              {isExistingUserInvite
+                ? `Joined ${inviteData.companyName}!`
+                : `Welcome to ${inviteData.companyName}!`}
             </Typography>
 
             <Typography variant="body1" sx={{ mb: 3 }}>
-              Your account has been created successfully. You can now sign in
-              with your email and password.
+              {isExistingUserInvite
+                ? 'You have successfully joined this company. You can now switch to it from your company menu.'
+                : 'Your account has been created successfully. You can now sign in with your email and password.'}
             </Typography>
 
             <Button
@@ -283,7 +295,7 @@ export function AcceptInvitePage(): React.ReactElement {
               color="primary"
               fullWidth
             >
-              Sign In
+              {isExistingUserInvite ? 'Continue to App' : 'Sign In'}
             </Button>
           </Paper>
         </Container>
@@ -291,7 +303,7 @@ export function AcceptInvitePage(): React.ReactElement {
     );
   }
 
-  // Main form
+  // Main form - different UI for existing users vs new users
   return (
     <Box
       sx={{
@@ -324,18 +336,41 @@ export function AcceptInvitePage(): React.ReactElement {
             </Box>
 
             <Typography variant="h2" component="h1" gutterBottom>
-              Join {inviteData.companyName}
+              {isExistingUserInvite
+                ? `Join ${inviteData.companyName}`
+                : `Join ${inviteData.companyName}`}
             </Typography>
 
-            <Typography variant="body1" color="text.secondary">
-              You&apos;ve been invited to join{' '}
-              <strong>{inviteData.companyName}</strong>. Create your account to
-              get started.
-            </Typography>
-
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Account email: <strong>{inviteData.email}</strong>
-            </Typography>
+            {isExistingUserInvite ? (
+              <>
+                <Alert
+                  severity="info"
+                  icon={<BusinessIcon />}
+                  sx={{ mb: 2, textAlign: 'left' }}
+                >
+                  You already have an account. Click below to add this company
+                  to your account.
+                </Alert>
+                <Typography variant="body2" color="text.secondary">
+                  Account: <strong>{inviteData.email}</strong>
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="body1" color="text.secondary">
+                  You&apos;ve been invited to join{' '}
+                  <strong>{inviteData.companyName}</strong>. Create your account
+                  to get started.
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 1 }}
+                >
+                  Account email: <strong>{inviteData.email}</strong>
+                </Typography>
+              </>
+            )}
           </Box>
 
           <Box
@@ -350,113 +385,121 @@ export function AcceptInvitePage(): React.ReactElement {
               </Alert>
             )}
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                id="nameFirst"
-                name="nameFirst"
-                label="First Name"
-                autoComplete="given-name"
-                autoFocus
-                value={formData.nameFirst}
-                onChange={handleChange}
-                error={!!formErrors.nameFirst}
-                helperText={formErrors.nameFirst}
-                placeholder="John"
-                disabled={isSubmitting}
-                fullWidth
-              />
+            {/* Name fields - optional for both new and existing users */}
+            {!isExistingUserInvite && (
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  id="nameFirst"
+                  name="nameFirst"
+                  label="First Name"
+                  autoComplete="given-name"
+                  autoFocus
+                  value={formData.nameFirst}
+                  onChange={handleChange}
+                  error={!!formErrors.nameFirst}
+                  helperText={formErrors.nameFirst}
+                  placeholder="John"
+                  disabled={isSubmitting}
+                  fullWidth
+                />
 
-              <TextField
-                id="nameLast"
-                name="nameLast"
-                label="Last Name"
-                autoComplete="family-name"
-                value={formData.nameLast}
-                onChange={handleChange}
-                error={!!formErrors.nameLast}
-                helperText={formErrors.nameLast}
-                placeholder="Doe"
-                disabled={isSubmitting}
-                fullWidth
-              />
-            </Box>
+                <TextField
+                  id="nameLast"
+                  name="nameLast"
+                  label="Last Name"
+                  autoComplete="family-name"
+                  value={formData.nameLast}
+                  onChange={handleChange}
+                  error={!!formErrors.nameLast}
+                  helperText={formErrors.nameLast}
+                  placeholder="Doe"
+                  disabled={isSubmitting}
+                  fullWidth
+                />
+              </Box>
+            )}
 
-            <TextField
-              id="password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              label="Password"
-              autoComplete="new-password"
-              value={formData.password}
-              onChange={handleChange}
-              error={!!formErrors.password}
-              helperText={
-                formErrors.password ??
-                `At least ${MIN_PASSWORD_LENGTH} characters`
-              }
-              placeholder="Enter password"
-              disabled={isSubmitting}
-              required
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label={
-                          showPassword ? 'Hide password' : 'Show password'
-                        }
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                        disabled={isSubmitting}
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+            {/* Password fields - only for new users */}
+            {!isExistingUserInvite && (
+              <>
+                <TextField
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  label="Password"
+                  autoComplete="new-password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  error={!!formErrors.password}
+                  helperText={
+                    formErrors.password ??
+                    `At least ${MIN_PASSWORD_LENGTH} characters`
+                  }
+                  placeholder="Enter password"
+                  disabled={isSubmitting}
+                  required
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={
+                              showPassword ? 'Hide password' : 'Show password'
+                            }
+                            onClick={() => setShowPassword(!showPassword)}
+                            edge="end"
+                            disabled={isSubmitting}
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
 
-            <TextField
-              id="confirmPassword"
-              name="confirmPassword"
-              type={showConfirmPassword ? 'text' : 'password'}
-              label="Confirm Password"
-              autoComplete="new-password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              error={!!formErrors.confirmPassword}
-              helperText={formErrors.confirmPassword}
-              placeholder="Confirm password"
-              disabled={isSubmitting}
-              required
-              slotProps={{
-                input: {
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label={
-                          showConfirmPassword
-                            ? 'Hide password'
-                            : 'Show password'
-                        }
-                        onClick={() =>
-                          setShowConfirmPassword(!showConfirmPassword)
-                        }
-                        edge="end"
-                        disabled={isSubmitting}
-                      >
-                        {showConfirmPassword ? (
-                          <VisibilityOff />
-                        ) : (
-                          <Visibility />
-                        )}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+                <TextField
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  label="Confirm Password"
+                  autoComplete="new-password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  error={!!formErrors.confirmPassword}
+                  helperText={formErrors.confirmPassword}
+                  placeholder="Confirm password"
+                  disabled={isSubmitting}
+                  required
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label={
+                              showConfirmPassword
+                                ? 'Hide password'
+                                : 'Show password'
+                            }
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
+                            edge="end"
+                            disabled={isSubmitting}
+                          >
+                            {showConfirmPassword ? (
+                              <VisibilityOff />
+                            ) : (
+                              <Visibility />
+                            )}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </>
+            )}
 
             <Button
               type="submit"
@@ -470,8 +513,12 @@ export function AcceptInvitePage(): React.ReactElement {
               {isSubmitting ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CircularProgress size={20} color="inherit" />
-                  Creating Account...
+                  {isExistingUserInvite
+                    ? 'Joining Company...'
+                    : 'Creating Account...'}
                 </Box>
+              ) : isExistingUserInvite ? (
+                'Join Company'
               ) : (
                 'Create Account'
               )}
@@ -480,15 +527,31 @@ export function AcceptInvitePage(): React.ReactElement {
 
           <Box sx={{ textAlign: 'center', mt: 3 }}>
             <Typography variant="body2" color="text.secondary">
-              Already have an account?{' '}
-              <Link
-                component={RouterLink}
-                to="/login"
-                color="secondary"
-                sx={{ fontWeight: 500 }}
-              >
-                Sign In
-              </Link>
+              {isExistingUserInvite ? (
+                <>
+                  Want to use a different account?{' '}
+                  <Link
+                    component={RouterLink}
+                    to="/login"
+                    color="secondary"
+                    sx={{ fontWeight: 500 }}
+                  >
+                    Sign In
+                  </Link>
+                </>
+              ) : (
+                <>
+                  Already have an account?{' '}
+                  <Link
+                    component={RouterLink}
+                    to="/login"
+                    color="secondary"
+                    sx={{ fontWeight: 500 }}
+                  >
+                    Sign In
+                  </Link>
+                </>
+              )}
             </Typography>
           </Box>
         </Paper>
