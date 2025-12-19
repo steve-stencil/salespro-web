@@ -27,6 +27,8 @@ import {
   File,
   OfficeSettings,
   OfficeIntegration,
+  PriceGuideCategory,
+  MeasureSheetItem,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -59,6 +61,8 @@ const entities = [
   File,
   OfficeSettings,
   OfficeIntegration,
+  PriceGuideCategory,
+  MeasureSheetItem,
 ];
 
 /**
