@@ -27,6 +27,32 @@ export const updateCategorySchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+/**
+ * Schema for moving a category to a new parent.
+ */
+export const moveCategorySchema = z.object({
+  parentId: z.string().uuid('Invalid parent ID').nullable(),
+});
+
+/**
+ * Schema for batch reordering categories.
+ */
+export const reorderCategoriesSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string().uuid('Invalid category ID'),
+      sortOrder: z.number().int().min(0),
+    }),
+  ),
+});
+
+/**
+ * Schema for assigning offices to a root category.
+ */
+export const assignOfficesSchema = z.object({
+  officeIds: z.array(z.string().uuid('Invalid office ID')).min(1),
+});
+
 // ============================================================================
 // Measure Sheet Item Schemas
 // ============================================================================

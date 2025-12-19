@@ -61,7 +61,7 @@ function mapItemToResponse(
 router.get(
   '/',
   requireAuth(),
-  requirePermission(PERMISSIONS.MEASURE_SHEET_ITEM_READ),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_READ),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -107,7 +107,7 @@ router.get(
 router.get(
   '/:id',
   requireAuth(),
-  requirePermission(PERMISSIONS.MEASURE_SHEET_ITEM_READ),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_READ),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -153,7 +153,7 @@ router.get(
 router.post(
   '/',
   requireAuth(),
-  requirePermission(PERMISSIONS.MEASURE_SHEET_ITEM_CREATE),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_CREATE),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -236,7 +236,7 @@ router.post(
 router.patch(
   '/:id',
   requireAuth(),
-  requirePermission(PERMISSIONS.MEASURE_SHEET_ITEM_UPDATE),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_UPDATE),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -357,7 +357,7 @@ router.patch(
 router.delete(
   '/:id',
   requireAuth(),
-  requirePermission(PERMISSIONS.MEASURE_SHEET_ITEM_DELETE),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_DELETE),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);

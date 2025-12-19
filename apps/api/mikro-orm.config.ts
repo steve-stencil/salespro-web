@@ -26,6 +26,7 @@ import {
   OfficeSettings,
   OfficeIntegration,
   PriceGuideCategory,
+  PriceGuideCategoryOffice,
   MeasureSheetItem,
 } from './src/entities';
 
@@ -63,6 +64,7 @@ export default defineConfig({
     OfficeSettings,
     OfficeIntegration,
     PriceGuideCategory,
+    PriceGuideCategoryOffice,
     MeasureSheetItem,
   ],
   migrations: {

@@ -28,6 +28,7 @@ import {
   OfficeSettings,
   OfficeIntegration,
   PriceGuideCategory,
+  PriceGuideCategoryOffice,
   MeasureSheetItem,
 } from '../entities';
 
@@ -62,6 +63,7 @@ const entities = [
   OfficeSettings,
   OfficeIntegration,
   PriceGuideCategory,
+  PriceGuideCategoryOffice,
   MeasureSheetItem,
 ];
 

@@ -49,8 +49,8 @@ describe('permissions', () => {
     it('should follow resource:action naming convention', () => {
       const permissions = getAllPermissions();
       for (const perm of permissions) {
-        // Resources and actions can use underscores for readability
-        expect(perm).toMatch(/^[a-z_]+:[a-z_]+$/);
+        // Resources can use camelCase or snake_case, actions use snake_case
+        expect(perm).toMatch(/^[a-zA-Z_]+:[a-z_]+$/);
       }
     });
 

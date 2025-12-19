@@ -57,6 +57,48 @@ export type UpdatePriceGuideCategoryRequest = {
 };
 
 /**
+ * Request body for moving a category to a new parent.
+ */
+export type MovePriceGuideCategoryRequest = {
+  parentId: string | null;
+};
+
+/**
+ * Request body for batch reordering categories.
+ */
+export type ReorderCategoriesRequest = {
+  items: Array<{
+    id: string;
+    sortOrder: number;
+  }>;
+};
+
+/**
+ * Request body for assigning offices to a root category.
+ */
+export type AssignCategoryOfficesRequest = {
+  officeIds: string[];
+};
+
+/**
+ * Office assignment for a root category.
+ */
+export type PriceGuideCategoryOffice = {
+  id: string;
+  categoryId: string;
+  officeId: string;
+  assignedAt: string;
+};
+
+/**
+ * Breadcrumb item for navigation.
+ */
+export type PriceGuideCategoryBreadcrumb = {
+  id: string;
+  name: string;
+};
+
+/**
  * Response for price guide category list endpoint.
  */
 export type PriceGuideCategoryListResponse = {
@@ -83,6 +125,38 @@ export type PriceGuideCategoryResponse = {
 export type PriceGuideCategoryMutationResponse = {
   message: string;
   category: PriceGuideCategoryListItem;
+};
+
+/**
+ * Response for breadcrumb endpoint.
+ */
+export type PriceGuideCategoryBreadcrumbResponse = {
+  breadcrumb: PriceGuideCategoryBreadcrumb[];
+};
+
+/**
+ * Response for reorder endpoint.
+ */
+export type ReorderCategoriesResponse = {
+  message: string;
+  updatedCount: number;
+};
+
+/**
+ * Response for office assignment endpoint.
+ */
+export type AssignOfficesResponse = {
+  message: string;
+  assignedCount: number;
+};
+
+/**
+ * Response for delete category endpoint.
+ */
+export type DeleteCategoryResponse = {
+  message: string;
+  deletedChildren: number;
+  deletedItems: number;
 };
 
 // ============================================================================

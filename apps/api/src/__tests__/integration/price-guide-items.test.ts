@@ -126,6 +126,7 @@ describe('Measure Sheet Items Routes', () => {
 
     // Clean up in correct order (respecting FK constraints)
     await em.nativeDelete('measure_sheet_item', {});
+    await em.nativeDelete('price_guide_category_office', {});
     await em.nativeDelete('price_guide_category', {});
     await em.nativeDelete('user_role', {});
     await em.nativeDelete('session', {});
@@ -332,7 +333,7 @@ describe('Measure Sheet Items Routes', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should return 403 without measure_sheet_item:read permission', async () => {
+    it('should return 403 without priceGuide:read permission', async () => {
       const { cookie: userCookie } = await createUserWithPermissions([
         'user:read',
       ]);
@@ -344,9 +345,9 @@ describe('Measure Sheet Items Routes', () => {
       expect(response.status).toBe(403);
     });
 
-    it('should allow access with measure_sheet_item:read permission', async () => {
+    it('should allow access with priceGuide:read permission', async () => {
       const { cookie: userCookie } = await createUserWithPermissions([
-        'measure_sheet_item:read',
+        'priceGuide:read',
       ]);
 
       const response = await makeRequest()
@@ -540,9 +541,9 @@ describe('Measure Sheet Items Routes', () => {
       expect(response.status).toBe(201);
     });
 
-    it('should return 403 without measure_sheet_item:create permission', async () => {
+    it('should return 403 without priceGuide:create permission', async () => {
       const { cookie: userCookie } = await createUserWithPermissions([
-        'measure_sheet_item:read',
+        'priceGuide:read',
       ]);
 
       const response = await makeRequest()
@@ -681,10 +682,10 @@ describe('Measure Sheet Items Routes', () => {
       expect(response.status).toBe(404);
     });
 
-    it('should return 403 without measure_sheet_item:delete permission', async () => {
+    it('should return 403 without priceGuide:delete permission', async () => {
       const item = await createItem('GAF Timberline HD', testCategory.id);
       const { cookie: userCookie } = await createUserWithPermissions([
-        'measure_sheet_item:read',
+        'priceGuide:read',
       ]);
 
       const response = await makeRequest()

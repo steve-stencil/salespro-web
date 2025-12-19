@@ -51,6 +51,7 @@ export { OfficeIntegration } from './OfficeIntegration.entity';
 
 // Price guide entities
 export { PriceGuideCategory } from './PriceGuideCategory.entity';
+export { PriceGuideCategoryOffice } from './PriceGuideCategoryOffice.entity';
 export { MeasureSheetItem } from './MeasureSheetItem.entity';
 
 // Types and enums

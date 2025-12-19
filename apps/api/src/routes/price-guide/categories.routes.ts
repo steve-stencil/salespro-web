@@ -1,11 +1,23 @@
 import { Router } from 'express';
 
-import { Company, PriceGuideCategory, MeasureSheetItem } from '../../entities';
+import {
+  Company,
+  PriceGuideCategory,
+  PriceGuideCategoryOffice,
+  MeasureSheetItem,
+  Office,
+} from '../../entities';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 import { requireAuth, requirePermission } from '../../middleware';
 
-import { createCategorySchema, updateCategorySchema } from './schemas';
+import {
+  createCategorySchema,
+  updateCategorySchema,
+  moveCategorySchema,
+  reorderCategoriesSchema,
+  assignOfficesSchema,
+} from './schemas';
 
 import type { User } from '../../entities';
 import type { AuthenticatedRequest } from '../../middleware/requireAuth';
@@ -106,7 +118,7 @@ async function wouldCreateCircularReference(
 router.get(
   '/',
   requireAuth(),
-  requirePermission(PERMISSIONS.PRICE_GUIDE_CATEGORY_READ),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_READ),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -160,7 +172,7 @@ router.get(
 router.get(
   '/tree',
   requireAuth(),
-  requirePermission(PERMISSIONS.PRICE_GUIDE_CATEGORY_READ),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_READ),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -256,7 +268,7 @@ router.get(
 router.get(
   '/:id',
   requireAuth(),
-  requirePermission(PERMISSIONS.PRICE_GUIDE_CATEGORY_READ),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_READ),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -307,7 +319,7 @@ router.get(
 router.post(
   '/',
   requireAuth(),
-  requirePermission(PERMISSIONS.PRICE_GUIDE_CATEGORY_CREATE),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_CREATE),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -396,7 +408,7 @@ router.post(
 router.patch(
   '/:id',
   requireAuth(),
-  requirePermission(PERMISSIONS.PRICE_GUIDE_CATEGORY_UPDATE),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_UPDATE),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -537,7 +549,7 @@ router.patch(
 router.delete(
   '/:id',
   requireAuth(),
-  requirePermission(PERMISSIONS.PRICE_GUIDE_CATEGORY_DELETE),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_DELETE),
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -599,6 +611,475 @@ router.delete(
       });
     } catch (err) {
       req.log.error({ err }, 'Delete category error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * GET /price-guide/categories/:id/children
+ * Get children of a category.
+ */
+router.get(
+  '/:id/children',
+  requireAuth(),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_READ),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Verify parent exists
+      const parent = await em.findOne(PriceGuideCategory, {
+        id,
+        company: company.id,
+      });
+      if (!parent) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      const children = await em.find(
+        PriceGuideCategory,
+        { parent: id, company: company.id },
+        { orderBy: { sortOrder: 'ASC', name: 'ASC' } },
+      );
+
+      const childrenWithCounts = await Promise.all(
+        children.map(async cat => {
+          const counts = await getCategoryCounts(em, cat.id);
+          return mapCategoryToResponse(
+            cat,
+            counts.childCount,
+            counts.itemCount,
+          );
+        }),
+      );
+
+      res.status(200).json({ categories: childrenWithCounts });
+    } catch (err) {
+      req.log.error({ err }, 'Get category children error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * GET /price-guide/categories/:id/breadcrumb
+ * Get path from root to this category.
+ */
+router.get(
+  '/:id/breadcrumb',
+  requireAuth(),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_READ),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const category = await em.findOne(
+        PriceGuideCategory,
+        { id, company: company.id },
+        { populate: ['parent'] },
+      );
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      // Build breadcrumb from current category to root
+      const breadcrumb: Array<{ id: string; name: string }> = [];
+      let current: PriceGuideCategory | null = category;
+
+      while (current) {
+        breadcrumb.unshift({ id: current.id, name: current.name });
+        if (current.parent?.id) {
+          current = await em.findOne(
+            PriceGuideCategory,
+            { id: current.parent.id },
+            { populate: ['parent'] },
+          );
+        } else {
+          current = null;
+        }
+      }
+
+      res.status(200).json({ breadcrumb });
+    } catch (err) {
+      req.log.error({ err }, 'Get category breadcrumb error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PATCH /price-guide/categories/:id/move
+ * Move category to a new parent.
+ */
+router.patch(
+  '/:id/move',
+  requireAuth(),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const parseResult = moveCategorySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const { parentId } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const category = await em.findOne(
+        PriceGuideCategory,
+        { id, company: company.id },
+        { populate: ['parent'] },
+      );
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      // Check for circular reference
+      if (parentId && (await wouldCreateCircularReference(em, id, parentId))) {
+        res.status(400).json({
+          error: 'Invalid parent',
+          message: 'Cannot move category to one of its descendants',
+        });
+        return;
+      }
+
+      // Validate new parent exists
+      if (parentId) {
+        const parent = await em.findOne(PriceGuideCategory, {
+          id: parentId,
+          company: company.id,
+        });
+        if (!parent) {
+          res.status(400).json({ error: 'Parent category not found' });
+          return;
+        }
+      }
+
+      // Check for duplicate name at new level
+      const existing = await em.findOne(PriceGuideCategory, {
+        name: category.name,
+        parent: parentId,
+        company: company.id,
+      });
+      if (existing && existing.id !== category.id) {
+        res.status(409).json({
+          error: 'Category name already exists',
+          message: `A category with the name "${category.name}" already exists at the destination.`,
+        });
+        return;
+      }
+
+      const oldParentId = category.parent?.id ?? null;
+      category.parent = parentId
+        ? em.getReference(PriceGuideCategory, parentId)
+        : undefined;
+
+      await em.flush();
+      req.log.info(
+        {
+          categoryId: category.id,
+          oldParentId,
+          newParentId: parentId,
+          userId: user.id,
+        },
+        'Price guide category moved',
+      );
+
+      const counts = await getCategoryCounts(em, category.id);
+      res.status(200).json({
+        message: 'Category moved successfully',
+        category: mapCategoryToResponse(
+          category,
+          counts.childCount,
+          counts.itemCount,
+        ),
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Move category error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PATCH /price-guide/categories/reorder
+ * Batch update sortOrder for categories.
+ */
+router.patch(
+  '/reorder',
+  requireAuth(),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const parseResult = reorderCategoriesSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const { items } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Update sortOrder for each category
+      for (const item of items) {
+        const category = await em.findOne(PriceGuideCategory, {
+          id: item.id,
+          company: company.id,
+        });
+        if (category) {
+          category.sortOrder = item.sortOrder;
+        }
+      }
+
+      await em.flush();
+      req.log.info(
+        { itemCount: items.length, userId: user.id },
+        'Price guide categories reordered',
+      );
+
+      res.status(200).json({
+        message: 'Categories reordered successfully',
+        updatedCount: items.length,
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Reorder categories error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * POST /price-guide/categories/:id/offices
+ * Assign offices to a root category.
+ */
+router.post(
+  '/:id/offices',
+  requireAuth(),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const parseResult = assignOfficesSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const { officeIds } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const category = await em.findOne(PriceGuideCategory, {
+        id,
+        company: company.id,
+      });
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      // Only root categories can have office assignments
+      if (category.parent) {
+        res.status(400).json({
+          error: 'Invalid operation',
+          message: 'Only root categories can be assigned to offices',
+        });
+        return;
+      }
+
+      // Verify offices exist and belong to company
+      const offices = await em.find(Office, {
+        id: { $in: officeIds },
+        company: company.id,
+      });
+      if (offices.length !== officeIds.length) {
+        res.status(400).json({ error: 'One or more offices not found' });
+        return;
+      }
+
+      // Create assignments (skip duplicates)
+      const existingAssignments = await em.find(PriceGuideCategoryOffice, {
+        category: id,
+      });
+      const existingOfficeIds = new Set(
+        existingAssignments.map(a => a.office.id),
+      );
+
+      const newAssignments: PriceGuideCategoryOffice[] = [];
+      for (const officeId of officeIds) {
+        if (!existingOfficeIds.has(officeId)) {
+          const assignment = new PriceGuideCategoryOffice();
+          assignment.category = em.getReference(PriceGuideCategory, id);
+          assignment.office = em.getReference(Office, officeId);
+          em.persist(assignment);
+          newAssignments.push(assignment);
+        }
+      }
+
+      await em.flush();
+      req.log.info(
+        {
+          categoryId: id,
+          officeIds,
+          newCount: newAssignments.length,
+          userId: user.id,
+        },
+        'Offices assigned to category',
+      );
+
+      res.status(200).json({
+        message: 'Offices assigned successfully',
+        assignedCount: newAssignments.length,
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Assign offices error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * DELETE /price-guide/categories/:id/offices/:officeId
+ * Remove an office assignment from a root category.
+ */
+router.delete(
+  '/:id/offices/:officeId',
+  requireAuth(),
+  requirePermission(PERMISSIONS.PRICE_GUIDE_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id, officeId } = req.params;
+      if (!id || !officeId) {
+        res
+          .status(400)
+          .json({ error: 'Category ID and Office ID are required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const category = await em.findOne(PriceGuideCategory, {
+        id,
+        company: company.id,
+      });
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      const assignment = await em.findOne(PriceGuideCategoryOffice, {
+        category: id,
+        office: officeId,
+      });
+      if (!assignment) {
+        res.status(404).json({ error: 'Office assignment not found' });
+        return;
+      }
+
+      await em.removeAndFlush(assignment);
+      req.log.info(
+        { categoryId: id, officeId, userId: user.id },
+        'Office removed from category',
+      );
+
+      res.status(200).json({
+        message: 'Office removed successfully',
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Remove office error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

@@ -114,6 +114,7 @@ describe('Price Guide Categories Routes', () => {
 
     // Clean up in correct order (respecting FK constraints)
     await em.nativeDelete('measure_sheet_item', {});
+    await em.nativeDelete('price_guide_category_office', {});
     await em.nativeDelete('price_guide_category', {});
     await em.nativeDelete('user_role', {});
     await em.nativeDelete('session', {});
@@ -323,7 +324,7 @@ describe('Price Guide Categories Routes', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should return 403 without price_guide_category:read permission', async () => {
+    it('should return 403 without priceGuide:read permission', async () => {
       const { cookie: userCookie } = await createUserWithPermissions([
         'user:read',
       ]);
@@ -335,9 +336,9 @@ describe('Price Guide Categories Routes', () => {
       expect(response.status).toBe(403);
     });
 
-    it('should allow access with price_guide_category:read permission', async () => {
+    it('should allow access with priceGuide:read permission', async () => {
       const { cookie: userCookie } = await createUserWithPermissions([
-        'price_guide_category:read',
+        'priceGuide:read',
       ]);
 
       const response = await makeRequest()
@@ -541,9 +542,9 @@ describe('Price Guide Categories Routes', () => {
       expect(response.status).toBe(201);
     });
 
-    it('should return 403 without price_guide_category:create permission', async () => {
+    it('should return 403 without priceGuide:create permission', async () => {
       const { cookie: userCookie } = await createUserWithPermissions([
-        'price_guide_category:read',
+        'priceGuide:read',
       ]);
 
       const response = await makeRequest()
@@ -702,10 +703,10 @@ describe('Price Guide Categories Routes', () => {
       expect(response.status).toBe(404);
     });
 
-    it('should return 403 without price_guide_category:delete permission', async () => {
+    it('should return 403 without priceGuide:delete permission', async () => {
       const category = await createCategory('Roofing');
       const { cookie: userCookie } = await createUserWithPermissions([
-        'price_guide_category:read',
+        'priceGuide:read',
       ]);
 
       const response = await makeRequest()

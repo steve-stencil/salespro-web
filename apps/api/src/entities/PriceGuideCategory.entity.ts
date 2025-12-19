@@ -12,6 +12,7 @@ import { v4 as uuid } from 'uuid';
 
 import type { Company } from './Company.entity';
 import type { MeasureSheetItem } from './MeasureSheetItem.entity';
+import type { PriceGuideCategoryOffice } from './PriceGuideCategoryOffice.entity';
 
 /**
  * PriceGuideCategory entity representing a hierarchical category in the price guide.
@@ -75,4 +76,12 @@ export class PriceGuideCategory {
   /** Measure sheet items in this category */
   @OneToMany('MeasureSheetItem', 'category')
   items = new Collection<MeasureSheetItem>(this);
+
+  /**
+   * Office assignments for this category.
+   * Only used for root categories (where parent is null).
+   * Child categories inherit access through their root ancestor.
+   */
+  @OneToMany('PriceGuideCategoryOffice', 'category')
+  officeAssignments = new Collection<PriceGuideCategoryOffice>(this);
 }

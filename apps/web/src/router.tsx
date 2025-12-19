@@ -16,6 +16,7 @@ import { InternalUsersPage } from './pages/InternalUsersPage';
 import { LoginPage } from './pages/LoginPage';
 import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { OfficesPage } from './pages/OfficesPage';
+import { PriceGuideCategoriesPage } from './pages/PriceGuideCategoriesPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
 import { SelectCompanyPage } from './pages/SelectCompanyPage';
@@ -101,6 +102,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.OFFICE_READ}>
             <OfficesPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/categories',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <PriceGuideCategoriesPage />
           </PermissionGuard>
         ),
       },

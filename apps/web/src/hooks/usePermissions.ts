@@ -265,6 +265,12 @@ export const PERMISSIONS = {
   COMPANY_READ: 'company:read',
   COMPANY_UPDATE: 'company:update',
 
+  // Price Guide
+  PRICE_GUIDE_READ: 'priceGuide:read',
+  PRICE_GUIDE_CREATE: 'priceGuide:create',
+  PRICE_GUIDE_UPDATE: 'priceGuide:update',
+  PRICE_GUIDE_DELETE: 'priceGuide:delete',
+
   // Platform (internal users only)
   PLATFORM_ADMIN: 'platform:admin',
   PLATFORM_VIEW_COMPANIES: 'platform:view_companies',

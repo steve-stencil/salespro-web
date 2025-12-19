@@ -5,7 +5,9 @@ import { Migration } from '@mikro-orm/migrations';
  *
  * Changes:
  * - Creates price_guide_category table with self-referential parent-child relationship
+ * - Creates price_guide_category_office junction table for office assignments
  * - Creates measure_sheet_item table with foreign key to category
+ * - Adds unique constraint to prevent duplicate category names at same level
  */
 export class Migration20251219000000 extends Migration {
   override up(): void {
@@ -32,6 +34,13 @@ export class Migration20251219000000 extends Migration {
       `create index "price_guide_category_company_id_index" on "price_guide_category" ("company_id");`,
     );
 
+    // Add unique constraint to prevent duplicate names at same level
+    // Uses COALESCE to handle null parent_id (root categories)
+    this.addSql(`
+      create unique index "price_guide_category_name_parent_company_unique"
+      on "price_guide_category" ("name", COALESCE("parent_id", '00000000-0000-0000-0000-000000000000'), "company_id");
+    `);
+
     // Add foreign key constraints for price_guide_category
     this.addSql(`
       alter table "price_guide_category"
@@ -43,6 +52,46 @@ export class Migration20251219000000 extends Migration {
       alter table "price_guide_category"
         add constraint "price_guide_category_company_id_foreign"
         foreign key ("company_id") references "company" ("id")
+        on update cascade on delete cascade;
+    `);
+
+    // Create price_guide_category_office junction table
+    this.addSql(`
+      create table "price_guide_category_office" (
+        "id" uuid not null,
+        "category_id" uuid not null,
+        "office_id" uuid not null,
+        "assigned_at" timestamptz not null,
+        constraint "price_guide_category_office_pkey" primary key ("id")
+      );
+    `);
+
+    // Add indexes for price_guide_category_office
+    this.addSql(
+      `create index "price_guide_category_office_category_id_index" on "price_guide_category_office" ("category_id");`,
+    );
+    this.addSql(
+      `create index "price_guide_category_office_office_id_index" on "price_guide_category_office" ("office_id");`,
+    );
+
+    // Add unique constraint on (category_id, office_id)
+    this.addSql(`
+      alter table "price_guide_category_office"
+        add constraint "price_guide_category_office_category_office_unique"
+        unique ("category_id", "office_id");
+    `);
+
+    // Add foreign key constraints for price_guide_category_office
+    this.addSql(`
+      alter table "price_guide_category_office"
+        add constraint "price_guide_category_office_category_id_foreign"
+        foreign key ("category_id") references "price_guide_category" ("id")
+        on update cascade on delete cascade;
+    `);
+    this.addSql(`
+      alter table "price_guide_category_office"
+        add constraint "price_guide_category_office_office_id_foreign"
+        foreign key ("office_id") references "office" ("id")
         on update cascade on delete cascade;
     `);
 
@@ -88,6 +137,9 @@ export class Migration20251219000000 extends Migration {
   override down(): void {
     // Drop measure_sheet_item table first (has FK to price_guide_category)
     this.addSql(`drop table if exists "measure_sheet_item" cascade;`);
+
+    // Drop price_guide_category_office junction table
+    this.addSql(`drop table if exists "price_guide_category_office" cascade;`);
 
     // Drop price_guide_category table
     this.addSql(`drop table if exists "price_guide_category" cascade;`);
