@@ -42,7 +42,7 @@ erDiagram
     CompanyLogo ||--|| File : "references"
     Office ||--|| OfficeSettings : "has one"
     OfficeSettings ||--o| CompanyLogo : "selected logo"
-    
+
     Company {
         uuid id
         string name
@@ -64,8 +64,6 @@ erDiagram
     }
 ```
 
-
-
 ## Data Flow
 
 ```mermaid
@@ -74,18 +72,18 @@ flowchart TD
         LogoLibrary[Logo Library Section]
         DefaultPicker[Default Logo Picker]
     end
-    
+
     subgraph OfficeFlow [Office Settings Dialog]
         LogoPicker[Logo Picker from Library]
         UploadNew[Upload New Logo]
     end
-    
+
     LogoLibrary -->|Manage logos| CompanyLogoTable[(CompanyLogo)]
     DefaultPicker -->|Set default| CompanyTable[(Company.defaultLogoId)]
     LogoPicker -->|Select| OfficeSettingsTable[(OfficeSettings.logoId)]
     UploadNew -->|1. Add to library| CompanyLogoTable
     UploadNew -->|2. Assign to office| OfficeSettingsTable
-    
+
     subgraph Display [Logo Display Logic]
         OfficeCard[Office Card]
         OfficeCard -->|Has logo?| ShowOfficeLogo[Show Office Logo]
@@ -109,7 +107,7 @@ export class CompanyLogo {
   id: Opt<string> = uuid();
 
   @Property({ type: 'string' })
-  name!: string;  // User-friendly name like "Main Logo", "Holiday Logo"
+  name!: string; // User-friendly name like "Main Logo", "Holiday Logo"
 
   @ManyToOne('Company')
   @Index()
@@ -123,8 +121,6 @@ export class CompanyLogo {
 }
 ```
 
-
-
 ### 1.2 Update Company Entity
 
 Modify [apps/api/src/entities/Company.entity.ts](apps/api/src/entities/Company.entity.ts):
@@ -132,6 +128,7 @@ Modify [apps/api/src/entities/Company.entity.ts](apps/api/src/entities/Company.e
 - Remove existing `logoFile` relationship (line 60-62)
 - Add `defaultLogo` relationship to `CompanyLogo`
 - Add `logos` collection for the library
+
 ```typescript
 // Replace logoFile with:
 @ManyToOne('CompanyLogo', { nullable: true })
@@ -141,22 +138,17 @@ defaultLogo?: CompanyLogo;
 logos = new Collection<CompanyLogo>(this);
 ```
 
-
-
-
 ### 1.3 Update OfficeSettings Entity
 
 Modify [apps/api/src/entities/OfficeSettings.entity.ts](apps/api/src/entities/OfficeSettings.entity.ts):
 
 - Change `logoFile` to reference `CompanyLogo` instead of `File`
+
 ```typescript
 // Replace logoFile with:
 @ManyToOne('CompanyLogo', { nullable: true })
 logo?: CompanyLogo;
 ```
-
-
-
 
 ### 1.4 Create Migration
 
@@ -231,8 +223,6 @@ Modify [apps/web/src/pages/CompanySettingsPage.tsx](apps/web/src/pages/CompanySe
 +----------------------------------------------------------+
 ```
 
-
-
 ### 3.2 New Components
 
 Create in `apps/web/src/components/company/`:
@@ -266,8 +256,6 @@ Modify [apps/web/src/components/offices/OfficeSettingsDialog.tsx](apps/web/src/c
 |                                          |
 +------------------------------------------+
 ```
-
-
 
 ### 4.2 Logo Picker Component
 

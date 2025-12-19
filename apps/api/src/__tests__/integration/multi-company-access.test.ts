@@ -2,11 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 
 import { User, UserCompany, Session } from '../../entities';
-import {
-  UserType,
-  SessionSource,
-  CompanyAccessLevel,
-} from '../../entities/types';
+import { UserType, SessionSource } from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 
@@ -447,10 +443,7 @@ describe('Multi-Company Access Integration Tests', () => {
       await createTestCompany(em, { name: 'Company A' });
       await createTestCompany(em, { name: 'Company B' });
 
-      const platformRole = await createPlatformRole(
-        em,
-        CompanyAccessLevel.FULL,
-      );
+      const platformRole = await createPlatformRole(em, ['*']);
       const { cookie } = await createInternalUser(em, platformRole);
 
       const response = await makeRequest()
@@ -472,10 +465,7 @@ describe('Multi-Company Access Integration Tests', () => {
       });
       await createTestCompany(em, { name: 'Unrestricted Company' });
 
-      const platformRole = await createPlatformRole(
-        em,
-        CompanyAccessLevel.FULL,
-      );
+      const platformRole = await createPlatformRole(em, ['*']);
       const { user, cookie } = await createInternalUser(em, platformRole);
 
       // Add internal user company restrictions using UserCompany
@@ -672,13 +662,13 @@ describe('Multi-Company Access Integration Tests', () => {
       const em = orm.em.fork();
 
       // Create admin internal user
-      const adminRole = await createPlatformRole(em, CompanyAccessLevel.FULL, {
+      const adminRole = await createPlatformRole(em, ['*'], {
         platformPermissions: ['platform:manage_internal_users'],
       });
       const { cookie: adminCookie } = await createInternalUser(em, adminRole);
 
       // Create target internal user
-      const targetRole = await createPlatformRole(em, CompanyAccessLevel.FULL);
+      const targetRole = await createPlatformRole(em, ['*']);
       const { user: targetUser } = await createInternalUser(em, targetRole, {
         email: 'target@platform.com',
       });
@@ -712,13 +702,13 @@ describe('Multi-Company Access Integration Tests', () => {
       const em = orm.em.fork();
 
       // Create admin internal user
-      const adminRole = await createPlatformRole(em, CompanyAccessLevel.FULL, {
+      const adminRole = await createPlatformRole(em, ['*'], {
         platformPermissions: ['platform:manage_internal_users'],
       });
       const { cookie: adminCookie } = await createInternalUser(em, adminRole);
 
       // Create target internal user (unrestricted)
-      const targetRole = await createPlatformRole(em, CompanyAccessLevel.FULL);
+      const targetRole = await createPlatformRole(em, ['*']);
       const { user: targetUser } = await createInternalUser(em, targetRole, {
         email: 'target@platform.com',
       });
@@ -741,13 +731,13 @@ describe('Multi-Company Access Integration Tests', () => {
       const em = orm.em.fork();
 
       // Create admin internal user
-      const adminRole = await createPlatformRole(em, CompanyAccessLevel.FULL, {
+      const adminRole = await createPlatformRole(em, ['*'], {
         platformPermissions: ['platform:manage_internal_users'],
       });
       const { cookie: adminCookie } = await createInternalUser(em, adminRole);
 
       // Create target internal user with restriction
-      const targetRole = await createPlatformRole(em, CompanyAccessLevel.FULL);
+      const targetRole = await createPlatformRole(em, ['*']);
       const { user: targetUser } = await createInternalUser(em, targetRole, {
         email: 'target@platform.com',
       });

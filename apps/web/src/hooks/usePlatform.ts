@@ -9,6 +9,8 @@ import { platformApi } from '../services/platform';
 import type {
   CreateInternalUserRequest,
   UpdateInternalUserRequest,
+  CreatePlatformRoleRequest,
+  UpdatePlatformRoleRequest,
   CreateCompanyRequest,
   UpdateCompanyRequest,
 } from '../types/platform';
@@ -251,6 +253,89 @@ export function useRemoveInternalUserCompany() {
     onSuccess: (_, { userId }) => {
       void queryClient.invalidateQueries({
         queryKey: platformKeys.internalUserCompanies(userId),
+      });
+    },
+  });
+}
+
+// ============================================================================
+// Platform Role CRUD Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch all platform roles with user counts (admin view).
+ */
+export function usePlatformRolesAdmin() {
+  return useQuery({
+    queryKey: platformKeys.platformRoles(),
+    queryFn: () => platformApi.getPlatformRolesAdmin(),
+  });
+}
+
+/**
+ * Hook to fetch a specific platform role.
+ *
+ * @param roleId - The platform role's ID
+ * @param enabled - Whether to enable the query (default: true)
+ */
+export function usePlatformRole(roleId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...platformKeys.platformRoles(), roleId] as const,
+    queryFn: () => platformApi.getPlatformRole(roleId),
+    enabled: enabled && !!roleId,
+  });
+}
+
+/**
+ * Hook to create a new platform role.
+ */
+export function useCreatePlatformRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreatePlatformRoleRequest) =>
+      platformApi.createPlatformRole(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: platformKeys.platformRoles(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update a platform role.
+ */
+export function useUpdatePlatformRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      roleId,
+      data,
+    }: {
+      roleId: string;
+      data: UpdatePlatformRoleRequest;
+    }) => platformApi.updatePlatformRole(roleId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: platformKeys.platformRoles(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete a platform role.
+ */
+export function useDeletePlatformRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (roleId: string) => platformApi.deletePlatformRole(roleId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: platformKeys.platformRoles(),
       });
     },
   });

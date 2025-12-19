@@ -219,7 +219,9 @@ describe('Login Service', () => {
       const user = createMockUser({ mfaEnabled: true });
 
       const em = createMockEm();
-      em.findOne.mockResolvedValue(user);
+      // First call returns user, second call returns null (for platform role check)
+      em.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce(null);
+      em.find.mockResolvedValue([]); // No UserCompany records for regular users
       vi.mocked(verifyPassword).mockResolvedValue(true);
 
       const params = createLoginParams();
@@ -235,7 +237,9 @@ describe('Login Service', () => {
       const user = createMockUser({ mfaEnabled: false, company });
 
       const em = createMockEm();
-      em.findOne.mockResolvedValue(user);
+      // First call returns user, second call returns null (for platform role check)
+      em.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce(null);
+      em.find.mockResolvedValue([]); // No UserCompany records for regular users
       vi.mocked(verifyPassword).mockResolvedValue(true);
 
       const params = createLoginParams();
@@ -249,11 +253,12 @@ describe('Login Service', () => {
       const user = createMockUser();
 
       const em = createMockEm();
-      // First call returns user, second call returns null (for session check)
+      // First call returns user, second call returns null (for platform role check), third for session check
       em.findOne
         .mockResolvedValueOnce(user)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(null);
+      em.find.mockResolvedValue([]); // No UserCompany records for regular users
       em.count.mockResolvedValue(0);
       vi.mocked(verifyPassword).mockResolvedValue(true);
 

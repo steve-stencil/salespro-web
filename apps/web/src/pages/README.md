@@ -6,18 +6,21 @@ This folder contains page-level React components that correspond to application 
 
 ## Structure
 
-| Page                      | Route               | Purpose                |
-| ------------------------- | ------------------- | ---------------------- |
-| `AcceptInvitePage.tsx`    | `/invites/:token`   | Accept user invitation |
-| `CompanySettingsPage.tsx` | `/settings/company` | Company configuration  |
-| `DashboardPage.tsx`       | `/dashboard`        | Main dashboard view    |
-| `ForgotPasswordPage.tsx`  | `/forgot-password`  | Password reset request |
-| `LoginPage.tsx`           | `/login`            | User authentication    |
-| `MfaVerifyPage.tsx`       | `/mfa/verify`       | MFA code verification  |
-| `OfficesPage.tsx`         | `/offices`          | Office management      |
-| `ResetPasswordPage.tsx`   | `/reset-password`   | Password reset form    |
-| `RolesPage.tsx`           | `/roles`            | Role management        |
-| `UsersPage.tsx`           | `/users`            | User management        |
+| Page                      | Route                      | Purpose                  |
+| ------------------------- | -------------------------- | ------------------------ |
+| `AcceptInvitePage.tsx`    | `/invites/:token`          | Accept user invitation   |
+| `CompanySettingsPage.tsx` | `/settings/company`        | Company configuration    |
+| `DashboardPage.tsx`       | `/dashboard`               | Main dashboard view      |
+| `ForgotPasswordPage.tsx`  | `/forgot-password`         | Password reset request   |
+| `InternalUsersPage.tsx`   | `/platform/internal-users` | Internal user management |
+| `LoginPage.tsx`           | `/login`                   | User authentication      |
+| `MfaVerifyPage.tsx`       | `/mfa/verify`              | MFA code verification    |
+| `OfficesPage.tsx`         | `/offices`                 | Office management        |
+| `PlatformRolesPage.tsx`   | `/platform/roles`          | Platform role management |
+| `ResetPasswordPage.tsx`   | `/reset-password`          | Password reset form      |
+| `RolesPage.tsx`           | `/roles`                   | Role management          |
+| `SelectCompanyPage.tsx`   | `/select-company`          | Multi-company selection  |
+| `UsersPage.tsx`           | `/users`                   | User management          |
 
 ## Route Configuration
 
@@ -37,6 +40,11 @@ Routes are defined in `src/router.tsx`. See the router file for the complete rou
 - `/roles` - Role management
 - `/offices` - Office management
 - `/settings/company` - Company settings
+
+### Platform Routes (Internal Users Only)
+
+- `/platform/internal-users` - Internal user management (requires `platform:manage_internal_users`)
+- `/platform/roles` - Platform role management (requires `platform:admin`)
 
 ### MFA Routes
 

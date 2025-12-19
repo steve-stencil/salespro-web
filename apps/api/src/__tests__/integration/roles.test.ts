@@ -10,7 +10,6 @@ import {
   Session,
   SessionSource,
   UserType,
-  CompanyAccessLevel,
 } from '../../entities';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
@@ -472,7 +471,7 @@ describe('Roles Routes Integration Tests', () => {
         name: `platformRole-${Date.now()}`,
         displayName: 'Platform Role',
         type: RoleType.PLATFORM,
-        companyAccessLevel: CompanyAccessLevel.FULL,
+        companyPermissions: ['*'], // Full access in any company
         permissions: [
           'platform:admin',
           'platform:view_companies',
@@ -571,7 +570,7 @@ describe('Roles Routes Integration Tests', () => {
         name: `platformRole2-${Date.now()}`,
         displayName: 'Platform Role 2',
         type: RoleType.PLATFORM,
-        companyAccessLevel: CompanyAccessLevel.FULL,
+        companyPermissions: ['*'], // Full access in any company
         permissions: ['platform:view_companies'],
       });
       em.persist(platformRole);
@@ -785,7 +784,7 @@ describe('Roles Routes Integration Tests', () => {
           displayName: 'Platform Role',
           permissions: ['platform:view_companies', 'platform:switch_company'],
           type: RoleType.PLATFORM,
-          companyAccessLevel: CompanyAccessLevel.FULL,
+          companyPermissions: ['*'], // Full access to all company resources
         });
         em.persist(platformRole);
         await em.flush();
@@ -1657,7 +1656,7 @@ describe('Roles Routes Integration Tests', () => {
           displayName: 'Internal Platform Role',
           permissions: ['platform:view_companies', 'platform:switch_company'],
           type: RoleType.PLATFORM,
-          companyAccessLevel: CompanyAccessLevel.FULL, // Full access to all company permissions
+          companyPermissions: ['*'], // Full access to all company permissions
         });
         em.persist(internalPlatformRole);
 

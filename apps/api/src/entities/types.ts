@@ -90,16 +90,6 @@ export enum UserType {
   INTERNAL = 'internal',
 }
 
-/** Defines what access an internal user has when entering a company */
-export enum CompanyAccessLevel {
-  /** SuperUser-level access (can do everything) */
-  FULL = 'full',
-  /** Can view all data but cannot modify */
-  READ_ONLY = 'read_only',
-  /** Uses specific permissions defined in the role */
-  CUSTOM = 'custom',
-}
-
 /** Company-configurable password policy */
 export type PasswordPolicy = {
   /** Minimum password length */

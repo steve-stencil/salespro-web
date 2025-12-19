@@ -12,8 +12,17 @@ export type PlatformRole = {
   name: string;
   displayName: string;
   description?: string;
-  companyAccessLevel?: 'full' | 'restricted' | 'readonly';
+  /** Permissions when switched into any company. Supports wildcards: '*', 'resource:*' */
+  companyPermissions?: string[];
+  /** Platform-level permissions (e.g., 'platform:switch_company') */
   permissions?: string[];
+};
+
+/** Platform role with user count (for admin views) */
+export type PlatformRoleWithCount = PlatformRole & {
+  userCount: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 /** Internal user in list view */
@@ -58,6 +67,37 @@ export type InternalUserDetailResponse = InternalUserDetail;
 export type PlatformRolesResponse = {
   roles: PlatformRole[];
 };
+
+/** Response from GET /platform/roles (admin view with user counts) */
+export type PlatformRolesAdminResponse = {
+  roles: PlatformRoleWithCount[];
+};
+
+/** Response from GET /platform/roles/:id */
+export type PlatformRoleDetailResponse = PlatformRoleWithCount;
+
+/** Request body for POST /platform/roles */
+export type CreatePlatformRoleRequest = {
+  name: string;
+  displayName: string;
+  description?: string;
+  permissions: string[];
+  companyPermissions: string[];
+};
+
+/** Response from POST /platform/roles */
+export type CreatePlatformRoleResponse = PlatformRoleWithCount;
+
+/** Request body for PATCH /platform/roles/:id */
+export type UpdatePlatformRoleRequest = {
+  displayName?: string;
+  description?: string | null;
+  permissions?: string[];
+  companyPermissions?: string[];
+};
+
+/** Response from PATCH /platform/roles/:id */
+export type UpdatePlatformRoleResponse = PlatformRoleWithCount;
 
 /** Request body for POST /internal-users */
 export type CreateInternalUserRequest = {

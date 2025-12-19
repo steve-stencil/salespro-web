@@ -2,12 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, afterEach, beforeEach } from 'vitest';
 
 import { User, Role, UserRole, Session, UserCompany } from '../../entities';
-import {
-  UserType,
-  RoleType,
-  CompanyAccessLevel,
-  SessionSource,
-} from '../../entities/types';
+import { UserType, RoleType, SessionSource } from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -493,10 +488,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
 
       // Platform users get company permissions from their platform role's
       // companyAccessLevel, NOT from company-specific roles
-      const platformRole = await createPlatformRole(
-        em,
-        CompanyAccessLevel.FULL,
-      );
+      const platformRole = await createPlatformRole(em, ['*']);
 
       // Create internal user - platform users never have company roles
       const { cookie } = await createInternalUserWithRoles(
@@ -526,10 +518,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
 
       // Platform users get company permissions from their platform role's companyAccessLevel,
       // NOT from company-specific UserRole assignments. They never have company roles.
-      const platformRole = await createPlatformRole(
-        em,
-        CompanyAccessLevel.FULL,
-      );
+      const platformRole = await createPlatformRole(em, ['*']);
 
       // Create internal user - platform users don't have company roles
       const { cookie } = await createInternalUserWithRoles(
@@ -559,10 +548,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
 
       // Platform users get the SAME permissions in ALL companies
       // based on their platform role's companyAccessLevel
-      const platformRole = await createPlatformRole(
-        em,
-        CompanyAccessLevel.FULL,
-      );
+      const platformRole = await createPlatformRole(em, ['*']);
 
       // Create internal user - platform users don't have company-specific roles
       const { cookie, sessionId } = await createInternalUserWithRoles(
@@ -963,17 +949,13 @@ describe('Multi-Company Permissions Integration Tests', () => {
       const orm = getORM();
       const em = orm.em.fork();
 
-      const platformRole = await createPlatformRole(
-        em,
-        CompanyAccessLevel.FULL,
-        {
-          platformPermissions: [
-            PERMISSIONS.PLATFORM_VIEW_COMPANIES,
-            PERMISSIONS.PLATFORM_SWITCH_COMPANY,
-            PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
-          ],
-        },
-      );
+      const platformRole = await createPlatformRole(em, ['*'], {
+        platformPermissions: [
+          PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+          PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+          PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
+        ],
+      });
       const { cookie } = await createInternalUserWithRoles(
         em,
         platformRole,
@@ -992,10 +974,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
       const orm = getORM();
       const em = orm.em.fork();
 
-      const platformRole = await createPlatformRole(
-        em,
-        CompanyAccessLevel.FULL,
-      );
+      const platformRole = await createPlatformRole(em, ['*']);
       const { cookie } = await createInternalUserWithRoles(
         em,
         platformRole,
@@ -1332,16 +1311,12 @@ describe('Multi-Company Permissions Integration Tests', () => {
 
         // Platform users get company permissions from their platform role's
         // companyAccessLevel, NOT from company-specific roles
-        const platformRole = await createPlatformRole(
-          em,
-          CompanyAccessLevel.FULL,
-          {
-            platformPermissions: [
-              PERMISSIONS.PLATFORM_VIEW_COMPANIES,
-              PERMISSIONS.PLATFORM_SWITCH_COMPANY,
-            ],
-          },
-        );
+        const platformRole = await createPlatformRole(em, ['*'], {
+          platformPermissions: [
+            PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+            PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+          ],
+        });
 
         // Create internal user - platform users never have company roles
         const email = `internal-${Date.now()}@platform.com`;
@@ -1407,16 +1382,12 @@ describe('Multi-Company Permissions Integration Tests', () => {
 
         // Platform users get company permissions from their platform role's
         // companyAccessLevel, not from company-specific roles
-        const platformRole = await createPlatformRole(
-          em,
-          CompanyAccessLevel.FULL,
-          {
-            platformPermissions: [
-              PERMISSIONS.PLATFORM_VIEW_COMPANIES,
-              PERMISSIONS.PLATFORM_SWITCH_COMPANY,
-            ],
-          },
-        );
+        const platformRole = await createPlatformRole(em, ['*'], {
+          platformPermissions: [
+            PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+            PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+          ],
+        });
 
         // Create internal user - platform users don't have company roles
         const email = `internal-${Date.now()}@platform.com`;
@@ -1480,16 +1451,12 @@ describe('Multi-Company Permissions Integration Tests', () => {
 
         // Platform users get the SAME permissions from their platform role
         // in ALL companies - permissions don't change when switching
-        const platformRole = await createPlatformRole(
-          em,
-          CompanyAccessLevel.FULL,
-          {
-            platformPermissions: [
-              PERMISSIONS.PLATFORM_VIEW_COMPANIES,
-              PERMISSIONS.PLATFORM_SWITCH_COMPANY,
-            ],
-          },
-        );
+        const platformRole = await createPlatformRole(em, ['*'], {
+          platformPermissions: [
+            PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+            PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+          ],
+        });
 
         // Create internal user
         const email = `internal-${Date.now()}@platform.com`;
