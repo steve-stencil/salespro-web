@@ -21,5 +21,14 @@ export default defineConfig({
       // Use overlay for errors but don't spam on rapid changes
       overlay: true,
     },
+    proxy: {
+      // Proxy /api requests to the backend server for local development.
+      // This is needed for local file serving (logos, uploads) since
+      // LocalStorageAdapter generates URLs using APP_URL which points to frontend.
+      '/api/files': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
+    },
   },
 });

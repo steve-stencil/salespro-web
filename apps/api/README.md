@@ -168,6 +168,21 @@ Files support three visibility levels:
 - `file:update` - Update file metadata
 - `file:delete` - Delete files
 
+### Company Settings System
+
+The API includes company-level settings for managing security policies and branding.
+
+#### Company Settings Endpoints
+
+| Method | Endpoint                       | Description                |
+| ------ | ------------------------------ | -------------------------- |
+| GET    | `/api/companies/settings`      | Get company settings       |
+| PATCH  | `/api/companies/settings`      | Update company settings    |
+| POST   | `/api/companies/settings/logo` | Upload/update company logo |
+| DELETE | `/api/companies/settings/logo` | Remove company logo        |
+
+**Required Permissions:** `company:read` for GET, `company:update` for PATCH/POST/DELETE
+
 ### Office Settings System
 
 The API includes office-level settings for managing logos and third-party integrations.

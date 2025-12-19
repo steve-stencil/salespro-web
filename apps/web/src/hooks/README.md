@@ -13,6 +13,7 @@ This folder contains custom React hooks that encapsulate reusable stateful logic
 | `useCompanies.ts`      | Multi-company access and switching      |
 | `useDebouncedValue.ts` | Debounce values for delayed updates     |
 | `useOffices.ts`        | Office data fetching and mutations      |
+| `useOfficeSettings.ts` | Office settings and logo management     |
 | `usePermissions.ts`    | Permission checking utilities           |
 | `usePlatform.ts`       | Platform/internal user data and actions |
 | `useRoles.ts`          | Role data fetching and mutations        |
@@ -146,6 +147,47 @@ function OfficeManager() {
       onUpdate={updateOffice.mutate}
       onDelete={deleteOffice.mutate}
     />
+  );
+}
+```
+
+### useOfficeSettings
+
+Fetch and manage office settings including logo upload/removal.
+
+```tsx
+import {
+  useOfficeSettings,
+  useUploadLogo,
+  useRemoveLogo,
+} from '../hooks/useOfficeSettings';
+
+function OfficeSettingsManager({ officeId }: { officeId: string }) {
+  // Fetch settings
+  const { data, isLoading } = useOfficeSettings(officeId);
+
+  // Upload logo mutation
+  const uploadLogo = useUploadLogo();
+
+  // Remove logo mutation
+  const removeLogo = useRemoveLogo();
+
+  const handleUpload = async (file: File) => {
+    await uploadLogo.mutateAsync({ officeId, file });
+  };
+
+  const handleRemove = async () => {
+    await removeLogo.mutateAsync(officeId);
+  };
+
+  return (
+    <div>
+      {data?.settings.logo && (
+        <img src={data.settings.logo.url} alt="Office logo" />
+      )}
+      <input type="file" onChange={e => handleUpload(e.target.files![0])} />
+      <button onClick={handleRemove}>Remove Logo</button>
+    </div>
   );
 }
 ```

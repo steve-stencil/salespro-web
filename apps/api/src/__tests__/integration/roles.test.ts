@@ -771,6 +771,161 @@ describe('Roles Routes Integration Tests', () => {
 
       expect(response.status).toBe(400);
     });
+
+    describe('User Type and Role Type Validation', () => {
+      it('should return 400 when assigning platform role to company user', async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        // Create a platform role (for internal users only)
+        const platformRole = em.create(Role, {
+          id: uuid(),
+          name: `platformRole-${Date.now()}`,
+          displayName: 'Platform Role',
+          permissions: ['platform:view_companies', 'platform:switch_company'],
+          type: RoleType.PLATFORM,
+          companyAccessLevel: CompanyAccessLevel.FULL,
+        });
+        em.persist(platformRole);
+        await em.flush();
+
+        // targetUser is a COMPANY user (created in beforeEach)
+        const response = await makeRequest()
+          .post('/api/roles/assign')
+          .set('Cookie', cookie)
+          .send({
+            userId: targetUser.id,
+            roleId: platformRole.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe(
+          'Platform roles can only be assigned to internal users',
+        );
+      });
+
+      it('should return 400 when assigning company role to internal user', async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        // Create an internal (platform) user
+        const internalUser = em.create(User, {
+          id: uuid(),
+          email: `internal-${Date.now()}@platform.com`,
+          passwordHash: await hashPassword('TestPassword123!'),
+          nameFirst: 'Internal',
+          nameLast: 'User',
+          userType: UserType.INTERNAL,
+          isActive: true,
+          emailVerified: true,
+          mfaEnabled: false,
+        });
+        em.persist(internalUser);
+        await em.flush();
+
+        // assignableRole is a COMPANY role (created in beforeEach)
+        const response = await makeRequest()
+          .post('/api/roles/assign')
+          .set('Cookie', cookie)
+          .send({
+            userId: internalUser.id,
+            roleId: assignableRole.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe(
+          'Company roles cannot be assigned to internal users',
+        );
+      });
+
+      it('should return 400 when assigning system role to internal user', async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        // Create an internal (platform) user
+        const internalUser = em.create(User, {
+          id: uuid(),
+          email: `internal-sys-${Date.now()}@platform.com`,
+          passwordHash: await hashPassword('TestPassword123!'),
+          nameFirst: 'Internal',
+          nameLast: 'User',
+          userType: UserType.INTERNAL,
+          isActive: true,
+          emailVerified: true,
+          mfaEnabled: false,
+        });
+        em.persist(internalUser);
+
+        // Create a system role
+        const systemRole = em.create(Role, {
+          id: uuid(),
+          name: `systemRole-${Date.now()}`,
+          displayName: 'System Role',
+          permissions: ['customer:read'],
+          type: RoleType.SYSTEM,
+          isDefault: false,
+        });
+        em.persist(systemRole);
+        await em.flush();
+
+        const response = await makeRequest()
+          .post('/api/roles/assign')
+          .set('Cookie', cookie)
+          .send({
+            userId: internalUser.id,
+            roleId: systemRole.id,
+          });
+
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe(
+          'Company roles cannot be assigned to internal users',
+        );
+      });
+
+      it('should allow assigning system role to company user', async () => {
+        const orm = getORM();
+        const em = orm.em.fork();
+
+        // Create a system role
+        const systemRole = em.create(Role, {
+          id: uuid(),
+          name: `systemRole-${Date.now()}`,
+          displayName: 'System Role',
+          permissions: ['customer:read'],
+          type: RoleType.SYSTEM,
+          isDefault: false,
+        });
+        em.persist(systemRole);
+        await em.flush();
+
+        // targetUser is a COMPANY user (created in beforeEach)
+        const response = await makeRequest()
+          .post('/api/roles/assign')
+          .set('Cookie', cookie)
+          .send({
+            userId: targetUser.id,
+            roleId: systemRole.id,
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Role assigned successfully');
+      });
+
+      it('should allow assigning company role to company user', async () => {
+        // assignableRole is a COMPANY role and targetUser is a COMPANY user
+        // Both created in beforeEach
+        const response = await makeRequest()
+          .post('/api/roles/assign')
+          .set('Cookie', cookie)
+          .send({
+            userId: targetUser.id,
+            roleId: assignableRole.id,
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Role assigned successfully');
+      });
+    });
   });
 
   describe('POST /api/roles/revoke', () => {

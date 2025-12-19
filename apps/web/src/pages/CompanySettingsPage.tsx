@@ -1,8 +1,9 @@
 /**
  * Company settings page.
- * Allows admins to manage company-wide settings including MFA requirements.
+ * Allows admins to manage company-wide settings including MFA requirements and logo.
  * Requires company:update permission to view and modify settings.
  */
+import BusinessIcon from '@mui/icons-material/Business';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import SaveIcon from '@mui/icons-material/Save';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -19,6 +20,7 @@ import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useState, useEffect, useCallback } from 'react';
 
+import { OfficeLogoUpload } from '../components/offices';
 import { handleApiError } from '../lib/api-client';
 import { companyApi } from '../services/company';
 
@@ -54,6 +56,8 @@ export function CompanySettingsPage(): React.ReactElement {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isRemovingLogo, setIsRemovingLogo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
@@ -125,6 +129,44 @@ export function CompanySettingsPage(): React.ReactElement {
     }
   }
 
+  /**
+   * Handles logo file upload.
+   */
+  async function handleLogoUpload(file: File): Promise<void> {
+    setIsUploadingLogo(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await companyApi.uploadLogo(file);
+      setSettings(response.settings);
+      setSuccessMessage('Company logo updated successfully');
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  }
+
+  /**
+   * Handles logo removal.
+   */
+  async function handleLogoRemove(): Promise<void> {
+    setIsRemovingLogo(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await companyApi.removeLogo();
+      setSettings(response.settings);
+      setSuccessMessage('Company logo removed successfully');
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setIsRemovingLogo(false);
+    }
+  }
+
   if (isLoading) {
     return <SettingsSkeleton />;
   }
@@ -164,6 +206,49 @@ export function CompanySettingsPage(): React.ReactElement {
           {error}
         </Alert>
       )}
+
+      {/* Company Logo Section */}
+      <Card sx={{ mb: 3 }} data-testid="logo-section">
+        <CardHeader
+          avatar={
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                bgcolor: 'secondary.light',
+                color: 'secondary.contrastText',
+              }}
+            >
+              <BusinessIcon />
+            </Box>
+          }
+          title={
+            <Typography variant="h6" component="h2">
+              Company Logo
+            </Typography>
+          }
+          subheader="Upload a logo to represent your company"
+        />
+        <CardContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Your company logo will appear in the application header and other
+            branding areas. Upload a high-quality image for best results.
+          </Typography>
+          <OfficeLogoUpload
+            logo={settings?.logo}
+            officeName={settings?.companyName ?? 'Company'}
+            onFileSelect={file => void handleLogoUpload(file)}
+            onRemove={() => void handleLogoRemove()}
+            isUploading={isUploadingLogo}
+            isRemoving={isRemovingLogo}
+            disabled={isSaving}
+          />
+        </CardContent>
+      </Card>
 
       {/* Security Section */}
       <Card sx={{ mb: 3 }} data-testid="security-section">

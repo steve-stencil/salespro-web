@@ -9,3 +9,6 @@ export {
   type OfficeStatusFilter,
   type OfficeSortOption,
 } from './OfficeFilters';
+export { OfficeLogo } from './OfficeLogo';
+export { OfficeLogoUpload } from './OfficeLogoUpload';
+export { OfficeSettingsDialog } from './OfficeSettingsDialog';

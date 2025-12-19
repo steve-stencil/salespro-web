@@ -1,6 +1,6 @@
 /**
  * Offices management page.
- * Lists all offices with create/edit/delete capabilities.
+ * Lists all offices with create/edit/delete/settings capabilities.
  * Actions are conditionally rendered based on user permissions.
  */
 import AddIcon from '@mui/icons-material/Add';
@@ -17,9 +17,11 @@ import {
   OfficeDeleteDialog,
   OfficeEditDialog,
   OfficeFilters,
+  OfficeSettingsDialog,
 } from '../components/offices';
 import { RequirePermission } from '../components/PermissionGuard';
 import { useOfficesList, useDeleteOffice } from '../hooks/useOffices';
+import { useOfficeSettings } from '../hooks/useOfficeSettings';
 import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
 import { handleApiError } from '../lib/api-client';
 
@@ -43,12 +45,49 @@ function OfficeCardSkeleton(): React.ReactElement {
         height: '100%',
       }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-        <Skeleton variant="text" width="60%" height={28} />
-        <Skeleton variant="rounded" width={60} height={24} />
+      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+        <Skeleton variant="circular" width={48} height={48} />
+        <Box sx={{ flex: 1 }}>
+          <Skeleton variant="text" width="60%" height={28} />
+          <Skeleton variant="rounded" width={60} height={24} sx={{ mt: 0.5 }} />
+        </Box>
       </Box>
       <Skeleton variant="text" width="30%" height={20} sx={{ mt: 2 }} />
     </Box>
+  );
+}
+
+/**
+ * Props for OfficeCardWithSettings.
+ */
+type OfficeCardWithSettingsProps = {
+  office: Office;
+  onEdit?: ((office: Office) => void) | undefined;
+  onDelete?: ((office: Office) => void) | undefined;
+  onSettings?: ((office: Office) => void) | undefined;
+};
+
+/**
+ * Office card wrapper that fetches and displays settings (logo).
+ */
+function OfficeCardWithSettings({
+  office,
+  onEdit,
+  onDelete,
+  onSettings,
+}: OfficeCardWithSettingsProps): React.ReactElement {
+  const { data: settingsData, isLoading: isLoadingSettings } =
+    useOfficeSettings(office.id);
+
+  return (
+    <OfficeCard
+      office={office}
+      logo={settingsData?.settings.logo}
+      isLoadingSettings={isLoadingSettings}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onSettings={onSettings}
+    />
   );
 }
 
@@ -99,6 +138,7 @@ export function OfficesPage(): React.ReactElement {
   const [editOffice, setEditOffice] = useState<Office | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteOffice, setDeleteOffice] = useState<Office | null>(null);
+  const [settingsOffice, setSettingsOffice] = useState<Office | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,6 +152,7 @@ export function OfficesPage(): React.ReactElement {
   const canCreateOffice = hasPermission(PERMISSIONS.OFFICE_CREATE);
   const canUpdateOffice = hasPermission(PERMISSIONS.OFFICE_UPDATE);
   const canDeleteOffice = hasPermission(PERMISSIONS.OFFICE_DELETE);
+  const canUpdateSettings = hasPermission(PERMISSIONS.SETTINGS_UPDATE);
 
   const filteredOffices = useMemo(
     () =>
@@ -235,10 +276,13 @@ export function OfficesPage(): React.ReactElement {
             <Grid container spacing={2}>
               {filteredOffices.map(office => (
                 <Grid size={{ xs: 12, sm: 6, md: 4 }} key={office.id}>
-                  <OfficeCard
+                  <OfficeCardWithSettings
                     office={office}
                     onEdit={canUpdateOffice ? setEditOffice : undefined}
                     onDelete={canDeleteOffice ? setDeleteOffice : undefined}
+                    onSettings={
+                      canUpdateSettings ? setSettingsOffice : undefined
+                    }
                   />
                 </Grid>
               ))}
@@ -262,6 +306,13 @@ export function OfficesPage(): React.ReactElement {
         isDeleting={deleteOfficeMutation.isPending}
         onClose={() => setDeleteOffice(null)}
         onConfirm={() => void handleConfirmDelete()}
+      />
+
+      <OfficeSettingsDialog
+        open={settingsOffice !== null}
+        office={settingsOffice}
+        onClose={() => setSettingsOffice(null)}
+        onUpdated={() => void refetch()}
       />
     </Box>
   );
