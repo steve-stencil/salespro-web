@@ -146,7 +146,7 @@ router.get(
           name: role.name,
           displayName: role.displayName,
           description: role.description,
-          companyAccessLevel: role.companyAccessLevel,
+          companyPermissions: role.companyPermissions,
           permissions: role.permissions,
         })),
       });
@@ -214,7 +214,7 @@ router.get(
               id: userRole.role.id,
               name: userRole.role.name,
               displayName: userRole.role.displayName,
-              companyAccessLevel: userRole.role.companyAccessLevel,
+              companyPermissions: userRole.role.companyPermissions,
               permissions: userRole.role.permissions,
             }
           : null,

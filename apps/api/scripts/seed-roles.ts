@@ -22,7 +22,6 @@ import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import {
   Role,
   RoleType,
-  CompanyAccessLevel,
   Company,
   User,
   Session,
@@ -46,7 +45,8 @@ type RoleConfig = {
   type: RoleType;
   isDefault: boolean;
   permissions: string[];
-  companyAccessLevel?: CompanyAccessLevel;
+  /** For platform roles: permissions when switched into a company */
+  companyPermissions?: string[];
 };
 
 /**
@@ -119,7 +119,6 @@ const PLATFORM_ROLES: RoleConfig[] = [
       'Full platform access. Can manage all companies and internal users.',
     type: RoleType.PLATFORM,
     isDefault: false,
-    companyAccessLevel: CompanyAccessLevel.FULL,
     permissions: [
       PERMISSIONS.PLATFORM_ADMIN,
       PERMISSIONS.PLATFORM_VIEW_COMPANIES,
@@ -127,6 +126,7 @@ const PLATFORM_ROLES: RoleConfig[] = [
       PERMISSIONS.PLATFORM_VIEW_AUDIT_LOGS,
       PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
     ],
+    companyPermissions: ['*'], // Full access in any company
   },
   {
     name: 'platformSupport',
@@ -135,11 +135,21 @@ const PLATFORM_ROLES: RoleConfig[] = [
       'Read-only access to all companies for customer support purposes.',
     type: RoleType.PLATFORM,
     isDefault: false,
-    companyAccessLevel: CompanyAccessLevel.READ_ONLY,
     permissions: [
       PERMISSIONS.PLATFORM_VIEW_COMPANIES,
       PERMISSIONS.PLATFORM_SWITCH_COMPANY,
       PERMISSIONS.PLATFORM_VIEW_AUDIT_LOGS,
+    ],
+    companyPermissions: [
+      // All read permissions for read-only access
+      PERMISSIONS.CUSTOMER_READ,
+      PERMISSIONS.USER_READ,
+      PERMISSIONS.OFFICE_READ,
+      PERMISSIONS.ROLE_READ,
+      PERMISSIONS.REPORT_READ,
+      PERMISSIONS.SETTINGS_READ,
+      PERMISSIONS.COMPANY_READ,
+      PERMISSIONS.FILE_READ,
     ],
   },
   {
@@ -148,10 +158,11 @@ const PLATFORM_ROLES: RoleConfig[] = [
     description: 'Developer access with read permissions across companies.',
     type: RoleType.PLATFORM,
     isDefault: false,
-    companyAccessLevel: CompanyAccessLevel.CUSTOM,
     permissions: [
       PERMISSIONS.PLATFORM_VIEW_COMPANIES,
       PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+    ],
+    companyPermissions: [
       // Custom company permissions (read-only)
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.USER_READ,
@@ -269,8 +280,8 @@ async function seedRolesFromConfig(
       role.description = roleConfig.description;
       role.permissions = roleConfig.permissions;
       role.isDefault = roleConfig.isDefault;
-      if (roleConfig.companyAccessLevel !== undefined) {
-        role.companyAccessLevel = roleConfig.companyAccessLevel;
+      if (roleConfig.companyPermissions !== undefined) {
+        role.companyPermissions = roleConfig.companyPermissions;
       }
       log(`Updated existing role: ${role.name} (${role.type})`, 'info');
     } else {
@@ -282,8 +293,8 @@ async function seedRolesFromConfig(
       role.type = roleConfig.type;
       role.permissions = roleConfig.permissions;
       role.isDefault = roleConfig.isDefault;
-      if (roleConfig.companyAccessLevel !== undefined) {
-        role.companyAccessLevel = roleConfig.companyAccessLevel;
+      if (roleConfig.companyPermissions !== undefined) {
+        role.companyPermissions = roleConfig.companyPermissions;
       }
       // role.company is undefined by default for system/platform roles
       em.persist(role);
@@ -370,8 +381,15 @@ function printSummary(roles: Role[]): void {
       console.log(`${colors.cyan}${role.displayName}${colors.reset}`);
       console.log(`  Name: ${role.name}`);
       console.log(`  Description: ${role.description ?? 'N/A'}`);
-      console.log(`  Company Access: ${role.companyAccessLevel ?? 'N/A'}`);
-      console.log(`  Permissions: ${role.permissions.length} permission(s)`);
+      console.log(
+        `  Company Permissions: ${role.companyPermissions.length} permission(s)`,
+      );
+      if (role.companyPermissions.length <= 5) {
+        console.log(`    ${role.companyPermissions.join(', ')}`);
+      } else {
+        console.log(`    ${role.companyPermissions.slice(0, 5).join(', ')}...`);
+      }
+      console.log(`  Platform Permissions: ${role.permissions.length}`);
       if (role.permissions.length <= 5) {
         console.log(`    ${role.permissions.join(', ')}`);
       } else {

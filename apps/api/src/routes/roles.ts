@@ -268,6 +268,7 @@ router.get('/me', requireAuth(), async (req: Request, res: Response) => {
       const platformRole = await permissionService.getInternalUserPlatformRole(
         user.id,
       );
+
       if (platformRole) {
         // Add platform role if not already included
         const platformRoleExists = allRoles.some(r => r.id === platformRole.id);
@@ -276,14 +277,24 @@ router.get('/me', requireAuth(), async (req: Request, res: Response) => {
         }
       }
 
-      // Get platform permissions
+      // Get platform permissions (platform:* permissions like platform:view_companies)
       const platformPermissions =
         await permissionService.getInternalUserPlatformPermissions(user.id);
 
+      // Get company-context permissions from platform role's companyPermissions
+      // This returns the explicit company permissions (e.g., ['*'] for full access)
+      const internalCompanyPermissions =
+        await permissionService.getInternalUserCompanyPermissions(
+          user.id,
+          company.id,
+        );
+
       // Merge permissions, avoiding duplicates
+      // Include: company UserRole permissions + platform permissions + company-context permissions
       const permissionSet = new Set([
         ...companyPermissions,
         ...platformPermissions,
+        ...internalCompanyPermissions,
       ]);
       allPermissions = Array.from(permissionSet);
     }

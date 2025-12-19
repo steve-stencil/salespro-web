@@ -21,7 +21,7 @@ type AuthenticatedRequest = Request & {
  * Handles both company users and internal users:
  * - Company users: checks their assigned roles in their company
  * - Internal users: for platform permissions, checks platform role;
- *   for company permissions, checks platform role's companyAccessLevel
+ *   for company permissions, checks platform role's companyPermissions
  *
  * @param permission - The permission string to check (e.g., 'customer:read')
  * @returns Express middleware handler

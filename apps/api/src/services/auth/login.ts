@@ -9,9 +9,9 @@ import {
   UserRole,
   Company,
   RoleType,
-  CompanyAccessLevel,
 } from '../../entities';
 import { verifyPassword } from '../../lib/crypto';
+import { hasPermission } from '../../lib/permissions';
 
 import { LOCKOUT_CONFIG } from './config';
 import { logLoginEvent } from './events';
@@ -166,19 +166,20 @@ export async function login(
       };
     }
   } else {
-    // For internal users, check their platform role's company access level
+    // For internal users, check their platform role's company permissions
     activeCompany = user.company;
 
-    // Get the user's platform role to check companyAccessLevel
+    // Get the user's platform role to check companyPermissions
     const platformRoleAssignment = await em.findOne(
       UserRole,
       { user: user.id, role: { type: RoleType.PLATFORM } },
       { populate: ['role'] },
     );
 
+    // Check if user has full access via wildcard in companyPermissions
     const hasFullAccess =
-      platformRoleAssignment?.role.companyAccessLevel ===
-      CompanyAccessLevel.FULL;
+      platformRoleAssignment?.role.companyPermissions &&
+      hasPermission('*', platformRoleAssignment.role.companyPermissions);
 
     if (hasFullAccess) {
       // User has FULL access - they can switch to any company

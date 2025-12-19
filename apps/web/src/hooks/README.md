@@ -6,17 +6,17 @@ This folder contains custom React hooks that encapsulate reusable stateful logic
 
 ## Structure
 
-| Hook                   | Purpose                             |
-| ---------------------- | ----------------------------------- |
-| `useAuth.ts`           | Authentication context access       |
-| `useApiError.ts`       | API error handling utilities        |
-| `useCompanies.ts`      | Multi-company access and switching  |
-| `useDebouncedValue.ts` | Debounce values for delayed updates |
-| `useOffices.ts`        | Office data fetching and mutations  |
-| `usePermissions.ts`    | Permission checking utilities       |
-| `usePlatform.ts`       | Platform detection utilities        |
-| `useRoles.ts`          | Role data fetching and mutations    |
-| `useUsers.ts`          | User data fetching and mutations    |
+| Hook                   | Purpose                                 |
+| ---------------------- | --------------------------------------- |
+| `useAuth.ts`           | Authentication context access           |
+| `useApiError.ts`       | API error handling utilities            |
+| `useCompanies.ts`      | Multi-company access and switching      |
+| `useDebouncedValue.ts` | Debounce values for delayed updates     |
+| `useOffices.ts`        | Office data fetching and mutations      |
+| `usePermissions.ts`    | Permission checking utilities           |
+| `usePlatform.ts`       | Platform/internal user data and actions |
+| `useRoles.ts`          | Role data fetching and mutations        |
+| `useUsers.ts`          | User data fetching and mutations        |
 
 ## Hook Reference
 
@@ -176,6 +176,76 @@ function MyComponent() {
   );
 }
 ```
+
+### usePlatform
+
+Manage platform-level data for internal users, including platform roles and internal user management.
+
+```tsx
+import {
+  usePlatformRolesAdmin,
+  useCreatePlatformRole,
+  useUpdatePlatformRole,
+  useDeletePlatformRole,
+  useInternalUsers,
+} from '../hooks/usePlatform';
+
+function PlatformRoleManager() {
+  // Fetch all platform roles with user counts
+  const { data, isLoading } = usePlatformRolesAdmin();
+
+  // Mutations for platform role CRUD
+  const createRole = useCreatePlatformRole();
+  const updateRole = useUpdatePlatformRole();
+  const deleteRole = useDeletePlatformRole();
+
+  const handleCreate = async () => {
+    await createRole.mutateAsync({
+      name: 'support-readonly',
+      displayName: 'Support Read-Only',
+      permissions: ['platform:view_companies'],
+      companyPermissions: ['customer:read', 'user:read'],
+    });
+  };
+
+  const handleUpdate = async (roleId: string) => {
+    await updateRole.mutateAsync({
+      roleId,
+      data: { displayName: 'Updated Name' },
+    });
+  };
+
+  return (
+    <div>
+      {data?.roles.map(role => (
+        <RoleCard
+          key={role.id}
+          role={role}
+          onEdit={() => handleUpdate(role.id)}
+          onDelete={() => deleteRole.mutate(role.id)}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+**Available hooks:**
+
+| Hook                    | Purpose                                    |
+| ----------------------- | ------------------------------------------ |
+| `usePlatformCompanies`  | Fetch companies available to internal user |
+| `useInternalUsers`      | List all internal platform users           |
+| `useInternalUser`       | Get specific internal user details         |
+| `usePlatformRoles`      | List platform roles (for dropdowns)        |
+| `usePlatformRolesAdmin` | List platform roles with user counts       |
+| `usePlatformRole`       | Get specific platform role details         |
+| `useCreatePlatformRole` | Create a new platform role                 |
+| `useUpdatePlatformRole` | Update an existing platform role           |
+| `useDeletePlatformRole` | Delete a platform role                     |
+| `useCreateInternalUser` | Create a new internal user                 |
+| `useUpdateInternalUser` | Update an internal user                    |
+| `useDeleteInternalUser` | Delete an internal user                    |
 
 ### useCompanies
 

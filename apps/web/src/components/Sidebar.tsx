@@ -86,6 +86,12 @@ const PLATFORM_NAV_ITEMS: NavItem[] = [
     icon: <PeopleIcon />,
     permission: PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
   },
+  {
+    label: 'Platform Roles',
+    path: '/platform/roles',
+    icon: <SecurityIcon />,
+    permission: PERMISSIONS.PLATFORM_ADMIN,
+  },
 ];
 
 type SidebarProps = {

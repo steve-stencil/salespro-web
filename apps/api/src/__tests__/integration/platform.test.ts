@@ -2,7 +2,7 @@ import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { Company, User, Role, UserRole, Session } from '../../entities';
-import { UserType, RoleType, CompanyAccessLevel } from '../../entities/types';
+import { UserType, RoleType } from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -42,7 +42,7 @@ describe('Platform Routes', () => {
       name: 'platformAdmin',
       displayName: 'Platform Admin',
       type: RoleType.PLATFORM,
-      companyAccessLevel: CompanyAccessLevel.FULL,
+      companyPermissions: ['*'], // Full access in any company
       permissions: [
         PERMISSIONS.PLATFORM_ADMIN,
         PERMISSIONS.PLATFORM_VIEW_COMPANIES,
@@ -55,7 +55,17 @@ describe('Platform Routes', () => {
       name: 'platformSupport',
       displayName: 'Platform Support',
       type: RoleType.PLATFORM,
-      companyAccessLevel: CompanyAccessLevel.READ_ONLY,
+      companyPermissions: [
+        // Read-only access
+        PERMISSIONS.CUSTOMER_READ,
+        PERMISSIONS.USER_READ,
+        PERMISSIONS.OFFICE_READ,
+        PERMISSIONS.ROLE_READ,
+        PERMISSIONS.REPORT_READ,
+        PERMISSIONS.SETTINGS_READ,
+        PERMISSIONS.COMPANY_READ,
+        PERMISSIONS.FILE_READ,
+      ],
       permissions: [
         PERMISSIONS.PLATFORM_VIEW_COMPANIES,
         PERMISSIONS.PLATFORM_SWITCH_COMPANY,
