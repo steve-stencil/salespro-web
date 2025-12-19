@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OfficeSettingsDialog } from '../../../components/offices/OfficeSettingsDialog';
 import {
   useOfficeSettings,
-  useUploadLogo,
+  useSelectLogo,
   useRemoveLogo,
 } from '../../../hooks/useOfficeSettings';
 
@@ -18,8 +18,14 @@ import type { Office } from '../../../types/users';
 // Mock the hooks
 vi.mock('../../../hooks/useOfficeSettings', () => ({
   useOfficeSettings: vi.fn(),
+  useSelectLogo: vi.fn(),
   useUploadLogo: vi.fn(),
   useRemoveLogo: vi.fn(),
+}));
+
+// Mock the company LogoPickerDialog
+vi.mock('../../../components/company', () => ({
+  LogoPickerDialog: () => null,
 }));
 
 // ============================================================================
@@ -40,10 +46,19 @@ const mockSettings = {
     officeId: 'office-123',
     logo: {
       id: 'logo-123',
+      name: 'Test Logo',
       url: 'https://example.com/logo.png',
       thumbnailUrl: 'https://example.com/logo-thumb.png',
       filename: 'company-logo.png',
     },
+    companyDefaultLogo: {
+      id: 'default-logo-123',
+      name: 'Company Default Logo',
+      url: 'https://example.com/default-logo.png',
+      thumbnailUrl: 'https://example.com/default-logo-thumb.png',
+      filename: 'default-logo.png',
+    },
+    logoSource: 'office' as const,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-15T00:00:00Z',
   },
@@ -54,6 +69,14 @@ const mockSettingsNoLogo = {
     id: 'settings-123',
     officeId: 'office-123',
     logo: null,
+    companyDefaultLogo: {
+      id: 'default-logo-123',
+      name: 'Company Default Logo',
+      url: 'https://example.com/default-logo.png',
+      thumbnailUrl: 'https://example.com/default-logo-thumb.png',
+      filename: 'default-logo.png',
+    },
+    logoSource: 'company' as const,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-15T00:00:00Z',
   },
@@ -84,7 +107,7 @@ type RenderOptions = {
 
 function renderDialog(options: RenderOptions = {}): {
   queryClient: QueryClient;
-  mockUploadLogo: ReturnType<typeof vi.fn>;
+  mockSelectLogo: ReturnType<typeof vi.fn>;
   mockRemoveLogo: ReturnType<typeof vi.fn>;
   mockOnClose: ReturnType<typeof vi.fn>;
   mockOnUpdated: ReturnType<typeof vi.fn>;
@@ -97,7 +120,7 @@ function renderDialog(options: RenderOptions = {}): {
   } = options;
 
   const queryClient = createQueryClient();
-  const mockUploadMutate = vi.fn().mockResolvedValue({});
+  const mockSelectMutate = vi.fn().mockResolvedValue({});
   const mockRemoveMutate = vi.fn().mockResolvedValue({});
   const mockOnClose = vi.fn();
   const mockOnUpdated = vi.fn();
@@ -114,10 +137,10 @@ function renderDialog(options: RenderOptions = {}): {
     status: isLoadingSettings ? 'pending' : 'success',
   } as unknown as ReturnType<typeof useOfficeSettings>);
 
-  vi.mocked(useUploadLogo).mockReturnValue({
-    mutateAsync: mockUploadMutate,
+  vi.mocked(useSelectLogo).mockReturnValue({
+    mutateAsync: mockSelectMutate,
     isPending: false,
-  } as unknown as ReturnType<typeof useUploadLogo>);
+  } as unknown as ReturnType<typeof useSelectLogo>);
 
   vi.mocked(useRemoveLogo).mockReturnValue({
     mutateAsync: mockRemoveMutate,
@@ -137,7 +160,7 @@ function renderDialog(options: RenderOptions = {}): {
 
   return {
     queryClient,
-    mockUploadLogo: mockUploadMutate,
+    mockSelectLogo: mockSelectMutate,
     mockRemoveLogo: mockRemoveMutate,
     mockOnClose,
     mockOnUpdated,
@@ -161,12 +184,12 @@ describe('OfficeSettingsDialog', () => {
       expect(screen.getByText('Test Office')).toBeInTheDocument();
     });
 
-    it('should display logo upload section', () => {
+    it('should display logo section', () => {
       renderDialog();
 
       expect(screen.getByText('Office Logo')).toBeInTheDocument();
       expect(
-        screen.getByText(/upload a logo to represent this office/i),
+        screen.getByText(/select a logo from your company's library/i),
       ).toBeInTheDocument();
     });
 
@@ -202,30 +225,57 @@ describe('OfficeSettingsDialog', () => {
   });
 
   describe('with existing logo', () => {
-    it('should display current logo information', () => {
+    it('should display current logo name', () => {
       renderDialog();
 
-      expect(screen.getByText('Current Logo')).toBeInTheDocument();
-      expect(screen.getByText('company-logo.png')).toBeInTheDocument();
+      expect(screen.getByText('Test Logo')).toBeInTheDocument();
     });
 
-    it('should display remove button', () => {
+    it('should display Custom badge for office-specific logo', () => {
+      renderDialog();
+
+      expect(screen.getByText('Custom')).toBeInTheDocument();
+    });
+
+    it('should display choose from library button', () => {
       renderDialog();
 
       expect(
-        screen.getByRole('button', { name: /remove logo/i }),
+        screen.getByRole('button', { name: /choose from library/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('should display reset to default button', () => {
+      renderDialog();
+
+      expect(
+        screen.getByRole('button', { name: /reset to default/i }),
       ).toBeInTheDocument();
     });
   });
 
-  describe('without logo', () => {
-    it('should only show upload section', () => {
+  describe('with inherited logo', () => {
+    it('should display inherited chip when using company default', () => {
       renderDialog({ settingsData: mockSettingsNoLogo });
 
-      expect(screen.queryByText('Current Logo')).not.toBeInTheDocument();
+      expect(screen.getByText('Inherited')).toBeInTheDocument();
+    });
+
+    it('should display company default logo info', () => {
+      renderDialog({ settingsData: mockSettingsNoLogo });
+
+      expect(screen.getByText('Company Default Logo')).toBeInTheDocument();
       expect(
-        screen.getByText(/drag & drop your logo here/i),
+        screen.getByText(/using company default logo/i),
       ).toBeInTheDocument();
+    });
+
+    it('should not display reset button when using inherited logo', () => {
+      renderDialog({ settingsData: mockSettingsNoLogo });
+
+      expect(
+        screen.queryByRole('button', { name: /reset to default/i }),
+      ).not.toBeInTheDocument();
     });
   });
 

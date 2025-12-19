@@ -1,6 +1,11 @@
 /**
  * Office settings service for managing office-level settings.
- * Handles logo upload, validation, and settings management.
+ * Handles logo selection from company library, validation, and settings management.
+ *
+ * Logo inheritance:
+ * 1. Office has its own logo selected from company library → use office logo
+ * 2. Office has no logo → inherit company's default logo
+ * 3. No default logo → show initials
  */
 
 import sharp from 'sharp';
@@ -8,6 +13,7 @@ import { v4 as uuid } from 'uuid';
 
 import {
   Company,
+  CompanyLogo,
   User,
   Office,
   OfficeSettings,
@@ -27,9 +33,11 @@ import { OfficeSettingsError, OfficeSettingsErrorCode } from './types';
 
 import type {
   UploadLogoParams,
+  SelectLogoParams,
   LogoValidationResult,
   OfficeSettingsResponse,
   LogoInfo,
+  LogoSource,
 } from './types';
 import type { EntityManager } from '@mikro-orm/core';
 
@@ -46,16 +54,25 @@ export class OfficeSettingsService {
   /**
    * Get office settings for a specific office.
    * Creates settings if they don't exist.
+   * Includes company default logo for inheritance display.
    */
   async getSettings(
     officeId: string,
     companyId: string,
   ): Promise<OfficeSettingsResponse> {
     const office = await this.findOffice(officeId, companyId);
+
+    // Get company with default logo for inheritance
+    const company = await this.em.findOne(
+      Company,
+      { id: companyId },
+      { populate: ['defaultLogo.file'] },
+    );
+
     let settings = await this.em.findOne(
       OfficeSettings,
       { office: office.id },
-      { populate: ['logoFile'] },
+      { populate: ['logo.file'] },
     );
 
     // Create settings if they don't exist (lazy initialization)
@@ -65,15 +82,64 @@ export class OfficeSettingsService {
       await this.em.persistAndFlush(settings);
     }
 
-    return this.mapToResponse(settings);
+    return this.mapToResponse(settings, company?.defaultLogo ?? null);
   }
 
   /**
-   * Upload and set a logo for an office.
+   * Select a logo from the company's logo library for an office.
+   */
+  async selectLogo(params: SelectLogoParams): Promise<OfficeSettingsResponse> {
+    const { officeId, companyId, logoId } = params;
+
+    const office = await this.findOffice(officeId, companyId);
+
+    // Get company with default logo
+    const company = await this.em.findOne(
+      Company,
+      { id: companyId },
+      { populate: ['defaultLogo.file'] },
+    );
+
+    // Verify the logo exists and belongs to this company
+    const companyLogo = await this.em.findOne(
+      CompanyLogo,
+      { id: logoId, company: companyId },
+      { populate: ['file'] },
+    );
+
+    if (!companyLogo) {
+      throw new OfficeSettingsError(
+        'Logo not found in company library',
+        OfficeSettingsErrorCode.LOGO_NOT_FOUND,
+      );
+    }
+
+    let settings = await this.em.findOne(
+      OfficeSettings,
+      { office: office.id },
+      { populate: ['logo.file'] },
+    );
+
+    // Create or update settings
+    if (!settings) {
+      settings = new OfficeSettings();
+      settings.office = office;
+    }
+    settings.logo = companyLogo;
+
+    await this.em.persistAndFlush(settings);
+
+    // Re-fetch with populated relations
+    await this.em.refresh(settings, { populate: ['logo.file'] });
+    return this.mapToResponse(settings, company?.defaultLogo ?? null);
+  }
+
+  /**
+   * Upload a new logo, add it to the company library, and assign it to the office.
    * Validates file type, size, and dimensions before upload.
    */
   async updateLogo(params: UploadLogoParams): Promise<OfficeSettingsResponse> {
-    const { officeId, companyId, file, user } = params;
+    const { officeId, companyId, file, user, logoName } = params;
 
     // Validate the logo
     const validation = await this.validateLogo(file.buffer, file.mimeType);
@@ -85,14 +151,20 @@ export class OfficeSettingsService {
     }
 
     const office = await this.findOffice(officeId, companyId);
-    let settings = await this.em.findOne(
-      OfficeSettings,
-      { office: office.id },
-      { populate: ['logoFile'] },
+
+    // Get company with default logo
+    const company = await this.em.findOne(
+      Company,
+      { id: companyId },
+      { populate: ['defaultLogo.file'] },
     );
 
-    // Store old logo for cleanup
-    const oldLogoFile = settings?.logoFile;
+    if (!company) {
+      throw new OfficeSettingsError(
+        'Company not found',
+        OfficeSettingsErrorCode.CROSS_COMPANY_ACCESS,
+      );
+    }
 
     // Upload the new logo file
     const storage = getStorageAdapter();
@@ -100,6 +172,9 @@ export class OfficeSettingsService {
     const ext = getFileExtension(file.filename, file.mimeType);
     const storageKey = generateStorageKey(companyId, fileId, ext);
     const safeFilename = sanitizeFilename(file.filename);
+    // Use provided name, or derive from filename, or fall back to office name
+    const derivedName = file.filename.replace(/\.[^.]+$/, '');
+    const finalLogoName = logoName ?? (derivedName || `${office.name} Logo`);
 
     try {
       await storage.upload({
@@ -109,7 +184,7 @@ export class OfficeSettingsService {
         metadata: {
           originalFilename: safeFilename,
           uploadedBy: user.id,
-          purpose: 'office-logo',
+          purpose: 'office-logo-library',
         },
       });
     } catch (error) {
@@ -151,41 +226,59 @@ export class OfficeSettingsService {
     fileEntity.company = this.em.getReference(Company, companyId);
     fileEntity.uploadedBy = this.em.getReference(User, user.id);
     fileEntity.thumbnailKey = thumbnailKey;
-    fileEntity.description = `Office logo for ${office.name}`;
+    fileEntity.description = `Logo library: ${finalLogoName}`;
 
     this.em.persist(fileEntity);
 
-    // Create or update settings
+    // Create company logo entry in the library
+    const companyLogo = new CompanyLogo();
+    companyLogo.name = finalLogoName;
+    companyLogo.company = company;
+    companyLogo.file = fileEntity;
+
+    this.em.persist(companyLogo);
+
+    // Get or create office settings
+    let settings = await this.em.findOne(
+      OfficeSettings,
+      { office: office.id },
+      { populate: ['logo.file'] },
+    );
+
     if (!settings) {
       settings = new OfficeSettings();
       settings.office = office;
     }
-    settings.logoFile = fileEntity;
+    settings.logo = companyLogo;
 
     await this.em.persistAndFlush(settings);
 
-    // Clean up old logo file
-    if (oldLogoFile) {
-      await this.deleteFileAndStorage(oldLogoFile);
-    }
-
     // Re-fetch with populated relations
-    await this.em.refresh(settings, { populate: ['logoFile'] });
-    return this.mapToResponse(settings);
+    await this.em.refresh(settings, { populate: ['logo.file'] });
+    return this.mapToResponse(settings, company.defaultLogo ?? null);
   }
 
   /**
-   * Remove logo from office settings.
+   * Remove logo from office settings (revert to inheritance).
+   * Does not delete the logo from the company library.
    */
   async removeLogo(
     officeId: string,
     companyId: string,
   ): Promise<OfficeSettingsResponse> {
     const office = await this.findOffice(officeId, companyId);
+
+    // Get company with default logo
+    const company = await this.em.findOne(
+      Company,
+      { id: companyId },
+      { populate: ['defaultLogo.file'] },
+    );
+
     const settings = await this.em.findOne(
       OfficeSettings,
       { office: office.id },
-      { populate: ['logoFile'] },
+      { populate: ['logo.file'] },
     );
 
     if (!settings) {
@@ -195,14 +288,11 @@ export class OfficeSettingsService {
       );
     }
 
-    const logoFile = settings.logoFile;
-    if (logoFile) {
-      settings.logoFile = undefined;
-      await this.em.flush();
-      await this.deleteFileAndStorage(logoFile);
-    }
+    // Just remove the reference (don't delete from library)
+    settings.logo = undefined;
+    await this.em.flush();
 
-    return this.mapToResponse(settings);
+    return this.mapToResponse(settings, company?.defaultLogo ?? null);
   }
 
   /**
@@ -288,25 +378,30 @@ export class OfficeSettingsService {
   }
 
   /**
-   * Delete file entity and remove from storage.
+   * Generate logo info with signed URLs from CompanyLogo.
    */
-  private async deleteFileAndStorage(file: File): Promise<void> {
+  private async generateLogoInfo(companyLogo: CompanyLogo): Promise<LogoInfo> {
     const storage = getStorageAdapter();
+    const file = companyLogo.file;
 
-    // Soft delete the file entity
-    file.status = FileStatus.DELETED;
-    file.deletedAt = new Date();
-    await this.em.flush();
+    const url = await storage.getSignedDownloadUrl({
+      key: file.storageKey,
+      expiresIn: 3600,
+    });
+    const thumbnailUrl = file.thumbnailKey
+      ? await storage.getSignedDownloadUrl({
+          key: file.thumbnailKey,
+          expiresIn: 3600,
+        })
+      : null;
 
-    // Delete from storage (non-blocking)
-    try {
-      await storage.delete(file.storageKey);
-      if (file.thumbnailKey) {
-        await storage.delete(file.thumbnailKey);
-      }
-    } catch (error) {
-      console.error('Failed to delete file from storage:', error);
-    }
+    return {
+      id: companyLogo.id,
+      name: companyLogo.name,
+      url,
+      thumbnailUrl,
+      filename: file.filename,
+    };
   }
 
   /**
@@ -314,30 +409,25 @@ export class OfficeSettingsService {
    */
   private async mapToResponse(
     settings: OfficeSettings,
+    companyDefaultLogo: CompanyLogo | null,
   ): Promise<OfficeSettingsResponse> {
     let logo: LogoInfo | null = null;
+    let companyDefaultLogoInfo: LogoInfo | null = null;
+    let logoSource: LogoSource = 'none';
 
-    if (settings.logoFile) {
-      const storage = getStorageAdapter();
-      const file = settings.logoFile;
+    // Get office's selected logo
+    if (settings.logo) {
+      logo = await this.generateLogoInfo(settings.logo);
+      logoSource = 'office';
+    }
 
-      const url = await storage.getSignedDownloadUrl({
-        key: file.storageKey,
-        expiresIn: 3600,
-      });
-      const thumbnailUrl = file.thumbnailKey
-        ? await storage.getSignedDownloadUrl({
-            key: file.thumbnailKey,
-            expiresIn: 3600,
-          })
-        : null;
-
-      logo = {
-        id: file.id,
-        url,
-        thumbnailUrl,
-        filename: file.filename,
-      };
+    // Get company's default logo for inheritance display
+    if (companyDefaultLogo) {
+      companyDefaultLogoInfo = await this.generateLogoInfo(companyDefaultLogo);
+      // If office has no logo, it inherits from company
+      if (!logo) {
+        logoSource = 'company';
+      }
     }
 
     return {
@@ -347,6 +437,8 @@ export class OfficeSettingsService {
           ? settings.office
           : settings.office.id,
       logo,
+      companyDefaultLogo: companyDefaultLogoInfo,
+      logoSource,
       createdAt: settings.createdAt,
       updatedAt: settings.updatedAt,
     };

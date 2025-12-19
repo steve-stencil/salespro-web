@@ -1,7 +1,7 @@
 /**
  * Company settings API service.
  * Provides methods for fetching and updating company-wide settings,
- * logo management, and multi-company access functionality.
+ * logo library management, and multi-company access functionality.
  */
 import { apiClient, axiosInstance } from '../lib/api-client';
 
@@ -14,6 +14,11 @@ import type {
   UserCompaniesResponse,
   SwitchCompanyResponse,
   PinCompanyResponse,
+  CompanyLogoLibraryResponse,
+  AddLogoToLibraryResponse,
+  UpdateLogoResponse,
+  DeleteLogoResponse,
+  SetDefaultLogoResponse,
 } from '../types/company';
 
 /**
@@ -75,14 +80,108 @@ export const companyApi = {
 
   /**
    * Remove company logo.
-   * Requires company:update permission.
-   *
-   * @returns Updated company settings without logo
+   * @deprecated Use logo library methods instead.
    */
   removeLogo: async (): Promise<RemoveCompanyLogoResponse> => {
     return apiClient.delete<RemoveCompanyLogoResponse>(
       '/companies/settings/logo',
     );
+  },
+
+  // ============================================================================
+  // Logo Library Methods
+  // ============================================================================
+
+  /**
+   * Get all logos in the company's logo library.
+   * Requires company:read permission.
+   *
+   * @returns Logo library with all logos and default logo ID
+   */
+  getLogoLibrary: async (): Promise<CompanyLogoLibraryResponse> => {
+    return apiClient.get<CompanyLogoLibraryResponse>('/companies/logos');
+  },
+
+  /**
+   * Upload a new logo to the company's logo library.
+   * Requires company:update permission.
+   *
+   * @param file - Logo image file to upload
+   * @param name - Optional name for the logo
+   * @returns The newly created logo library item
+   */
+  addLogoToLibrary: async (
+    file: File,
+    name?: string,
+  ): Promise<AddLogoToLibraryResponse> => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    if (name) {
+      formData.append('name', name);
+    }
+
+    const response = await axiosInstance.post<AddLogoToLibraryResponse>(
+      '/companies/logos',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+    return response.data;
+  },
+
+  /**
+   * Update a logo's name in the library.
+   * Requires company:update permission.
+   *
+   * @param logoId - ID of the logo to update
+   * @param name - New name for the logo
+   * @returns Updated logo library item
+   */
+  updateLogo: async (
+    logoId: string,
+    name: string,
+  ): Promise<UpdateLogoResponse> => {
+    return apiClient.patch<UpdateLogoResponse>(`/companies/logos/${logoId}`, {
+      name,
+    });
+  },
+
+  /**
+   * Delete a logo from the library.
+   * Cannot delete logos that are set as default or used by offices.
+   * Requires company:update permission.
+   *
+   * @param logoId - ID of the logo to delete
+   * @returns Success message
+   */
+  deleteLogo: async (logoId: string): Promise<DeleteLogoResponse> => {
+    return apiClient.delete<DeleteLogoResponse>(`/companies/logos/${logoId}`);
+  },
+
+  /**
+   * Set a logo as the company's default.
+   * Requires company:update permission.
+   *
+   * @param logoId - ID of the logo to set as default
+   * @returns Updated logo library item
+   */
+  setDefaultLogo: async (logoId: string): Promise<SetDefaultLogoResponse> => {
+    return apiClient.post<SetDefaultLogoResponse>(
+      `/companies/logos/${logoId}/set-default`,
+    );
+  },
+
+  /**
+   * Remove the default logo setting.
+   * Requires company:update permission.
+   *
+   * @returns Success message
+   */
+  removeDefaultLogo: async (): Promise<DeleteLogoResponse> => {
+    return apiClient.delete<DeleteLogoResponse>('/companies/logos/default');
   },
 
   // ============================================================================

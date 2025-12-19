@@ -4,13 +4,68 @@
  */
 
 // ============================================================================
-// Company Logo Types
+// Company Logo Library Types
 // ============================================================================
 
-/** Company logo information */
-export type CompanyLogoInfo = {
-  /** Logo file ID */
+/** Logo item in the company logo library */
+export type CompanyLogoLibraryItem = {
+  /** CompanyLogo ID */
   id: string;
+  /** User-friendly name for the logo */
+  name: string;
+  /** Signed URL for full logo */
+  url: string;
+  /** Signed URL for thumbnail (may be null) */
+  thumbnailUrl: string | null;
+  /** Original filename */
+  filename: string;
+  /** Whether this is the company's default logo */
+  isDefault: boolean;
+  /** Number of offices using this logo */
+  usedByOfficeCount: number;
+  /** When the logo was added to the library */
+  createdAt: string;
+};
+
+/** Response from GET /companies/logos */
+export type CompanyLogoLibraryResponse = {
+  logos: CompanyLogoLibraryItem[];
+  defaultLogoId: string | null;
+};
+
+/** Response from POST /companies/logos */
+export type AddLogoToLibraryResponse = {
+  message: string;
+  logo: CompanyLogoLibraryItem;
+};
+
+/** Response from PATCH /companies/logos/:id */
+export type UpdateLogoResponse = {
+  message: string;
+  logo: CompanyLogoLibraryItem;
+};
+
+/** Response from DELETE /companies/logos/:id */
+export type DeleteLogoResponse = {
+  message: string;
+};
+
+/** Response from POST /companies/logos/:id/set-default */
+export type SetDefaultLogoResponse = {
+  message: string;
+  logo: CompanyLogoLibraryItem;
+};
+
+// ============================================================================
+// Company Logo Types (for settings response)
+// ============================================================================
+
+/** Company logo information (used in settings) */
+export type CompanyLogoInfo = {
+  /** CompanyLogo ID */
+  id: string;
+  /** Logo name in the library */
+  name: string;
   /** Signed URL for full logo */
   url: string;
   /** Signed URL for thumbnail (may be null) */
@@ -31,8 +86,10 @@ export type CompanySettings = {
   companyName: string;
   /** Whether MFA is required for all users in this company */
   mfaRequired: boolean;
-  /** Company logo information (null if no logo set) */
+  /** Default logo information (null if no default set) */
   logo: CompanyLogoInfo | null;
+  /** ID of the default logo in the library */
+  defaultLogoId: string | null;
   /** Last update timestamp */
   updatedAt: string;
 };
