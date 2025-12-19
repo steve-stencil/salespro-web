@@ -181,7 +181,7 @@ export function CategoryTreeSidebar({
   }
 
   function handleItemSelectionToggle(
-    _event: React.SyntheticEvent,
+    _event: React.SyntheticEvent | null,
     itemId: string,
     isSelected: boolean,
   ): void {
