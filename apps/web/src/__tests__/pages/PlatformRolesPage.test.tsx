@@ -228,8 +228,9 @@ describe('PlatformRolesPage', () => {
 
       renderPlatformRolesPage();
 
-      // Should show loading skeleton
-      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      // Should show loading skeleton cards
+      const skeletons = document.querySelectorAll('.MuiSkeleton-root');
+      expect(skeletons.length).toBeGreaterThan(0);
     });
 
     it('should display platform roles after loading', async () => {
@@ -450,8 +451,10 @@ describe('PlatformRolesPage', () => {
       const confirmButton = screen.getByRole('button', { name: /^delete$/i });
       await user.click(confirmButton);
 
+      // Error alert is shown in the background (aria-hidden due to dialog)
+      // Use hidden: true to find elements inside aria-hidden containers
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByRole('alert', { hidden: true })).toBeInTheDocument();
       });
     });
   });
@@ -533,7 +536,8 @@ describe('PlatformRoleEditDialog', () => {
       await user.type(displayNameInput, 'New Role');
 
       // Select a platform permission
-      const viewCompaniesCheckbox = screen.getByLabelText(/view companies/i);
+      const viewCompaniesCheckbox =
+        screen.getByLabelText(/view all companies/i);
       await user.click(viewCompaniesCheckbox);
 
       // Submit
@@ -564,7 +568,8 @@ describe('PlatformRoleEditDialog', () => {
       const displayNameInput = screen.getByLabelText(/display name/i);
       await user.type(displayNameInput, 'New Role');
 
-      const viewCompaniesCheckbox = screen.getByLabelText(/view companies/i);
+      const viewCompaniesCheckbox =
+        screen.getByLabelText(/view all companies/i);
       await user.click(viewCompaniesCheckbox);
 
       const submitButton = screen.getByRole('button', { name: /create role/i });
