@@ -12,7 +12,9 @@ export type PlatformRole = {
   name: string;
   displayName: string;
   description?: string;
-  companyAccessLevel?: 'full' | 'restricted' | 'readonly';
+  /** Permissions when switched into any company. Supports wildcards: '*', 'resource:*' */
+  companyPermissions?: string[];
+  /** Platform-level permissions (e.g., 'platform:switch_company') */
   permissions?: string[];
 };
 

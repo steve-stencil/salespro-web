@@ -226,7 +226,7 @@ When adding new permissions:
 - `type`: SYSTEM, COMPANY, or PLATFORM
 - `company`: Nullable FK (null for system/platform roles)
 - `isDefault`: Auto-assign to new users
-- `companyAccessLevel`: For PLATFORM roles, defines access within companies
+- `companyPermissions`: For PLATFORM roles, explicit permissions when in company context
 
 ### UserRole Entity (`apps/api/src/entities/UserRole.entity.ts`)
 
@@ -266,13 +266,33 @@ export enum UserType {
 }
 ```
 
-### Platform Role Access Levels
+### Platform Role Company Permissions
+
+Platform roles have explicit `companyPermissions` that define what the user can do when switched into any company:
 
 ```typescript
-export enum CompanyAccessLevel {
-  FULL = 'full',           // SuperUser-level access in any company
-  READ_ONLY = 'read_only', // Can view all data but cannot modify
-  CUSTOM = 'custom',       // Uses specific permissions defined in the role
+// Platform role with full company access
+{
+  name: 'platformAdmin',
+  type: RoleType.PLATFORM,
+  permissions: ['platform:admin', 'platform:switch_company', ...],
+  companyPermissions: ['*'], // Full access in any company
+}
+
+// Platform role with read-only company access
+{
+  name: 'platformSupport',
+  type: RoleType.PLATFORM,
+  permissions: ['platform:switch_company', ...],
+  companyPermissions: ['customer:read', 'user:read', 'office:read', ...],
+}
+
+// Platform role with custom company access
+{
+  name: 'platformDeveloper',
+  type: RoleType.PLATFORM,
+  permissions: ['platform:switch_company'],
+  companyPermissions: ['user:read', 'office:read'],
 }
 ```
 
@@ -291,11 +311,11 @@ PLATFORM_MANAGE_INTERNAL_USERS: 'platform:manage_internal_users',
 
 ### Default Platform Roles
 
-| Role | Company Access | Description |
-|------|---------------|-------------|
-| `platformAdmin` | FULL | Full superUser access in any company |
-| `platformSupport` | READ_ONLY | Read-only access for customer support |
-| `platformDeveloper` | CUSTOM | Developer access with specific read permissions |
+| Role | Company Permissions | Description |
+|------|---------------------|-------------|
+| `platformAdmin` | `['*']` | Full superUser access in any company |
+| `platformSupport` | All `:read` permissions | Read-only access for customer support |
+| `platformDeveloper` | Specific read permissions | Developer access with specific read permissions |
 
 ### Protecting Platform Routes
 
@@ -351,10 +371,10 @@ const hasAccess = await permissionService.checkPermission(
   companyId,
 );
 
-// For internal users, this checks their companyAccessLevel:
-// - FULL: Returns true for any permission
-// - READ_ONLY: Returns true for :read permissions only
-// - CUSTOM: Checks the specific permissions in their role
+// For internal users, this checks their platform role's companyPermissions:
+// - ['*']: Returns true for any permission (wildcard match)
+// - Explicit permissions: Checks if the permission matches the array
+// - Supports resource wildcards: 'customer:*' matches 'customer:read'
 ```
 
 ### Internal User API Routes

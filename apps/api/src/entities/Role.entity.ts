@@ -10,7 +10,7 @@ import {
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
 
-import { RoleType, CompanyAccessLevel } from './types';
+import { RoleType } from './types';
 
 import type { Company } from './Company.entity';
 
@@ -50,15 +50,14 @@ export class Role {
   type: Opt<RoleType> = RoleType.COMPANY;
 
   /**
-   * For PLATFORM roles: defines the access level within any company.
-   * - FULL: SuperUser-level access (can do everything)
-   * - READ_ONLY: Can view all data but cannot modify
-   * - CUSTOM: Uses specific permissions defined in this role
+   * For PLATFORM roles: explicit permissions when switched into any company.
+   * Supports wildcards: '*' (all), 'resource:*' (all actions for resource)
+   * @example ['*'] for full access, or ['customer:read', 'user:read'] for limited access
    *
-   * Only applicable for roles with type=PLATFORM. Null for other role types.
+   * Only applicable for roles with type=PLATFORM. Empty array for other role types.
    */
-  @Enum({ items: () => CompanyAccessLevel, nullable: true })
-  companyAccessLevel?: CompanyAccessLevel;
+  @Property({ type: 'json' })
+  companyPermissions: Opt<string[]> = [];
 
   /**
    * Company this role belongs to.

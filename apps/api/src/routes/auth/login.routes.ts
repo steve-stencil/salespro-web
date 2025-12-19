@@ -2,14 +2,9 @@ import crypto from 'crypto';
 
 import { Router } from 'express';
 
-import {
-  UserType,
-  RoleType,
-  CompanyAccessLevel,
-  UserRole,
-  Company,
-} from '../../entities';
+import { UserType, RoleType, UserRole, Company } from '../../entities';
 import { getORM } from '../../lib/db';
+import { hasPermission } from '../../lib/permissions';
 import { AuthService, LoginErrorCode } from '../../services';
 import { sendMfaCode } from '../../services/auth/mfa';
 
@@ -363,16 +358,17 @@ router.get('/me', async (req: Request, res: Response) => {
       });
       canSwitchCompanies = companyCount > 1;
     } else if ((user.userType as UserType) === UserType.INTERNAL) {
-      // For internal users, check their platform role's company access level
+      // For internal users, check their platform role's company permissions
       const platformRoleAssignment = await em.findOne(
         UserRole,
         { user: userId, role: { type: RoleType.PLATFORM } },
         { populate: ['role'] },
       );
 
+      // Check if user has full access via wildcard in companyPermissions
       const hasFullAccess =
-        platformRoleAssignment?.role.companyAccessLevel ===
-        CompanyAccessLevel.FULL;
+        platformRoleAssignment?.role.companyPermissions &&
+        hasPermission('*', platformRoleAssignment.role.companyPermissions);
 
       if (hasFullAccess) {
         // User has FULL access - they can switch to any company

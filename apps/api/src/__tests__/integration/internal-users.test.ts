@@ -2,7 +2,7 @@ import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { Company, User, Role, UserRole, Session } from '../../entities';
-import { UserType, RoleType, CompanyAccessLevel } from '../../entities/types';
+import { UserType, RoleType } from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -37,7 +37,7 @@ describe('Internal Users Routes', () => {
       name: 'platformAdminTest',
       displayName: 'Platform Admin Test',
       type: RoleType.PLATFORM,
-      companyAccessLevel: CompanyAccessLevel.FULL,
+      companyPermissions: ['*'], // Full access in any company
       permissions: [
         PERMISSIONS.PLATFORM_ADMIN,
         PERMISSIONS.PLATFORM_VIEW_COMPANIES,
@@ -50,7 +50,17 @@ describe('Internal Users Routes', () => {
       name: 'platformSupportTest',
       displayName: 'Platform Support Test',
       type: RoleType.PLATFORM,
-      companyAccessLevel: CompanyAccessLevel.READ_ONLY,
+      companyPermissions: [
+        // Read-only access
+        PERMISSIONS.CUSTOMER_READ,
+        PERMISSIONS.USER_READ,
+        PERMISSIONS.OFFICE_READ,
+        PERMISSIONS.ROLE_READ,
+        PERMISSIONS.REPORT_READ,
+        PERMISSIONS.SETTINGS_READ,
+        PERMISSIONS.COMPANY_READ,
+        PERMISSIONS.FILE_READ,
+      ],
       permissions: [
         PERMISSIONS.PLATFORM_VIEW_COMPANIES,
         PERMISSIONS.PLATFORM_SWITCH_COMPANY,
@@ -140,7 +150,7 @@ describe('Internal Users Routes', () => {
       expect(res.body.roles.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should include companyAccessLevel in roles', async () => {
+    it('should include companyPermissions in roles', async () => {
       const res = await request(baseUrl)
         .get('/api/internal-users/roles')
         .set('Cookie', sessionCookie);
@@ -149,7 +159,7 @@ describe('Internal Users Routes', () => {
         (r: { name: string }) => r.name === 'platformAdminTest',
       );
       expect(adminRole).toBeDefined();
-      expect(adminRole.companyAccessLevel).toBe(CompanyAccessLevel.FULL);
+      expect(adminRole.companyPermissions).toContain('*');
     });
   });
 

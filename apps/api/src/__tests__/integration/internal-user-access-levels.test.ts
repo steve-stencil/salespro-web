@@ -2,12 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, afterEach, beforeEach } from 'vitest';
 
 import { Company, User, Role, UserRole, Session, Office } from '../../entities';
-import {
-  UserType,
-  RoleType,
-  CompanyAccessLevel,
-  SessionSource,
-} from '../../entities/types';
+import { UserType, RoleType, SessionSource } from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -15,14 +10,14 @@ import { PERMISSIONS } from '../../lib/permissions';
 import { makeRequest, waitForDatabase } from './helpers';
 
 /**
- * Tests for Internal User CompanyAccessLevel functionality.
+ * Tests for Internal User company permissions functionality.
  *
- * Internal users have platform roles with different company access levels:
- * - FULL: Can perform any action in any company (superuser)
- * - READ_ONLY: Can only perform read operations in company context
- * - CUSTOM: Has specific permissions defined in the platform role
+ * Internal users have platform roles with different company permissions:
+ * - ['*']: Can perform any action in any company (superuser)
+ * - Read permissions: Can only perform read operations in company context
+ * - Custom: Has specific permissions defined in the platform role
  */
-describe('Internal User CompanyAccessLevel Tests', () => {
+describe('Internal User Company Permissions Tests', () => {
   let testCompany: Company;
   let targetUser: User;
   let testOffice: Office;
@@ -95,13 +90,13 @@ describe('Internal User CompanyAccessLevel Tests', () => {
     });
     em.persist(testRole);
 
-    // Create platform roles with different access levels
+    // Create platform roles with different company permissions
     platformAdminRole = em.create(Role, {
       id: uuid(),
       name: 'accessTestPlatformAdmin',
       displayName: 'Access Test Platform Admin',
       type: RoleType.PLATFORM,
-      companyAccessLevel: CompanyAccessLevel.FULL,
+      companyPermissions: ['*'], // Full access in any company
       permissions: [
         PERMISSIONS.PLATFORM_ADMIN,
         PERMISSIONS.PLATFORM_VIEW_COMPANIES,
@@ -115,7 +110,17 @@ describe('Internal User CompanyAccessLevel Tests', () => {
       name: 'accessTestPlatformReadOnly',
       displayName: 'Access Test Platform Read Only',
       type: RoleType.PLATFORM,
-      companyAccessLevel: CompanyAccessLevel.READ_ONLY,
+      companyPermissions: [
+        // Read-only access
+        PERMISSIONS.CUSTOMER_READ,
+        PERMISSIONS.USER_READ,
+        PERMISSIONS.OFFICE_READ,
+        PERMISSIONS.ROLE_READ,
+        PERMISSIONS.REPORT_READ,
+        PERMISSIONS.SETTINGS_READ,
+        PERMISSIONS.COMPANY_READ,
+        PERMISSIONS.FILE_READ,
+      ],
       permissions: [
         PERMISSIONS.PLATFORM_VIEW_COMPANIES,
         PERMISSIONS.PLATFORM_SWITCH_COMPANY,
@@ -128,13 +133,14 @@ describe('Internal User CompanyAccessLevel Tests', () => {
       name: 'accessTestPlatformCustom',
       displayName: 'Access Test Platform Custom',
       type: RoleType.PLATFORM,
-      companyAccessLevel: CompanyAccessLevel.CUSTOM,
-      permissions: [
-        PERMISSIONS.PLATFORM_VIEW_COMPANIES,
-        PERMISSIONS.PLATFORM_SWITCH_COMPANY,
+      companyPermissions: [
         // Custom company permissions
         'user:read',
         'office:read',
+      ],
+      permissions: [
+        PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+        PERMISSIONS.PLATFORM_SWITCH_COMPANY,
       ],
     });
     em.persist(platformCustomRole);
@@ -227,7 +233,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
   // internal users with company context from their active company selection.
   // ============================================================================
 
-  describe('CompanyAccessLevel.FULL (Superuser)', () => {
+  describe('companyPermissions: ["*"] (Superuser)', () => {
     it('should allow all read operations in company context', async () => {
       const { cookie } = await createInternalUserWithRole(platformAdminRole);
 
@@ -313,7 +319,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
   // READ_ONLY Access Level Tests
   // ============================================================================
 
-  describe('CompanyAccessLevel.READ_ONLY', () => {
+  describe('companyPermissions: Read-only permissions', () => {
     // Route handlers now use companyContext
     it('should allow all read operations in company context', async () => {
       const { cookie } = await createInternalUserWithRole(platformReadOnlyRole);
@@ -409,7 +415,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
   // CUSTOM Access Level Tests
   // ============================================================================
 
-  describe('CompanyAccessLevel.CUSTOM', () => {
+  describe('companyPermissions: Custom permissions', () => {
     // Route handlers now use companyContext
     it('should allow explicitly granted permissions', async () => {
       const { cookie } = await createInternalUserWithRole(platformCustomRole);
@@ -545,7 +551,7 @@ describe('Internal User CompanyAccessLevel Tests', () => {
         name: 'limitedPlatform',
         displayName: 'Limited Platform',
         type: RoleType.PLATFORM,
-        companyAccessLevel: CompanyAccessLevel.FULL,
+        companyPermissions: ['*'], // Full company permissions
         permissions: [
           // Only switch_company, no view_companies
           PERMISSIONS.PLATFORM_SWITCH_COMPANY,
