@@ -21,6 +21,7 @@ import {
   CategoryOfficeFilter,
   CategoryTable,
   CategoryTreeSidebar,
+  getStoredViewMode,
   MillerColumnsView,
   ViewToggle,
 } from '../components/price-guide';
@@ -50,11 +51,13 @@ export function PriceGuideCategoriesPage(): React.ReactElement {
   const currentCategoryId = searchParams.get('categoryId');
   const viewParam = searchParams.get('view');
 
-  // Local state
+  // Local state - prioritize URL param, then localStorage, then default to 'grid'
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (viewParam === 'grid') return 'grid';
     if (viewParam === 'table') return 'table';
     if (viewParam === 'columns') return 'columns';
-    return 'grid';
+    // No URL param - use stored preference or default to grid
+    return getStoredViewMode() ?? 'grid';
   });
   const [columnsCreateParentId, setColumnsCreateParentId] = useState<
     string | null

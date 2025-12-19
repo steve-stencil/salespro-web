@@ -7,7 +7,7 @@ import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 /** Available view modes for displaying categories. */
 export type ViewMode = 'grid' | 'table' | 'columns';
@@ -22,30 +22,30 @@ type ViewToggleProps = {
 };
 
 /**
+ * Read stored view preference from localStorage.
+ * Used by parent components to initialize view mode when no URL param is present.
+ */
+export function getStoredViewMode(): ViewMode | null {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === 'grid' || stored === 'table' || stored === 'columns') {
+    return stored;
+  }
+  return null;
+}
+
+/**
  * Toggle button group for switching between grid, table, and columns views.
- * Persists preference in localStorage.
+ * Persists preference in localStorage. Parent component should use getStoredViewMode()
+ * to read initial value when no URL parameter is present.
  */
 export function ViewToggle({
   value,
   onChange,
 }: ViewToggleProps): React.ReactElement {
-  const [mounted, setMounted] = useState(false);
-
-  // Load preference from localStorage on mount
-  useEffect(() => {
-    setMounted(true);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'grid' || stored === 'table' || stored === 'columns') {
-      onChange(stored);
-    }
-  }, [onChange]);
-
   // Save preference to localStorage when changed
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem(STORAGE_KEY, value);
-    }
-  }, [value, mounted]);
+    localStorage.setItem(STORAGE_KEY, value);
+  }, [value]);
 
   function handleChange(
     _event: React.MouseEvent<HTMLElement>,

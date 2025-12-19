@@ -7,7 +7,7 @@ export { CategoryCard } from './CategoryCard';
 export { CategoryTable } from './CategoryTable';
 export { CategoryBreadcrumb } from './CategoryBreadcrumb';
 export { CategoryOfficeFilter } from './CategoryOfficeFilter';
-export { ViewToggle } from './ViewToggle';
+export { ViewToggle, getStoredViewMode } from './ViewToggle';
 export { CategoryEditDialog } from './CategoryEditDialog';
 export { CategoryMoveDialog } from './CategoryMoveDialog';
 export { CategoryDeleteDialog } from './CategoryDeleteDialog';
