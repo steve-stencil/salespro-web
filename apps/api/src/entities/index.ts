@@ -5,6 +5,7 @@
 
 // Core entities
 export { Company } from './Company.entity';
+export { CompanyLogo } from './CompanyLogo.entity';
 export { User } from './User.entity';
 export { Session } from './Session.entity';
 

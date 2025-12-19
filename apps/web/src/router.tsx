@@ -17,6 +17,7 @@ import { LoginPage } from './pages/LoginPage';
 import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { OfficesPage } from './pages/OfficesPage';
 import { PriceGuideCategoriesPage } from './pages/PriceGuideCategoriesPage';
+import { PlatformCompaniesPage } from './pages/PlatformCompaniesPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
 import { SelectCompanyPage } from './pages/SelectCompanyPage';
@@ -40,6 +41,7 @@ import { UsersPage } from './pages/UsersPage';
  * - /offices - Office management
  * - /admin/settings - Company settings (admin)
  * - /platform/internal-users - Platform internal user management
+ * - /platform/companies - Platform company management
  * - / - Redirects to /dashboard
  */
 export const router = createBrowserRouter([
@@ -128,6 +130,14 @@ export const router = createBrowserRouter([
             permission={PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS}
           >
             <InternalUsersPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/platform/companies',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PLATFORM_VIEW_COMPANIES}>
+            <PlatformCompaniesPage />
           </PermissionGuard>
         ),
       },

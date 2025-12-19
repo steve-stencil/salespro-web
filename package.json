@@ -28,7 +28,8 @@
     "workflow:deploy": "bash scripts/dev-workflow.sh deploy-workflow",
     "db:seed": "pnpm --filter api db:seed --",
     "db:seed:force": "pnpm --filter api db:seed -- --force",
-    "db:migrate": "pnpm --filter api migration:up"
+    "db:migrate": "pnpm --filter api migration:up",
+    "sync:worktree-env": "bash scripts/sync-worktree-env.sh"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",

@@ -5,17 +5,31 @@
 
 /** Logo information returned from the API */
 export type LogoInfo = {
+  /** CompanyLogo ID */
   id: string;
+  /** Logo name in the library */
+  name: string;
+  /** Signed URL for full logo */
   url: string;
+  /** Signed URL for thumbnail (may be null) */
   thumbnailUrl: string | null;
+  /** Original filename */
   filename: string;
 };
+
+/** Source of the logo being displayed */
+export type LogoSource = 'office' | 'company' | 'none';
 
 /** Office settings response from the API */
 export type OfficeSettingsResponse = {
   id: string;
   officeId: string;
+  /** Selected logo from company library (null if using inheritance) */
   logo: LogoInfo | null;
+  /** Company's default logo (for inheritance fallback) */
+  companyDefaultLogo: LogoInfo | null;
+  /** Where the displayed logo comes from */
+  logoSource: LogoSource;
   createdAt: string;
   updatedAt: string;
 };
@@ -25,7 +39,13 @@ export type GetOfficeSettingsResponse = {
   settings: OfficeSettingsResponse;
 };
 
-/** Response for POST /offices/:id/settings/logo */
+/** Response for PUT /offices/:id/settings/logo (select from library) */
+export type SelectLogoResponse = {
+  message: string;
+  settings: OfficeSettingsResponse;
+};
+
+/** Response for POST /offices/:id/settings/logo (upload new) */
 export type UploadLogoResponse = {
   message: string;
   settings: OfficeSettingsResponse;

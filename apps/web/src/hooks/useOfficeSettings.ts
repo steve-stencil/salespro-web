@@ -28,14 +28,14 @@ export function useOfficeSettings(officeId: string | null) {
 }
 
 /**
- * Hook to upload or update office logo.
+ * Hook to select a logo from the company library.
  */
-export function useUploadLogo() {
+export function useSelectLogo() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ officeId, file }: { officeId: string; file: File }) =>
-      officeSettingsApi.uploadLogo(officeId, file),
+    mutationFn: ({ officeId, logoId }: { officeId: string; logoId: string }) =>
+      officeSettingsApi.selectLogo(officeId, logoId),
     onSuccess: (_, { officeId }) => {
       // Invalidate both settings and office list queries
       void queryClient.invalidateQueries({
@@ -49,7 +49,39 @@ export function useUploadLogo() {
 }
 
 /**
- * Hook to remove office logo.
+ * Hook to upload a new logo (added to library and assigned).
+ */
+export function useUploadLogo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      officeId,
+      file,
+      name,
+    }: {
+      officeId: string;
+      file: File;
+      name?: string;
+    }) => officeSettingsApi.uploadLogo(officeId, file, name),
+    onSuccess: (_, { officeId }) => {
+      // Invalidate both settings and office list queries
+      void queryClient.invalidateQueries({
+        queryKey: officeSettingsKeys.setting(officeId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: officeKeys.lists(),
+      });
+      // Also invalidate the company logo library
+      void queryClient.invalidateQueries({
+        queryKey: ['companyLogos'],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to remove office logo (revert to company default).
  */
 export function useRemoveLogo() {
   const queryClient = useQueryClient();

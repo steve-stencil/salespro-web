@@ -983,6 +983,10 @@ router.get(
 /**
  * POST /roles/assign
  * Assign a role to a user
+ *
+ * Validation rules:
+ * - Platform roles can only be assigned to internal users (use /internal-users endpoints)
+ * - Company/System roles can only be assigned to company users
  */
 router.post(
   '/assign',
@@ -1016,7 +1020,7 @@ router.post(
       const em = orm.em.fork();
       const permissionService = new PermissionService(em);
 
-      // Verify the role is available to this company
+      // Verify the role exists and is available to this company (or is a global role)
       const role = await em.findOne(Role, {
         id: roleId,
         $or: [{ company: null }, { company: company.id }],
@@ -1027,14 +1031,43 @@ router.post(
         return;
       }
 
-      // Verify the target user belongs to the same company
+      // Find the target user (without company filter first to validate user type)
       const { User } = await import('../entities');
-      const targetUser = await em.findOne(User, {
-        id: userId,
-        company: company.id,
-      });
+      const targetUser = await em.findOne(User, { id: userId });
 
       if (!targetUser) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      const isTargetInternalUser =
+        (targetUser.userType as UserType) === UserType.INTERNAL;
+      const isPlatformRole = (role.type as RoleType) === RoleType.PLATFORM;
+
+      // Platform roles can only be assigned to internal users
+      // (and should be done via /internal-users endpoints, not this endpoint)
+      if (isPlatformRole) {
+        res.status(400).json({
+          error: 'Platform roles can only be assigned to internal users',
+          message:
+            'Use the internal user management endpoints to assign platform roles',
+        });
+        return;
+      }
+
+      // Company/System roles cannot be assigned to internal users
+      // Internal users get their company permissions from their platform role's companyAccessLevel
+      if (isTargetInternalUser) {
+        res.status(400).json({
+          error: 'Company roles cannot be assigned to internal users',
+          message:
+            'Internal users get company permissions from their platform role, not company-specific roles',
+        });
+        return;
+      }
+
+      // Verify the target company user belongs to the same company
+      if (targetUser.company?.id !== company.id) {
         res.status(404).json({ error: 'User not found' });
         return;
       }
@@ -1184,8 +1217,10 @@ router.post(
 
       const companyId = company.id;
 
+      const { User: UserEntity } = await import('../entities');
+
       for (const { userId, roleId } of assignments) {
-        // Verify role and user
+        // Verify role exists and is available to this company
         const role = await em.findOne(Role, {
           id: roleId,
           $or: [{ company: null }, { company: companyId }],
@@ -1201,13 +1236,47 @@ router.post(
           continue;
         }
 
-        const { User: UserEntity } = await import('../entities');
-        const targetUser = await em.findOne(UserEntity, {
-          id: userId,
-          company: companyId,
-        });
+        // Find the target user (without company filter to validate user type)
+        const targetUser = await em.findOne(UserEntity, { id: userId });
 
         if (!targetUser) {
+          results.push({
+            userId,
+            roleId,
+            success: false,
+            error: 'User not found',
+          });
+          continue;
+        }
+
+        const isTargetInternalUser =
+          (targetUser.userType as UserType) === UserType.INTERNAL;
+        const isPlatformRole = (role.type as RoleType) === RoleType.PLATFORM;
+
+        // Platform roles can only be assigned to internal users
+        if (isPlatformRole) {
+          results.push({
+            userId,
+            roleId,
+            success: false,
+            error: 'Platform roles can only be assigned to internal users',
+          });
+          continue;
+        }
+
+        // Company/System roles cannot be assigned to internal users
+        if (isTargetInternalUser) {
+          results.push({
+            userId,
+            roleId,
+            success: false,
+            error: 'Company roles cannot be assigned to internal users',
+          });
+          continue;
+        }
+
+        // Verify the target company user belongs to the same company
+        if (targetUser.company?.id !== companyId) {
           results.push({
             userId,
             roleId,

@@ -17,6 +17,7 @@ import {
 import {
   RoleType,
   Company,
+  CompanyLogo,
   User,
   Role,
   UserRole,
@@ -184,11 +185,20 @@ describe('Office Settings Routes Integration Tests', () => {
       });
       em.persist(logoFile);
 
+      // Create company logo entry
+      const companyLogo = em.create(CompanyLogo, {
+        id: uuid(),
+        name: 'Test Logo',
+        company: testCompany,
+        file: logoFile,
+      });
+      em.persist(companyLogo);
+
       // Create settings with logo
       const settings = em.create(OfficeSettings, {
         id: uuid(),
         office: testOffice,
-        logoFile,
+        logo: companyLogo,
       });
       em.persist(settings);
       await em.flush();
@@ -199,7 +209,7 @@ describe('Office Settings Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.settings.logo).not.toBeNull();
-      expect(response.body.settings.logo.id).toBe(logoFile.id);
+      expect(response.body.settings.logo.id).toBe(companyLogo.id);
       expect(response.body.settings.logo.url).toBeDefined();
       expect(response.body.settings.logo.thumbnailUrl).toBeDefined();
     });
@@ -277,7 +287,7 @@ describe('Office Settings Routes Integration Tests', () => {
       const orm = getORM();
       const em = orm.em.fork();
 
-      // Create logo and settings first
+      // Create logo file first
       const logoFile = em.create(File, {
         id: uuid(),
         filename: 'logo.png',
@@ -291,10 +301,20 @@ describe('Office Settings Routes Integration Tests', () => {
       });
       em.persist(logoFile);
 
+      // Create company logo entry
+      const companyLogo = em.create(CompanyLogo, {
+        id: uuid(),
+        name: 'Test Logo',
+        company: testCompany,
+        file: logoFile,
+      });
+      em.persist(companyLogo);
+
+      // Create settings with logo
       const settings = em.create(OfficeSettings, {
         id: uuid(),
         office: testOffice,
-        logoFile,
+        logo: companyLogo,
       });
       em.persist(settings);
       await em.flush();
@@ -304,7 +324,9 @@ describe('Office Settings Routes Integration Tests', () => {
         .set('Cookie', cookie);
 
       expect(response.status).toBe(200);
-      expect(response.body.message).toBe('Logo removed successfully');
+      expect(response.body.message).toBe(
+        'Logo removed successfully (now using company default)',
+      );
       expect(response.body.settings.logo).toBeNull();
     });
 

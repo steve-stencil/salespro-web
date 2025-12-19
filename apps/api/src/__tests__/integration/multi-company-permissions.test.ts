@@ -487,20 +487,22 @@ describe('Multi-Company Permissions Integration Tests', () => {
   // ============================================================================
 
   describe('INTERNAL User Permission Handling', () => {
-    it('should return company roles plus platform permissions for internal users', async () => {
+    it('should return platform permissions plus company permissions from platform role companyAccessLevel', async () => {
       const orm = getORM();
       const em = orm.em.fork();
 
+      // Platform users get company permissions from their platform role's
+      // companyAccessLevel, NOT from company-specific roles
       const platformRole = await createPlatformRole(
         em,
         CompanyAccessLevel.FULL,
       );
 
-      // Create internal user with admin role in Company A
+      // Create internal user - platform users never have company roles
       const { cookie } = await createInternalUserWithRoles(
         em,
         platformRole,
-        [{ company: companyA, role: adminRole }],
+        [], // Platform users never have company roles
         companyA,
       );
 
@@ -514,24 +516,26 @@ describe('Multi-Company Permissions Integration Tests', () => {
       expect(response.body.permissions).toContain('platform:view_companies');
       expect(response.body.permissions).toContain('platform:switch_company');
 
-      // Should also include company role permissions
+      // FULL access level grants superuser permissions in any company
       expect(response.body.permissions).toContain('*');
     });
 
-    it('should return only platform permissions when internal user has no company roles', async () => {
+    it('should get company permissions from platform role companyAccessLevel, not company roles', async () => {
       const orm = getORM();
       const em = orm.em.fork();
 
+      // Platform users get company permissions from their platform role's companyAccessLevel,
+      // NOT from company-specific UserRole assignments. They never have company roles.
       const platformRole = await createPlatformRole(
         em,
         CompanyAccessLevel.FULL,
       );
 
-      // Create internal user with NO company roles
+      // Create internal user - platform users don't have company roles
       const { cookie } = await createInternalUserWithRoles(
         em,
         platformRole,
-        [], // No company roles
+        [], // Platform users never have company roles
         companyA,
       );
 
@@ -545,30 +549,26 @@ describe('Multi-Company Permissions Integration Tests', () => {
       expect(response.body.permissions).toContain('platform:view_companies');
       expect(response.body.permissions).toContain('platform:switch_company');
 
-      // Should NOT have company-level permissions
-      expect(response.body.permissions).not.toContain('*');
-      expect(response.body.permissions).not.toContain('user:read');
+      // FULL access level grants superuser permissions in any company
+      expect(response.body.permissions).toContain('*');
     });
 
-    it('should have different permissions in different companies based on role assignments', async () => {
+    it('should have SAME permissions in ALL companies based on platform role companyAccessLevel', async () => {
       const orm = getORM();
       const em = orm.em.fork();
 
+      // Platform users get the SAME permissions in ALL companies
+      // based on their platform role's companyAccessLevel
       const platformRole = await createPlatformRole(
         em,
         CompanyAccessLevel.FULL,
       );
 
-      // Create internal user with:
-      // - Admin role in Company A
-      // - Viewer role in Company B
+      // Create internal user - platform users don't have company-specific roles
       const { cookie, sessionId } = await createInternalUserWithRoles(
         em,
         platformRole,
-        [
-          { company: companyA, role: adminRole },
-          { company: companyB, role: viewerRole },
-        ],
+        [], // Platform users never have company roles
         companyA,
       );
 
@@ -590,10 +590,9 @@ describe('Multi-Company Permissions Integration Tests', () => {
         .set('Cookie', cookie);
 
       expect(responseB.status).toBe(200);
-      // Only viewer permissions + platform permissions
-      expect(responseB.body.permissions).toContain('customer:read');
+      // SAME permissions as Company A - platform role applies to ALL companies
+      expect(responseB.body.permissions).toContain('*');
       expect(responseB.body.permissions).toContain('platform:view_companies');
-      expect(responseB.body.permissions).not.toContain('*');
     });
   });
 
@@ -1327,11 +1326,12 @@ describe('Multi-Company Permissions Integration Tests', () => {
     });
 
     describe('Internal Platform User', () => {
-      it('should return platform permissions plus company roles for active company', async () => {
+      it('should return platform permissions plus company permissions from platform role', async () => {
         const orm = getORM();
         const em = orm.em.fork();
 
-        // Create platform role
+        // Platform users get company permissions from their platform role's
+        // companyAccessLevel, NOT from company-specific roles
         const platformRole = await createPlatformRole(
           em,
           CompanyAccessLevel.FULL,
@@ -1343,7 +1343,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
           },
         );
 
-        // Create internal user with admin role in Company A
+        // Create internal user - platform users never have company roles
         const email = `internal-${Date.now()}@platform.com`;
         const password = 'TestPassword123!';
         const passwordHash = await hashPassword(password);
@@ -1362,7 +1362,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
         });
         em.persist(user);
 
-        // Assign platform role
+        // Assign platform role only - platform users never have company roles
         const platformUserRole = em.create(UserRole, {
           id: uuid(),
           user,
@@ -1370,16 +1370,6 @@ describe('Multi-Company Permissions Integration Tests', () => {
           assignedAt: new Date(),
         });
         em.persist(platformUserRole);
-
-        // Assign admin role in Company A
-        const companyUserRole = em.create(UserRole, {
-          id: uuid(),
-          user,
-          role: adminRole,
-          company: companyA,
-          assignedAt: new Date(),
-        });
-        em.persist(companyUserRole);
 
         await em.flush();
 
@@ -1392,7 +1382,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
 
         const sidCookie = extractSessionCookie(loginResponse.headers);
 
-        // Check roles - should have both platform and company permissions
+        // Check roles - should have platform permissions plus company permissions from platform role
         const rolesResponse = await makeRequest()
           .get('/api/roles/me')
           .set('Cookie', sidCookie);
@@ -1407,15 +1397,16 @@ describe('Multi-Company Permissions Integration Tests', () => {
           'platform:switch_company',
         );
 
-        // Should have company permissions from admin role
+        // FULL access level grants superuser permissions in any company
         expect(rolesResponse.body.permissions).toContain('*');
       });
 
-      it('should return only platform permissions when internal user has no company roles', async () => {
+      it('should get company permissions from platform role companyAccessLevel after login', async () => {
         const orm = getORM();
         const em = orm.em.fork();
 
-        // Create platform role
+        // Platform users get company permissions from their platform role's
+        // companyAccessLevel, not from company-specific roles
         const platformRole = await createPlatformRole(
           em,
           CompanyAccessLevel.FULL,
@@ -1427,7 +1418,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
           },
         );
 
-        // Create internal user with NO company roles
+        // Create internal user - platform users don't have company roles
         const email = `internal-${Date.now()}@platform.com`;
         const password = 'TestPassword123!';
         const passwordHash = await hashPassword(password);
@@ -1446,7 +1437,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
         });
         em.persist(user);
 
-        // Assign platform role only (no company role)
+        // Assign platform role only - platform users never have company roles
         const platformUserRole = em.create(UserRole, {
           id: uuid(),
           user,
@@ -1479,16 +1470,16 @@ describe('Multi-Company Permissions Integration Tests', () => {
           'platform:switch_company',
         );
 
-        // Should NOT have company-level permissions like '*' or 'user:read'
-        expect(rolesResponse.body.permissions).not.toContain('*');
-        expect(rolesResponse.body.permissions).not.toContain('user:read');
+        // FULL access level grants superuser permissions in any company
+        expect(rolesResponse.body.permissions).toContain('*');
       });
 
-      it('should change company roles but keep platform permissions when switching companies', async () => {
+      it('should keep SAME permissions when switching companies (platform role applies to all)', async () => {
         const orm = getORM();
         const em = orm.em.fork();
 
-        // Create platform role
+        // Platform users get the SAME permissions from their platform role
+        // in ALL companies - permissions don't change when switching
         const platformRole = await createPlatformRole(
           em,
           CompanyAccessLevel.FULL,
@@ -1519,7 +1510,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
         });
         em.persist(user);
 
-        // Assign platform role
+        // Assign platform role only - platform users never have company roles
         const platformUserRole = em.create(UserRole, {
           id: uuid(),
           user,
@@ -1527,26 +1518,6 @@ describe('Multi-Company Permissions Integration Tests', () => {
           assignedAt: new Date(),
         });
         em.persist(platformUserRole);
-
-        // Assign admin role in Company A
-        const adminUserRole = em.create(UserRole, {
-          id: uuid(),
-          user,
-          role: adminRole,
-          company: companyA,
-          assignedAt: new Date(),
-        });
-        em.persist(adminUserRole);
-
-        // Assign viewer role in Company B
-        const viewerUserRole = em.create(UserRole, {
-          id: uuid(),
-          user,
-          role: viewerRole,
-          company: companyB,
-          assignedAt: new Date(),
-        });
-        em.persist(viewerUserRole);
 
         await em.flush();
 
@@ -1562,7 +1533,7 @@ describe('Multi-Company Permissions Integration Tests', () => {
           .get('/api/roles/me')
           .set('Cookie', sidCookie);
 
-        // Should have platform + admin permissions
+        // Should have platform + FULL access permissions
         expect(initialRoles.body.permissions).toContain(
           'platform:view_companies',
         );
@@ -1587,10 +1558,8 @@ describe('Multi-Company Permissions Integration Tests', () => {
           'platform:switch_company',
         );
 
-        // Should now have viewer permissions instead of admin
-        expect(afterSwitchRoles.body.permissions).not.toContain('*');
-        expect(afterSwitchRoles.body.permissions).toContain('customer:read');
-        expect(afterSwitchRoles.body.permissions).toContain('office:read');
+        // Should STILL have FULL access - platform role applies to ALL companies
+        expect(afterSwitchRoles.body.permissions).toContain('*');
       });
     });
   });

@@ -4,6 +4,7 @@ import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { env } from '../config/env';
 import {
   Company,
+  CompanyLogo,
   User,
   Session,
   Role,
@@ -39,6 +40,7 @@ let orm: MikroORM | null = null;
 /** All entity classes for MikroORM registration */
 const entities = [
   Company,
+  CompanyLogo,
   User,
   Session,
   Role,

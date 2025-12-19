@@ -4,13 +4,68 @@
  */
 
 // ============================================================================
-// Company Logo Types
+// Company Logo Library Types
 // ============================================================================
 
-/** Company logo information */
-export type CompanyLogoInfo = {
-  /** Logo file ID */
+/** Logo item in the company logo library */
+export type CompanyLogoLibraryItem = {
+  /** CompanyLogo ID */
   id: string;
+  /** User-friendly name for the logo */
+  name: string;
+  /** Signed URL for full logo */
+  url: string;
+  /** Signed URL for thumbnail (may be null) */
+  thumbnailUrl: string | null;
+  /** Original filename */
+  filename: string;
+  /** Whether this is the company's default logo */
+  isDefault: boolean;
+  /** Number of offices using this logo */
+  usedByOfficeCount: number;
+  /** When the logo was added to the library */
+  createdAt: string;
+};
+
+/** Response from GET /companies/logos */
+export type CompanyLogoLibraryResponse = {
+  logos: CompanyLogoLibraryItem[];
+  defaultLogoId: string | null;
+};
+
+/** Response from POST /companies/logos */
+export type AddLogoToLibraryResponse = {
+  message: string;
+  logo: CompanyLogoLibraryItem;
+};
+
+/** Response from PATCH /companies/logos/:id */
+export type UpdateLogoResponse = {
+  message: string;
+  logo: CompanyLogoLibraryItem;
+};
+
+/** Response from DELETE /companies/logos/:id */
+export type DeleteLogoResponse = {
+  message: string;
+};
+
+/** Response from POST /companies/logos/:id/set-default */
+export type SetDefaultLogoResponse = {
+  message: string;
+  logo: CompanyLogoLibraryItem;
+};
+
+// ============================================================================
+// Company Logo Types (for settings response)
+// ============================================================================
+
+/** Company logo information (used in settings) */
+export type CompanyLogoInfo = {
+  /** CompanyLogo ID */
+  id: string;
+  /** Logo name in the library */
+  name: string;
   /** Signed URL for full logo */
   url: string;
   /** Signed URL for thumbnail (may be null) */
@@ -31,8 +86,10 @@ export type CompanySettings = {
   companyName: string;
   /** Whether MFA is required for all users in this company */
   mfaRequired: boolean;
-  /** Company logo information (null if no logo set) */
+  /** Default logo information (null if no default set) */
   logo: CompanyLogoInfo | null;
+  /** ID of the default logo in the library */
+  defaultLogoId: string | null;
   /** Last update timestamp */
   updatedAt: string;
 };
@@ -108,4 +165,129 @@ export type PinCompanyResponse = {
   message: string;
   /** Updated pin status */
   isPinned: boolean;
+};
+
+// ============================================================================
+// Platform Company Management Types
+// ============================================================================
+
+/** Subscription tier levels */
+export type SubscriptionTier =
+  | 'free'
+  | 'starter'
+  | 'professional'
+  | 'enterprise';
+
+/** Session limit strategy options */
+export type SessionLimitStrategy =
+  | 'block_new'
+  | 'revoke_oldest'
+  | 'revoke_lru'
+  | 'prompt_user';
+
+/** Full company details for platform management */
+export type PlatformCompanyDetails = {
+  /** Company unique identifier */
+  id: string;
+  /** Company display name */
+  name: string;
+  /** Whether company is active */
+  isActive: boolean;
+  /** Subscription tier */
+  subscriptionTier: SubscriptionTier;
+  /** Maximum number of users (seats) */
+  maxUsers: number;
+  /** Maximum sessions per user */
+  maxSessions: number;
+  /** Session limit handling strategy */
+  sessionLimitStrategy: SessionLimitStrategy;
+  /** Whether MFA is required */
+  mfaRequired: boolean;
+  /** Number of users in the company */
+  userCount?: number;
+  /** Number of offices in the company */
+  officeCount?: number;
+  /** Company creation date */
+  createdAt: string;
+  /** Company last update date */
+  updatedAt: string;
+};
+
+/** Company summary for list views */
+export type PlatformCompanySummary = {
+  /** Company unique identifier */
+  id: string;
+  /** Company display name */
+  name: string;
+  /** Whether company is active */
+  isActive: boolean;
+  /** Subscription tier */
+  subscriptionTier: SubscriptionTier;
+  /** Number of users in the company */
+  userCount: number;
+  /** Number of offices in the company */
+  officeCount: number;
+  /** Company creation date */
+  createdAt: string;
+};
+
+/** Response from GET /platform/companies */
+export type PlatformCompaniesListResponse = {
+  /** List of companies */
+  companies: PlatformCompanySummary[];
+  /** Total number of companies */
+  total: number;
+};
+
+/** Response from GET /platform/companies/:id */
+export type PlatformCompanyResponse = PlatformCompanyDetails;
+
+/** Request body for POST /platform/companies */
+export type CreateCompanyRequest = {
+  /** Company display name */
+  name: string;
+  /** Subscription tier (defaults to 'free') */
+  subscriptionTier?: SubscriptionTier;
+  /** Maximum number of users (defaults to 5) */
+  maxUsers?: number;
+  /** Maximum sessions per user (defaults to 2) */
+  maxSessions?: number;
+  /** Session limit strategy (defaults to 'revoke_oldest') */
+  sessionLimitStrategy?: SessionLimitStrategy;
+  /** Whether MFA is required (defaults to false) */
+  mfaRequired?: boolean;
+};
+
+/** Response from POST /platform/companies */
+export type CreateCompanyResponse = {
+  /** Success message */
+  message: string;
+  /** Created company details */
+  company: PlatformCompanyDetails;
+};
+
+/** Request body for PATCH /platform/companies/:id */
+export type UpdateCompanyRequest = {
+  /** Company display name */
+  name?: string;
+  /** Whether company is active */
+  isActive?: boolean;
+  /** Subscription tier */
+  subscriptionTier?: SubscriptionTier;
+  /** Maximum number of users */
+  maxUsers?: number;
+  /** Maximum sessions per user */
+  maxSessions?: number;
+  /** Session limit strategy */
+  sessionLimitStrategy?: SessionLimitStrategy;
+  /** Whether MFA is required */
+  mfaRequired?: boolean;
+};
+
+/** Response from PATCH /platform/companies/:id */
+export type UpdateCompanyResponse = {
+  /** Success message */
+  message: string;
+  /** Updated company details */
+  company: PlatformCompanyDetails;
 };

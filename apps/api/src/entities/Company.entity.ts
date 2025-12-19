@@ -16,7 +16,7 @@ import {
   DEFAULT_PASSWORD_POLICY,
 } from './types';
 
-import type { File } from './File.entity';
+import type { CompanyLogo } from './CompanyLogo.entity';
 import type { PasswordPolicy } from './types';
 import type { User } from './User.entity';
 import type { UserCompany } from './UserCompany.entity';
@@ -57,9 +57,20 @@ export class Company {
   @Property({ type: 'boolean' })
   mfaRequired: Opt<boolean> = false;
 
-  /** Company logo file reference (nullable - company may not have a logo) */
-  @ManyToOne('File', { nullable: true })
-  logoFile?: File;
+  /**
+   * Default logo for the company.
+   * This logo is inherited by offices that don't have a specific logo set.
+   * References an entry in the company's logo library.
+   */
+  @ManyToOne('CompanyLogo', { nullable: true })
+  defaultLogo?: CompanyLogo;
+
+  /**
+   * Collection of all logos in the company's logo library.
+   * Offices can select from this library when setting their logo.
+   */
+  @OneToMany('CompanyLogo', 'company')
+  logos = new Collection<CompanyLogo>(this);
 
   @Property({ type: 'boolean' })
   isActive: Opt<boolean> = true;

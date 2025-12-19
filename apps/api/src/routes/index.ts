@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import authRoutes from './auth';
 import companyRoutes from './companies';
+import companyLogoRoutes from './company-logos';
 import fileRoutes from './files';
 import internalUserRoutes from './internal-users';
 import inviteRoutes from './invites';
@@ -42,6 +43,9 @@ r.use('/invites', inviteRoutes);
 
 // Office management routes
 r.use('/offices', officeRoutes);
+
+// Company logo library routes (must be before /companies to avoid conflicts)
+r.use('/companies/logos', companyLogoRoutes);
 
 // Company settings routes
 r.use('/companies', companyRoutes);
