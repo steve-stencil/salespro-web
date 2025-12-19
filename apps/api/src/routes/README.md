@@ -71,6 +71,17 @@ Office-level settings and integrations:
 | `integrations.routes.ts` | Third-party integration CRUD with encryption  |
 | `schemas.ts`             | Zod validation schemas for integrations       |
 
+#### `price-guide/`
+
+Price guide categories and measure sheet items:
+
+| File                   | Purpose                                  |
+| ---------------------- | ---------------------------------------- |
+| `index.ts`             | Combined router for categories and items |
+| `categories.routes.ts` | Price guide category CRUD operations     |
+| `items.routes.ts`      | Measure sheet item CRUD operations       |
+| `schemas.ts`           | Zod validation schemas                   |
+
 ## API Endpoint Reference
 
 ### Health Checks
@@ -174,6 +185,22 @@ Office-level settings and integrations:
 | ------ | -------------------- | ----------------------- |
 | GET    | `/companies/current` | Get current company     |
 | PATCH  | `/companies/current` | Update company settings |
+
+### Price Guide (`/api/price-guide`)
+
+| Method | Endpoint                       | Description                   |
+| ------ | ------------------------------ | ----------------------------- |
+| GET    | `/price-guide/categories`      | List categories (flat)        |
+| GET    | `/price-guide/categories/tree` | Get categories as nested tree |
+| GET    | `/price-guide/categories/:id`  | Get category details          |
+| POST   | `/price-guide/categories`      | Create category               |
+| PATCH  | `/price-guide/categories/:id`  | Update category               |
+| DELETE | `/price-guide/categories/:id`  | Delete category               |
+| GET    | `/price-guide/items`           | List measure sheet items      |
+| GET    | `/price-guide/items/:id`       | Get item details              |
+| POST   | `/price-guide/items`           | Create item                   |
+| PATCH  | `/price-guide/items/:id`       | Update item                   |
+| DELETE | `/price-guide/items/:id`       | Delete item                   |
 
 ### Platform (`/api/platform`) - Internal Users Only
 

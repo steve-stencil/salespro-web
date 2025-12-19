@@ -54,6 +54,18 @@ export const PERMISSIONS = {
   FILE_UPDATE: 'file:update',
   FILE_DELETE: 'file:delete',
 
+  // Price Guide Categories
+  PRICE_GUIDE_CATEGORY_READ: 'price_guide_category:read',
+  PRICE_GUIDE_CATEGORY_CREATE: 'price_guide_category:create',
+  PRICE_GUIDE_CATEGORY_UPDATE: 'price_guide_category:update',
+  PRICE_GUIDE_CATEGORY_DELETE: 'price_guide_category:delete',
+
+  // Measure Sheet Items
+  MEASURE_SHEET_ITEM_READ: 'measure_sheet_item:read',
+  MEASURE_SHEET_ITEM_CREATE: 'measure_sheet_item:create',
+  MEASURE_SHEET_ITEM_UPDATE: 'measure_sheet_item:update',
+  MEASURE_SHEET_ITEM_DELETE: 'measure_sheet_item:delete',
+
   // ==================================
   // Platform Permissions (Internal Users Only)
   // ==================================
@@ -241,6 +253,50 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     label: 'Delete Files',
     category: 'Files',
     description: 'Delete files from the system',
+  },
+
+  // Price Guide Categories
+  'price_guide_category:read': {
+    label: 'View Price Guide Categories',
+    category: 'Price Guide',
+    description: 'View price guide category list and hierarchy',
+  },
+  'price_guide_category:create': {
+    label: 'Create Price Guide Categories',
+    category: 'Price Guide',
+    description: 'Create new categories in the price guide',
+  },
+  'price_guide_category:update': {
+    label: 'Edit Price Guide Categories',
+    category: 'Price Guide',
+    description: 'Modify existing price guide categories',
+  },
+  'price_guide_category:delete': {
+    label: 'Delete Price Guide Categories',
+    category: 'Price Guide',
+    description: 'Remove categories from the price guide',
+  },
+
+  // Measure Sheet Items
+  'measure_sheet_item:read': {
+    label: 'View Measure Sheet Items',
+    category: 'Price Guide',
+    description: 'View measure sheet items in the price guide',
+  },
+  'measure_sheet_item:create': {
+    label: 'Create Measure Sheet Items',
+    category: 'Price Guide',
+    description: 'Add new items to the price guide',
+  },
+  'measure_sheet_item:update': {
+    label: 'Edit Measure Sheet Items',
+    category: 'Price Guide',
+    description: 'Modify existing measure sheet items',
+  },
+  'measure_sheet_item:delete': {
+    label: 'Delete Measure Sheet Items',
+    category: 'Price Guide',
+    description: 'Remove items from the price guide',
   },
 
   // Platform (Internal Users Only)
