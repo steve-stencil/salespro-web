@@ -141,8 +141,10 @@ describe('Office Settings Routes Integration Tests', () => {
     const orm = getORM();
     const em = orm.em.fork();
 
-    // Clean up test data in correct order
+    // Clean up test data in correct order (respect foreign key constraints)
     await em.nativeDelete(OfficeSettings, {});
+    // Must delete CompanyLogo before File due to foreign key constraint
+    await em.nativeDelete(CompanyLogo, { company: testCompany.id });
     await em.nativeDelete(File, { company: testCompany.id });
     await em.nativeDelete(Session, { company: testCompany.id });
     await em.nativeDelete(UserRole, { company: testCompany.id });
@@ -248,7 +250,9 @@ describe('Office Settings Routes Integration Tests', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.message).toBe('Logo updated successfully');
+      expect(response.body.message).toBe(
+        'Logo uploaded and selected successfully',
+      );
       expect(response.body.settings).toBeDefined();
     });
 
