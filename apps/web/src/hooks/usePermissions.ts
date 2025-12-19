@@ -268,6 +268,8 @@ export const PERMISSIONS = {
   // Platform (internal users only)
   PLATFORM_ADMIN: 'platform:admin',
   PLATFORM_VIEW_COMPANIES: 'platform:view_companies',
+  PLATFORM_CREATE_COMPANY: 'platform:create_company',
+  PLATFORM_UPDATE_COMPANY: 'platform:update_company',
   PLATFORM_SWITCH_COMPANY: 'platform:switch_company',
   PLATFORM_VIEW_AUDIT_LOGS: 'platform:view_audit_logs',
   PLATFORM_MANAGE_INTERNAL_USERS: 'platform:manage_internal_users',

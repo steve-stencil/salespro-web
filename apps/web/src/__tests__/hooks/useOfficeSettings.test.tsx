@@ -20,6 +20,7 @@ import type { ReactNode } from 'react';
 vi.mock('../../services/office-settings', () => ({
   officeSettingsApi: {
     getSettings: vi.fn(),
+    selectLogo: vi.fn(),
     uploadLogo: vi.fn(),
     removeLogo: vi.fn(),
   },
@@ -35,10 +36,19 @@ const mockSettingsResponse = {
     officeId: 'office-123',
     logo: {
       id: 'logo-123',
+      name: 'Test Logo',
       url: 'https://example.com/logo.png',
       thumbnailUrl: 'https://example.com/logo-thumb.png',
       filename: 'logo.png',
     },
+    companyDefaultLogo: {
+      id: 'default-logo-123',
+      name: 'Company Default Logo',
+      url: 'https://example.com/default-logo.png',
+      thumbnailUrl: 'https://example.com/default-logo-thumb.png',
+      filename: 'default-logo.png',
+    },
+    logoSource: 'office' as const,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-15T00:00:00Z',
   },
@@ -54,6 +64,7 @@ const mockRemoveResponse = {
   settings: {
     ...mockSettingsResponse.settings,
     logo: null,
+    logoSource: 'company' as const,
   },
 };
 
@@ -170,6 +181,31 @@ describe('useUploadLogo', () => {
     expect(officeSettingsApi.uploadLogo).toHaveBeenCalledWith(
       'office-123',
       mockFile,
+      undefined,
+    );
+  });
+
+  it('should upload logo with name', async () => {
+    vi.mocked(officeSettingsApi.uploadLogo).mockResolvedValue(
+      mockUploadResponse,
+    );
+
+    const { result } = renderHook(() => useUploadLogo(), {
+      wrapper: createWrapper(),
+    });
+
+    const mockFile = new File(['test'], 'logo.png', { type: 'image/png' });
+
+    await result.current.mutateAsync({
+      officeId: 'office-123',
+      file: mockFile,
+      name: 'Custom Logo Name',
+    });
+
+    expect(officeSettingsApi.uploadLogo).toHaveBeenCalledWith(
+      'office-123',
+      mockFile,
+      'Custom Logo Name',
     );
   });
 

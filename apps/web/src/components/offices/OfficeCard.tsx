@@ -22,8 +22,10 @@ import type { Office } from '../../types/users';
 
 type OfficeCardProps = {
   office: Office;
-  /** Logo information for the office */
+  /** Office's own logo (if selected from library) */
   logo?: LogoInfo | null;
+  /** Company's default logo (for fallback display) */
+  companyDefaultLogo?: LogoInfo | null;
   /** Whether settings are loading */
   isLoadingSettings?: boolean;
   /** Handler for edit action. If undefined, edit button is hidden. */
@@ -40,6 +42,7 @@ type OfficeCardProps = {
 export function OfficeCard({
   office,
   logo,
+  companyDefaultLogo,
   isLoadingSettings,
   onEdit,
   onDelete,
@@ -85,13 +88,15 @@ export function OfficeCard({
             mb: 1,
           }}
         >
-          {/* Office Logo */}
+          {/* Office Logo with inheritance support */}
           <OfficeLogo
             logo={logo}
+            companyDefaultLogo={companyDefaultLogo}
             officeName={office.name}
             size={48}
             isLoading={isLoadingSettings}
             useThumbnail
+            showInheritanceBadge
           />
 
           {/* Name and Status */}

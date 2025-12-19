@@ -15,15 +15,22 @@ export type {
   UserCompaniesResponse,
   SwitchCompanyResponse,
   PinCompanyResponse,
+  // Logo library types
+  CompanyLogoLibraryItem,
+  CompanyLogoLibraryResponse,
+  AddLogoToLibraryResponse,
+  UpdateLogoResponse,
+  DeleteLogoResponse,
+  SetDefaultLogoResponse,
 } from '@shared/core';
 
-/** Response for company logo upload */
+/** Response for company logo upload (deprecated - use logo library) */
 export type UploadCompanyLogoResponse = {
   message: string;
   settings: SharedCompanySettings;
 };
 
-/** Response for company logo removal */
+/** Response for company logo removal (deprecated - use logo library) */
 export type RemoveCompanyLogoResponse = {
   message: string;
   settings: SharedCompanySettings;

@@ -81,6 +81,12 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
 /** Platform navigation items - for internal users only */
 const PLATFORM_NAV_ITEMS: NavItem[] = [
   {
+    label: 'Companies',
+    path: '/platform/companies',
+    icon: <BusinessIcon />,
+    permission: PERMISSIONS.PLATFORM_VIEW_COMPANIES,
+  },
+  {
     label: 'Internal Users',
     path: '/platform/internal-users',
     icon: <PeopleIcon />,
