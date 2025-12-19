@@ -30,7 +30,12 @@ import { requireAuth, requirePermission } from '../middleware';
 import { LOGO_CONFIG, isValidLogoMimeType } from '../services/office-settings';
 
 import type { AuthenticatedRequest } from '../middleware/requireAuth';
-import type { Request, Response, Router as RouterType } from 'express';
+import type {
+  NextFunction,
+  Request,
+  Response,
+  Router as RouterType,
+} from 'express';
 
 const router: RouterType = Router();
 
@@ -57,6 +62,31 @@ const upload = multer({
     }
   },
 });
+
+/**
+ * Handle multer upload errors and return appropriate HTTP responses.
+ */
+function handleMulterUploadError(err: unknown, res: Response): boolean {
+  if (!err) {
+    return false;
+  }
+  if (err instanceof multer.MulterError) {
+    // Multer-specific errors (file size, etc.)
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({ error: 'File too large' });
+      return true;
+    }
+    res.status(400).json({ error: err.message });
+    return true;
+  }
+  if (err instanceof Error) {
+    // Custom errors from fileFilter
+    res.status(400).json({ error: err.message });
+    return true;
+  }
+  res.status(400).json({ error: 'Upload failed' });
+  return true;
+}
 
 // ============================================================================
 // Validation Schemas
@@ -258,7 +288,14 @@ router.post(
   '/',
   requireAuth(),
   requirePermission(PERMISSIONS.COMPANY_UPDATE),
-  upload.single('logo'),
+  (req: Request, res: Response, next: NextFunction) => {
+    upload.single('logo')(req, res, (err: unknown) => {
+      if (handleMulterUploadError(err, res)) {
+        return;
+      }
+      next();
+    });
+  },
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
@@ -486,6 +523,52 @@ router.patch(
 );
 
 /**
+ * DELETE /companies/logos/default
+ * Remove the default logo (company will have no default).
+ * NOTE: This route MUST be defined before /:id to avoid "default" being parsed as a UUID.
+ */
+router.delete(
+  '/default',
+  requireAuth(),
+  requirePermission(PERMISSIONS.COMPANY_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company: companyContext } = context;
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const company = await em.findOne(Company, { id: companyContext.id });
+      if (!company) {
+        res.status(404).json({ error: 'Company not found' });
+        return;
+      }
+
+      company.defaultLogo = undefined;
+      await em.flush();
+
+      req.log.info(
+        { companyId: company.id, userId: user.id },
+        'Default logo removed',
+      );
+
+      res.status(200).json({
+        message: 'Default logo removed',
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Remove default logo error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
  * DELETE /companies/logos/:id
  * Remove a logo from the library.
  * Cannot delete a logo that is set as default or used by offices.
@@ -643,51 +726,6 @@ router.post(
       });
     } catch (err) {
       req.log.error({ err }, 'Set default logo error');
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  },
-);
-
-/**
- * DELETE /companies/logos/default
- * Remove the default logo (company will have no default).
- */
-router.delete(
-  '/default',
-  requireAuth(),
-  requirePermission(PERMISSIONS.COMPANY_UPDATE),
-  async (req: Request, res: Response) => {
-    try {
-      const context = getCompanyContext(req);
-      if (!context) {
-        res.status(401).json({ error: 'Not authenticated' });
-        return;
-      }
-
-      const { user, company: companyContext } = context;
-
-      const orm = getORM();
-      const em = orm.em.fork();
-
-      const company = await em.findOne(Company, { id: companyContext.id });
-      if (!company) {
-        res.status(404).json({ error: 'Company not found' });
-        return;
-      }
-
-      company.defaultLogo = undefined;
-      await em.flush();
-
-      req.log.info(
-        { companyId: company.id, userId: user.id },
-        'Default logo removed',
-      );
-
-      res.status(200).json({
-        message: 'Default logo removed',
-      });
-    } catch (err) {
-      req.log.error({ err }, 'Remove default logo error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

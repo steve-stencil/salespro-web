@@ -11,10 +11,15 @@ import {
   requirePermission,
 } from '../middleware';
 
+import platformRolesRoutes from './platform-roles';
+
 import type { AuthenticatedRequest } from '../middleware/requireAuth';
 import type { Request, Response } from 'express';
 
 const router: Router = Router();
+
+// Mount platform roles routes
+router.use('/roles', platformRolesRoutes);
 
 /**
  * UUID v4 validation regex

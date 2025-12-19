@@ -141,15 +141,24 @@ describe('Office Settings Routes Integration Tests', () => {
     const orm = getORM();
     const em = orm.em.fork();
 
-    // Clean up test data in correct order
+    // Clean up test data in correct order (respecting FK constraints)
+    // 1. office_settings references company_logo
     await em.nativeDelete(OfficeSettings, {});
+    // 2. company_logo references file - must delete before file
     await em.nativeDelete(CompanyLogo, { company: testCompany.id });
+    // 3. file references user (uploaded_by_id)
     await em.nativeDelete(File, { company: testCompany.id });
+    // 4. session references user
     await em.nativeDelete(Session, { company: testCompany.id });
+    // 5. user_role references user, role, company
     await em.nativeDelete(UserRole, { company: testCompany.id });
+    // 6. user references company
     await em.nativeDelete(User, { company: testCompany.id });
+    // 7. office references company
     await em.nativeDelete(Office, { company: testCompany.id });
+    // 8. role (cleanup test role)
     await em.nativeDelete(Role, { id: adminRole.id });
+    // 9. company (last, as it's referenced by others)
     await em.nativeDelete(Company, { id: testCompany.id });
 
     vi.clearAllMocks();

@@ -17,6 +17,7 @@ import { LoginPage } from './pages/LoginPage';
 import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { OfficesPage } from './pages/OfficesPage';
 import { PlatformCompaniesPage } from './pages/PlatformCompaniesPage';
+import { PlatformRolesPage } from './pages/PlatformRolesPage';
 import { PriceGuideCategoriesPage } from './pages/PriceGuideCategoriesPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
@@ -41,6 +42,7 @@ import { UsersPage } from './pages/UsersPage';
  * - /offices - Office management
  * - /admin/settings - Company settings (admin)
  * - /platform/internal-users - Platform internal user management
+ * - /platform/roles - Platform role management
  * - /platform/companies - Platform company management
  * - / - Redirects to /dashboard
  */
@@ -130,6 +132,14 @@ export const router = createBrowserRouter([
             permission={PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS}
           >
             <InternalUsersPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/platform/roles',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PLATFORM_ADMIN}>
+            <PlatformRolesPage />
           </PermissionGuard>
         ),
       },

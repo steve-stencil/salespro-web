@@ -16,6 +16,7 @@ This folder contains all API route handlers. Routes define HTTP endpoints, handl
 | `invites.ts`        | User invitation endpoints                  |
 | `offices.ts`        | Office management endpoints                |
 | `platform.ts`       | Platform-level operations (internal users) |
+| `platform-roles.ts` | Platform role CRUD (admin only)            |
 | `roles.ts`          | Role and permission management             |
 | `users.ts`          | User management endpoints                  |
 
@@ -209,6 +210,22 @@ Price guide categories and measure sheet items:
 | GET    | `/platform/companies`      | List all companies    |
 | POST   | `/platform/switch-company` | Switch active company |
 | GET    | `/platform/active-company` | Get active company    |
+| DELETE | `/platform/active-company` | Exit company context  |
+
+### Platform Roles (`/api/platform/roles`) - Platform Admin Only
+
+| Method | Endpoint              | Description                        |
+| ------ | --------------------- | ---------------------------------- |
+| GET    | `/platform/roles`     | List all platform roles with count |
+| GET    | `/platform/roles/:id` | Get platform role details          |
+| POST   | `/platform/roles`     | Create a new platform role         |
+| PATCH  | `/platform/roles/:id` | Update a platform role             |
+| DELETE | `/platform/roles/:id` | Delete a platform role             |
+
+**Note:** Platform roles define permissions for internal users. Each role has:
+
+- `permissions` - Platform-level permissions (e.g., `platform:admin`)
+- `companyPermissions` - Permissions when viewing a company's data (can include `*` for full access)
 
 ### Internal Users (`/api/internal-users`) - Platform Admin Only
 

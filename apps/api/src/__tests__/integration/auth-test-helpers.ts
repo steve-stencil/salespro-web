@@ -2,12 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { expect } from 'vitest';
 
 import { Company, User, Role, UserRole, Session, Office } from '../../entities';
-import {
-  UserType,
-  RoleType,
-  CompanyAccessLevel,
-  SessionSource,
-} from '../../entities/types';
+import { UserType, RoleType, SessionSource } from '../../entities/types';
 import { hashPassword } from '../../lib/crypto';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -45,9 +40,9 @@ export type CreateUserOptions = {
 /** Options for creating an internal user */
 export type CreateInternalUserOptions = {
   platformRoleId?: string;
-  companyAccessLevel?: CompanyAccessLevel;
+  /** Explicit permissions when switched into any company */
+  companyPermissions?: string[];
   platformPermissions?: string[];
-  customPermissions?: string[];
   email?: string;
   nameFirst?: string;
   nameLast?: string;
@@ -257,21 +252,20 @@ export async function createReadOnlyUser(
 }
 
 /**
- * Create a platform role with specific access level.
+ * Create a platform role with specific company permissions.
  *
  * @param em - Entity manager
- * @param accessLevel - Company access level
+ * @param companyPermissions - Permissions when switched into any company
  * @param options - Additional options
  * @returns Created platform role
  */
 export async function createPlatformRole(
   em: EntityManager,
-  accessLevel: CompanyAccessLevel,
+  companyPermissions: string[],
   options: {
     name?: string;
     displayName?: string;
     platformPermissions?: string[];
-    customPermissions?: string[];
   } = {},
 ): Promise<Role> {
   const permissions: string[] = options.platformPermissions ?? [
@@ -279,17 +273,12 @@ export async function createPlatformRole(
     PERMISSIONS.PLATFORM_SWITCH_COMPANY,
   ];
 
-  // Add custom permissions for CUSTOM access level
-  if (accessLevel === CompanyAccessLevel.CUSTOM && options.customPermissions) {
-    permissions.push(...options.customPermissions);
-  }
-
   const role = em.create(Role, {
     id: uuid(),
     name: options.name ?? `platformRole-${Date.now()}-${Math.random()}`,
     displayName: options.displayName ?? 'Platform Role',
     type: RoleType.PLATFORM,
-    companyAccessLevel: accessLevel,
+    companyPermissions,
     permissions,
   });
   em.persist(role);

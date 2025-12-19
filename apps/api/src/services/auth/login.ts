@@ -6,8 +6,12 @@ import {
   LoginEventType,
   UserType,
   UserCompany,
+  UserRole,
+  Company,
+  RoleType,
 } from '../../entities';
 import { verifyPassword } from '../../lib/crypto';
+import { hasPermission } from '../../lib/permissions';
 
 import { LOCKOUT_CONFIG } from './config';
 import { logLoginEvent } from './events';
@@ -18,7 +22,7 @@ import {
 import { LoginErrorCode } from './types';
 
 import type { LoginParams, LoginResult, ActiveCompanyInfo } from './types';
-import type { Company, SessionSource } from '../../entities';
+import type { SessionSource } from '../../entities';
 import type { EntityManager } from '@mikro-orm/core';
 
 /**
@@ -162,8 +166,44 @@ export async function login(
       };
     }
   } else {
-    // For internal users, use their home company if set
+    // For internal users, check their platform role's company permissions
     activeCompany = user.company;
+
+    // Get the user's platform role to check companyPermissions
+    const platformRoleAssignment = await em.findOne(
+      UserRole,
+      { user: user.id, role: { type: RoleType.PLATFORM } },
+      { populate: ['role'] },
+    );
+
+    // Check if user has full access via wildcard in companyPermissions
+    const hasFullAccess =
+      platformRoleAssignment?.role.companyPermissions &&
+      hasPermission('*', platformRoleAssignment.role.companyPermissions);
+
+    if (hasFullAccess) {
+      // User has FULL access - they can switch to any company
+      const totalCompanies = await em.count(Company, {});
+      canSwitchCompanies = totalCompanies > 1;
+    } else {
+      // Check UserCompany records for restricted internal users
+      const activeUserCompanies = await em.find(
+        UserCompany,
+        { user: user.id, isActive: true },
+        { populate: ['company'] },
+      );
+      canSwitchCompanies = activeUserCompanies.length > 1;
+
+      // If they have UserCompany records, use the most recent one
+      if (activeUserCompanies.length > 0) {
+        const sorted = activeUserCompanies.sort((a, b) => {
+          const aTime = a.lastAccessedAt?.getTime() ?? 0;
+          const bTime = b.lastAccessedAt?.getTime() ?? 0;
+          return bTime - aTime;
+        });
+        activeCompany = sorted[0]?.company ?? user.company;
+      }
+    }
   }
 
   if (user.mfaEnabled || activeCompany?.mfaRequired) {

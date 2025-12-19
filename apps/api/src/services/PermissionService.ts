@@ -1,8 +1,7 @@
 import { UserRole, Role, User } from '../entities';
-import { UserType, RoleType, CompanyAccessLevel } from '../entities/types';
+import { UserType, RoleType } from '../entities/types';
 import {
   hasPermission as checkPermission,
-  getReadOnlyPermissions,
   getPlatformPermissions,
   isPlatformPermission,
 } from '../lib/permissions';
@@ -448,13 +447,11 @@ export class PermissionService {
 
   /**
    * Get permissions for an internal user within a specific company context.
-   * The permissions depend on the platform role's companyAccessLevel:
-   * - FULL: Returns ['*'] (superUser access)
-   * - READ_ONLY: Returns all :read permissions
-   * - CUSTOM: Returns the non-platform permissions defined in the role
+   * Returns the explicit companyPermissions from the platform role.
+   * Supports wildcards: '*' (all), 'resource:*' (all actions for resource)
    *
    * @param userId - The internal user's ID
-   * @param companyId - The company context to access
+   * @param _companyId - The company context to access (unused, kept for API compatibility)
    * @returns Array of permission strings for the company context
    */
   async getInternalUserCompanyPermissions(
@@ -471,22 +468,8 @@ export class PermissionService {
       return [];
     }
 
-    switch (platformRole.companyAccessLevel) {
-      case CompanyAccessLevel.FULL:
-        // SuperUser access - can do everything
-        return ['*'];
-
-      case CompanyAccessLevel.READ_ONLY:
-        // Read-only access - all :read permissions
-        return getReadOnlyPermissions();
-
-      case CompanyAccessLevel.CUSTOM:
-        // Custom permissions defined in the role (excluding platform: permissions)
-        return platformRole.permissions.filter(p => !isPlatformPermission(p));
-
-      default:
-        return [];
-    }
+    // Return the explicit company permissions from the platform role
+    return platformRole.companyPermissions;
   }
 
   /**
@@ -527,7 +510,7 @@ export class PermissionService {
 
   /**
    * Universal permission check that works for both company and internal users.
-   * For internal users, checks the platform role's companyAccessLevel.
+   * For internal users, checks the platform role's companyPermissions.
    * For company users, checks their assigned company/system roles.
    *
    * @param userId - The user's ID
@@ -547,7 +530,7 @@ export class PermissionService {
       if (isPlatformPermission(permission)) {
         return this.hasInternalUserPlatformPermission(userId, permission);
       }
-      // For company permissions, check based on companyAccessLevel
+      // For company permissions, check based on companyPermissions
       return this.hasInternalUserCompanyPermission(
         userId,
         permission,

@@ -58,6 +58,25 @@ User management components:
 | `UserFilters.tsx`         | User list filtering         |
 | `UserTable.tsx`           | User data table             |
 
+#### `platform/`
+
+Platform administration components (internal users only):
+
+| Component                        | Purpose                                   |
+| -------------------------------- | ----------------------------------------- |
+| `index.ts`                       | Component exports                         |
+| `InternalUserTable.tsx`          | Internal user list table                  |
+| `InternalUserEditDialog.tsx`     | Internal user edit form                   |
+| `InternalUserCreateDialog.tsx`   | Internal user creation form               |
+| `InternalUserCompanyManager.tsx` | Manage internal user company restrictions |
+| `PlatformRoleEditDialog.tsx`     | Platform role create/edit form            |
+
+The `PlatformRoleEditDialog` provides:
+
+- Platform permission selection (checkboxes for platform:\* permissions)
+- Company permission selection (wildcard `*` or specific permissions)
+- Role name, display name, and description fields
+
 ## Patterns
 
 ### Component Structure

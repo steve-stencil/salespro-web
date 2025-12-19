@@ -48,7 +48,6 @@ import {
   DEFAULT_PASSWORD_POLICY,
   RoleType,
   UserType,
-  CompanyAccessLevel,
 } from '../src/entities';
 import { hashPassword } from '../src/lib/crypto';
 import { PERMISSIONS } from '../src/lib/permissions';
@@ -577,7 +576,6 @@ async function getOrCreatePlatformAdminRole(orm: MikroORM): Promise<Role> {
     role.description =
       'Full platform access. Can manage all companies and internal users.';
     role.type = RoleType.PLATFORM;
-    role.companyAccessLevel = CompanyAccessLevel.FULL;
     role.permissions = [
       PERMISSIONS.PLATFORM_ADMIN,
       PERMISSIONS.PLATFORM_VIEW_COMPANIES,
@@ -585,6 +583,7 @@ async function getOrCreatePlatformAdminRole(orm: MikroORM): Promise<Role> {
       PERMISSIONS.PLATFORM_VIEW_AUDIT_LOGS,
       PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
     ];
+    role.companyPermissions = ['*']; // Full access in any company
     role.isDefault = false;
 
     await em.persistAndFlush(role);

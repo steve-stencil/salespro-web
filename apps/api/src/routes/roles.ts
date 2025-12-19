@@ -281,8 +281,8 @@ router.get('/me', requireAuth(), async (req: Request, res: Response) => {
       const platformPermissions =
         await permissionService.getInternalUserPlatformPermissions(user.id);
 
-      // Get company-context permissions based on companyAccessLevel
-      // This returns ['*'] for FULL, all :read permissions for READ_ONLY, or custom permissions
+      // Get company-context permissions from platform role's companyPermissions
+      // This returns the explicit company permissions (e.g., ['*'] for full access, read permissions for support, etc.)
       const internalCompanyPermissions =
         await permissionService.getInternalUserCompanyPermissions(
           user.id,
