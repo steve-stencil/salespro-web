@@ -12,3 +12,4 @@ export * from './users';
 export * from './invites';
 export * from './company';
 export * from './errors';
+export * from './price-guide';

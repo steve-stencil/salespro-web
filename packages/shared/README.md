@@ -20,6 +20,7 @@ packages/shared/
 │   │   ├── invites.ts        # User invitation types
 │   │   ├── company.ts        # Company settings types
 │   │   ├── errors.ts         # Error handling types
+│   │   ├── price-guide.ts    # Price guide/catalog types
 │   │   └── index.ts          # Re-exports all types
 │   └── __tests__/
 │       └── index.test.ts     # Package tests
@@ -136,6 +137,40 @@ import type {
   UserCompaniesResponse,
   SwitchCompanyResponse,
   PinCompanyResponse,
+} from '@shared/core';
+```
+
+#### Price Guide Types (`price-guide.ts`)
+
+```typescript
+import type {
+  // Enums
+  PriceGuideStatus,
+  PriceGuideItemStatus,
+  PricingType,
+
+  // Entities
+  PriceGuide,
+  PriceGuideBasic,
+  PriceGuideCategory,
+  PriceGuideCategoryBasic,
+  PriceGuideItem,
+  PriceGuideItemBasic,
+
+  // API Responses
+  PriceGuidesListResponse,
+  PriceGuideDetailResponse,
+  PriceGuideMutationResponse,
+  PriceGuideCategoriesListResponse,
+  PriceGuideItemsListResponse,
+
+  // API Requests
+  CreatePriceGuideRequest,
+  UpdatePriceGuideRequest,
+  CreatePriceGuideCategoryRequest,
+  CreatePriceGuideItemRequest,
+  PriceGuidesListParams,
+  PriceGuideItemsListParams,
 } from '@shared/core';
 ```
 
