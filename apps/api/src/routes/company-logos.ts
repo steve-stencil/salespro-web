@@ -523,6 +523,52 @@ router.patch(
 );
 
 /**
+ * DELETE /companies/logos/default
+ * Remove the default logo (company will have no default).
+ * NOTE: This route MUST be defined before /:id to avoid "default" being parsed as a UUID.
+ */
+router.delete(
+  '/default',
+  requireAuth(),
+  requirePermission(PERMISSIONS.COMPANY_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company: companyContext } = context;
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const company = await em.findOne(Company, { id: companyContext.id });
+      if (!company) {
+        res.status(404).json({ error: 'Company not found' });
+        return;
+      }
+
+      company.defaultLogo = undefined;
+      await em.flush();
+
+      req.log.info(
+        { companyId: company.id, userId: user.id },
+        'Default logo removed',
+      );
+
+      res.status(200).json({
+        message: 'Default logo removed',
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Remove default logo error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
  * DELETE /companies/logos/:id
  * Remove a logo from the library.
  * Cannot delete a logo that is set as default or used by offices.
@@ -680,51 +726,6 @@ router.post(
       });
     } catch (err) {
       req.log.error({ err }, 'Set default logo error');
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  },
-);
-
-/**
- * DELETE /companies/logos/default
- * Remove the default logo (company will have no default).
- */
-router.delete(
-  '/default',
-  requireAuth(),
-  requirePermission(PERMISSIONS.COMPANY_UPDATE),
-  async (req: Request, res: Response) => {
-    try {
-      const context = getCompanyContext(req);
-      if (!context) {
-        res.status(401).json({ error: 'Not authenticated' });
-        return;
-      }
-
-      const { user, company: companyContext } = context;
-
-      const orm = getORM();
-      const em = orm.em.fork();
-
-      const company = await em.findOne(Company, { id: companyContext.id });
-      if (!company) {
-        res.status(404).json({ error: 'Company not found' });
-        return;
-      }
-
-      company.defaultLogo = undefined;
-      await em.flush();
-
-      req.log.info(
-        { companyId: company.id, userId: user.id },
-        'Default logo removed',
-      );
-
-      res.status(200).json({
-        message: 'Default logo removed',
-      });
-    } catch (err) {
-      req.log.error({ err }, 'Remove default logo error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },
