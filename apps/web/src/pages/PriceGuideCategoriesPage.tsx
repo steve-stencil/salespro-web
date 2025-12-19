@@ -21,6 +21,7 @@ import {
   CategoryOfficeFilter,
   CategoryTable,
   CategoryTreeSidebar,
+  MillerColumnsView,
   ViewToggle,
 } from '../components/price-guide';
 import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
@@ -50,9 +51,14 @@ export function PriceGuideCategoriesPage(): React.ReactElement {
   const viewParam = searchParams.get('view');
 
   // Local state
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    viewParam === 'table' ? 'table' : 'grid',
-  );
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (viewParam === 'table') return 'table';
+    if (viewParam === 'columns') return 'columns';
+    return 'grid';
+  });
+  const [columnsCreateParentId, setColumnsCreateParentId] = useState<
+    string | null
+  >(null);
   const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
   const [editCategory, setEditCategory] =
     useState<PriceGuideCategoryListItem | null>(null);
@@ -118,26 +124,6 @@ export function PriceGuideCategoriesPage(): React.ReactElement {
   );
 
   // Category operations
-  const handleCreate = useCallback(
-    async (data: { name: string; isActive: boolean }) => {
-      try {
-        await createMutation.mutateAsync({
-          name: data.name,
-          isActive: data.isActive,
-          parentId: currentCategoryId,
-        });
-        setIsCreateOpen(false);
-        setToast({
-          message: 'Category created successfully',
-          severity: 'success',
-        });
-      } catch (error) {
-        setToast({ message: handleApiError(error), severity: 'error' });
-      }
-    },
-    [createMutation, currentCategoryId],
-  );
-
   const handleUpdate = useCallback(
     async (data: { name: string; isActive: boolean }) => {
       if (!editCategory) return;
@@ -213,6 +199,55 @@ export function PriceGuideCategoriesPage(): React.ReactElement {
     [deleteMutation, deleteCategory],
   );
 
+  // Handler for inline save from MillerColumnsView
+  const handleInlineSave = useCallback(
+    async (categoryId: string, data: { name: string; isActive: boolean }) => {
+      try {
+        await updateMutation.mutateAsync({
+          categoryId,
+          data: { name: data.name, isActive: data.isActive },
+        });
+        setToast({
+          message: 'Category updated successfully',
+          severity: 'success',
+        });
+      } catch (error) {
+        setToast({ message: handleApiError(error), severity: 'error' });
+      }
+    },
+    [updateMutation],
+  );
+
+  // Handler for create from MillerColumnsView
+  const handleCreateFromColumns = useCallback((parentId: string | null) => {
+    setColumnsCreateParentId(parentId);
+    setIsCreateOpen(true);
+  }, []);
+
+  // Modified create handler that uses columnsCreateParentId when in columns mode
+  const handleCreateWithParent = useCallback(
+    async (data: { name: string; isActive: boolean }) => {
+      const parentId =
+        viewMode === 'columns' ? columnsCreateParentId : currentCategoryId;
+      try {
+        await createMutation.mutateAsync({
+          name: data.name,
+          isActive: data.isActive,
+          parentId,
+        });
+        setIsCreateOpen(false);
+        setColumnsCreateParentId(null);
+        setToast({
+          message: 'Category created successfully',
+          severity: 'success',
+        });
+      } catch (error) {
+        setToast({ message: handleApiError(error), severity: 'error' });
+      }
+    },
+    [createMutation, currentCategoryId, viewMode, columnsCreateParentId],
+  );
+
   // Empty state message
   const emptyMessage = isAtRoot
     ? canCreate
@@ -258,19 +293,9 @@ export function PriceGuideCategoriesPage(): React.ReactElement {
         </RequirePermission>
       </Box>
 
-      {/* Split Pane Layout */}
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Tree Sidebar */}
-        <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0 }}>
-          <CategoryTreeSidebar
-            tree={tree}
-            isLoading={isTreeLoading}
-            selectedId={currentCategoryId}
-            onSelect={handleNavigate}
-          />
-        </Box>
-
-        {/* Content Area */}
+      {/* Layout depends on view mode */}
+      {viewMode === 'columns' ? (
+        /* Miller Columns View - Full width, no sidebar */
         <Box
           sx={{
             flex: 1,
@@ -279,11 +304,12 @@ export function PriceGuideCategoriesPage(): React.ReactElement {
             overflow: 'hidden',
           }}
         >
-          {/* Toolbar */}
+          {/* Minimal toolbar for columns view */}
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'flex-end',
               gap: 2,
               px: 3,
               py: 1.5,
@@ -291,66 +317,124 @@ export function PriceGuideCategoriesPage(): React.ReactElement {
               borderColor: 'divider',
             }}
           >
-            <CategoryOfficeFilter
-              selectedOfficeIds={selectedOfficeIds}
-              onChange={setSelectedOfficeIds}
-              disabled={!isAtRoot}
-            />
-            <Box sx={{ flex: 1 }}>
-              {!isAtRoot && (
-                <CategoryBreadcrumb
-                  breadcrumb={breadcrumb}
-                  isLoading={isBreadcrumbLoading}
-                  onNavigate={handleNavigate}
-                />
-              )}
-            </Box>
             <ViewToggle value={viewMode} onChange={handleViewModeChange} />
           </Box>
 
-          {/* Content */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
-            {viewMode === 'grid' ? (
-              <CategoryCardGrid
-                categories={categories}
-                isLoading={isListLoading}
-                onCategoryClick={handleNavigate}
-                onRename={(id, name) => void handleRename(id, name)}
-                onEdit={setEditCategory}
-                onMove={setMoveCategory}
-                onDelete={setDeleteCategory}
-                actionsDisabled={!canUpdate && !canDelete}
-                emptyMessage={emptyMessage}
-              />
-            ) : (
-              <CategoryTable
-                categories={categories}
-                isLoading={isListLoading}
-                onCategoryClick={handleNavigate}
-                onRename={(id, name) => void handleRename(id, name)}
-                onEdit={setEditCategory}
-                onMove={setMoveCategory}
-                onDelete={setDeleteCategory}
-                actionsDisabled={!canUpdate && !canDelete}
-                emptyMessage={emptyMessage}
-              />
-            )}
+          {/* Miller Columns */}
+          <Box sx={{ flex: 1, overflow: 'hidden' }}>
+            <MillerColumnsView
+              onEditCategory={setEditCategory}
+              onMoveCategory={setMoveCategory}
+              onDeleteCategory={setDeleteCategory}
+              onCreateCategory={handleCreateFromColumns}
+              onSaveCategory={handleInlineSave}
+              isSaving={updateMutation.isPending}
+              canUpdate={canUpdate}
+              canDelete={canDelete}
+              canCreate={canCreate}
+            />
           </Box>
         </Box>
-      </Box>
+      ) : (
+        /* Split Pane Layout for grid/table views */
+        <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          {/* Tree Sidebar */}
+          <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0 }}>
+            <CategoryTreeSidebar
+              tree={tree}
+              isLoading={isTreeLoading}
+              selectedId={currentCategoryId}
+              onSelect={handleNavigate}
+            />
+          </Box>
+
+          {/* Content Area */}
+          <Box
+            sx={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Toolbar */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                px: 3,
+                py: 1.5,
+                borderBottom: 1,
+                borderColor: 'divider',
+              }}
+            >
+              <CategoryOfficeFilter
+                selectedOfficeIds={selectedOfficeIds}
+                onChange={setSelectedOfficeIds}
+                disabled={!isAtRoot}
+              />
+              <Box sx={{ flex: 1 }}>
+                {!isAtRoot && (
+                  <CategoryBreadcrumb
+                    breadcrumb={breadcrumb}
+                    isLoading={isBreadcrumbLoading}
+                    onNavigate={handleNavigate}
+                  />
+                )}
+              </Box>
+              <ViewToggle value={viewMode} onChange={handleViewModeChange} />
+            </Box>
+
+            {/* Content */}
+            <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+              {viewMode === 'grid' ? (
+                <CategoryCardGrid
+                  categories={categories}
+                  isLoading={isListLoading}
+                  onCategoryClick={handleNavigate}
+                  onRename={(id, name) => void handleRename(id, name)}
+                  onEdit={setEditCategory}
+                  onMove={setMoveCategory}
+                  onDelete={setDeleteCategory}
+                  actionsDisabled={!canUpdate && !canDelete}
+                  emptyMessage={emptyMessage}
+                />
+              ) : (
+                <CategoryTable
+                  categories={categories}
+                  isLoading={isListLoading}
+                  onCategoryClick={handleNavigate}
+                  onRename={(id, name) => void handleRename(id, name)}
+                  onEdit={setEditCategory}
+                  onMove={setMoveCategory}
+                  onDelete={setDeleteCategory}
+                  actionsDisabled={!canUpdate && !canDelete}
+                  emptyMessage={emptyMessage}
+                />
+              )}
+            </Box>
+          </Box>
+        </Box>
+      )}
 
       {/* Dialogs */}
       <CategoryEditDialog
         open={isCreateOpen || editCategory !== null}
         category={editCategory}
-        parentId={currentCategoryId}
+        parentId={
+          viewMode === 'columns' ? columnsCreateParentId : currentCategoryId
+        }
         isSaving={createMutation.isPending || updateMutation.isPending}
         onClose={() => {
           setIsCreateOpen(false);
           setEditCategory(null);
+          setColumnsCreateParentId(null);
         }}
         onSave={data =>
-          void (editCategory ? handleUpdate(data) : handleCreate(data))
+          void (editCategory
+            ? handleUpdate(data)
+            : handleCreateWithParent(data))
         }
       />
 
