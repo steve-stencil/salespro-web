@@ -12,10 +12,16 @@ import type {
   InternalUsersListResponse,
   InternalUserDetailResponse,
   PlatformRolesResponse,
+  PlatformRolesAdminResponse,
+  PlatformRoleDetailResponse,
   CreateInternalUserRequest,
   CreateInternalUserResponse,
   UpdateInternalUserRequest,
   UpdateInternalUserResponse,
+  CreatePlatformRoleRequest,
+  CreatePlatformRoleResponse,
+  UpdatePlatformRoleRequest,
+  UpdatePlatformRoleResponse,
 } from '../types/platform';
 
 /**
@@ -162,5 +168,72 @@ export const platformApi = {
     return apiClient.delete<RemoveInternalUserCompanyResponse>(
       `/internal-users/${userId}/companies/${companyId}`,
     );
+  },
+
+  // ============================================================================
+  // Platform Role CRUD Methods
+  // ============================================================================
+
+  /**
+   * Lists all platform roles with user counts.
+   * Requires platform:admin permission.
+   *
+   * @returns List of platform roles with user counts
+   */
+  getPlatformRolesAdmin: async (): Promise<PlatformRolesAdminResponse> => {
+    return apiClient.get<PlatformRolesAdminResponse>('/platform/roles');
+  },
+
+  /**
+   * Gets details of a specific platform role.
+   *
+   * @param roleId - The platform role's ID
+   * @returns Platform role details
+   */
+  getPlatformRole: async (
+    roleId: string,
+  ): Promise<PlatformRoleDetailResponse> => {
+    return apiClient.get<PlatformRoleDetailResponse>(
+      `/platform/roles/${roleId}`,
+    );
+  },
+
+  /**
+   * Creates a new platform role.
+   *
+   * @param data - Role creation data
+   * @returns Created role details
+   */
+  createPlatformRole: async (
+    data: CreatePlatformRoleRequest,
+  ): Promise<CreatePlatformRoleResponse> => {
+    return apiClient.post<CreatePlatformRoleResponse>('/platform/roles', data);
+  },
+
+  /**
+   * Updates a platform role.
+   *
+   * @param roleId - The platform role's ID
+   * @param data - Role update data
+   * @returns Updated role details
+   */
+  updatePlatformRole: async (
+    roleId: string,
+    data: UpdatePlatformRoleRequest,
+  ): Promise<UpdatePlatformRoleResponse> => {
+    return apiClient.patch<UpdatePlatformRoleResponse>(
+      `/platform/roles/${roleId}`,
+      data,
+    );
+  },
+
+  /**
+   * Deletes a platform role.
+   * The role must not have any users assigned.
+   *
+   * @param roleId - The platform role's ID
+   */
+  deletePlatformRole: async (roleId: string): Promise<void> => {
+    await apiClient.delete(`/platform/roles/${roleId}`);
   },
 };
