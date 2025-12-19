@@ -784,7 +784,7 @@ describe('Roles Routes Integration Tests', () => {
           displayName: 'Platform Role',
           permissions: ['platform:view_companies', 'platform:switch_company'],
           type: RoleType.PLATFORM,
-          companyAccessLevel: CompanyAccessLevel.FULL,
+          companyPermissions: ['*'], // Full access to all company resources
         });
         em.persist(platformRole);
         await em.flush();
