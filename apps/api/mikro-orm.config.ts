@@ -2,6 +2,7 @@ import { defineConfig } from '@mikro-orm/postgresql';
 
 import {
   Company,
+  CompanyLogo,
   User,
   Session,
   Role,
@@ -37,6 +38,7 @@ export default defineConfig({
     'postgresql://postgres:postgres@localhost:5432/salespro_dev',
   entities: [
     Company,
+    CompanyLogo,
     User,
     Session,
     Role,
