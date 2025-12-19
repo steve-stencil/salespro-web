@@ -7,6 +7,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import BusinessIcon from '@mui/icons-material/Business';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MenuIcon from '@mui/icons-material/Menu';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 import PeopleIcon from '@mui/icons-material/People';
 import SecurityIcon from '@mui/icons-material/Security';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -65,6 +66,12 @@ const NAV_ITEMS: NavItem[] = [
     path: '/offices',
     icon: <BusinessIcon />,
     permission: PERMISSIONS.OFFICE_READ,
+  },
+  {
+    label: 'Price Guide',
+    path: '/price-guide/categories',
+    icon: <MenuBookIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_READ,
   },
 ];
 
