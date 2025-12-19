@@ -3,7 +3,7 @@
  * Verifies platform role management functionality.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -96,11 +96,36 @@ const mockPlatformRolesResponse: PlatformRolesAdminResponse = {
 
 const mockPermissionsResponse = {
   permissions: [
-    { name: 'customer:read', label: 'View Customers', category: 'Customers', description: 'View customer list' },
-    { name: 'customer:create', label: 'Create Customers', category: 'Customers', description: 'Create customers' },
-    { name: 'user:read', label: 'View Users', category: 'Users', description: 'View users' },
-    { name: 'platform:admin', label: 'Platform Admin', category: 'Platform', description: 'Full platform access' },
-    { name: 'platform:view_companies', label: 'View Companies', category: 'Platform', description: 'View companies' },
+    {
+      name: 'customer:read',
+      label: 'View Customers',
+      category: 'Customers',
+      description: 'View customer list',
+    },
+    {
+      name: 'customer:create',
+      label: 'Create Customers',
+      category: 'Customers',
+      description: 'Create customers',
+    },
+    {
+      name: 'user:read',
+      label: 'View Users',
+      category: 'Users',
+      description: 'View users',
+    },
+    {
+      name: 'platform:admin',
+      label: 'Platform Admin',
+      category: 'Platform',
+      description: 'Full platform access',
+    },
+    {
+      name: 'platform:view_companies',
+      label: 'View Companies',
+      category: 'Platform',
+      description: 'View companies',
+    },
   ],
   byCategory: {
     Customers: ['customer:read', 'customer:create'],
@@ -110,7 +135,14 @@ const mockPermissionsResponse = {
 };
 
 const mockMyRolesResponse = {
-  roles: [{ id: 'role-1', name: 'platform-admin', type: 'platform' }],
+  roles: [
+    {
+      id: 'role-1',
+      name: 'platform-admin',
+      displayName: 'Platform Admin',
+      type: 'platform',
+    },
+  ],
   permissions: ['platform:admin', 'platform:view_companies', '*'],
 };
 
@@ -145,7 +177,9 @@ function renderPlatformRolesPage(options: RenderOptions = {}): {
   render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authContext}>
-        <MemoryRouter initialEntries={[options.initialPath ?? '/platform/roles']}>
+        <MemoryRouter
+          initialEntries={[options.initialPath ?? '/platform/roles']}
+        >
           <Routes>
             <Route path="/platform/roles" element={<PlatformRolesPage />} />
           </Routes>
@@ -167,7 +201,9 @@ describe('PlatformRolesPage', () => {
     vi.mocked(platformApi.getPlatformRolesAdmin).mockResolvedValue(
       mockPlatformRolesResponse,
     );
-    vi.mocked(rolesApi.getPermissions).mockResolvedValue(mockPermissionsResponse);
+    vi.mocked(rolesApi.getPermissions).mockResolvedValue(
+      mockPermissionsResponse,
+    );
     vi.mocked(rolesApi.getMyRoles).mockResolvedValue(mockMyRolesResponse);
   });
 
@@ -176,7 +212,7 @@ describe('PlatformRolesPage', () => {
   });
 
   describe('rendering', () => {
-    it('should display the page title and description', async () => {
+    it('should display the page title and description', () => {
       renderPlatformRolesPage();
 
       expect(screen.getByText('Platform Roles')).toBeInTheDocument();
@@ -451,7 +487,9 @@ describe('PlatformRoleEditDialog', () => {
     vi.mocked(platformApi.getPlatformRolesAdmin).mockResolvedValue(
       mockPlatformRolesResponse,
     );
-    vi.mocked(rolesApi.getPermissions).mockResolvedValue(mockPermissionsResponse);
+    vi.mocked(rolesApi.getPermissions).mockResolvedValue(
+      mockPermissionsResponse,
+    );
     vi.mocked(rolesApi.getMyRoles).mockResolvedValue(mockMyRolesResponse);
   });
 
@@ -569,8 +607,15 @@ describe('PlatformRoleEditDialog', () => {
     it('should update role when form is submitted', async () => {
       const user = userEvent.setup();
       vi.mocked(platformApi.updatePlatformRole).mockResolvedValue({
-        ...mockPlatformRoles[0],
+        id: 'role-1',
+        name: 'platform-admin',
         displayName: 'Updated Admin',
+        description: 'Full platform administration access',
+        permissions: ['platform:admin', 'platform:view_companies'],
+        companyPermissions: ['*'],
+        userCount: 2,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
       });
 
       renderPlatformRolesPage();
@@ -593,7 +638,9 @@ describe('PlatformRoleEditDialog', () => {
       await user.clear(displayNameInput);
       await user.type(displayNameInput, 'Updated Admin');
 
-      const submitButton = screen.getByRole('button', { name: /save changes/i });
+      const submitButton = screen.getByRole('button', {
+        name: /save changes/i,
+      });
       await user.click(submitButton);
 
       await waitFor(() => {

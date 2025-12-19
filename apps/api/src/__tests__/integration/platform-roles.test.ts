@@ -7,7 +7,7 @@
 import { v4 as uuid } from 'uuid';
 import { describe, it, expect, beforeAll, afterEach, beforeEach } from 'vitest';
 
-import { Company, Role, UserRole } from '../../entities';
+import { Role, UserRole } from '../../entities';
 import { RoleType } from '../../entities/types';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -20,6 +20,7 @@ import {
 } from './auth-test-helpers';
 import { makeRequest, waitForDatabase } from './helpers';
 
+import type { Company } from '../../entities';
 import type { EntityManager } from '@mikro-orm/core';
 
 describe('Platform Roles API Integration Tests', () => {
@@ -37,7 +38,9 @@ describe('Platform Roles API Integration Tests', () => {
     em = orm.em.fork();
 
     // Create a test company for context
-    testCompany = await createTestCompany(em, { name: 'Platform Test Company' });
+    testCompany = await createTestCompany(em, {
+      name: 'Platform Test Company',
+    });
 
     // Create platform admin role with all platform permissions
     adminPlatformRole = await createPlatformRole(em, ['*'], {
