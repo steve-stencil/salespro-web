@@ -54,6 +54,12 @@ export const PERMISSIONS = {
   FILE_UPDATE: 'file:update',
   FILE_DELETE: 'file:delete',
 
+  // Price Guide (covers categories, items, pricing, etc.)
+  PRICE_GUIDE_READ: 'priceGuide:read',
+  PRICE_GUIDE_CREATE: 'priceGuide:create',
+  PRICE_GUIDE_UPDATE: 'priceGuide:update',
+  PRICE_GUIDE_DELETE: 'priceGuide:delete',
+
   // ==================================
   // Platform Permissions (Internal Users Only)
   // ==================================
@@ -243,6 +249,28 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     label: 'Delete Files',
     category: 'Files',
     description: 'Delete files from the system',
+  },
+
+  // Price Guide (categories, items, pricing, etc.)
+  'priceGuide:read': {
+    label: 'View Price Guide',
+    category: 'Price Guide',
+    description: 'View price guide categories, items, and pricing',
+  },
+  'priceGuide:create': {
+    label: 'Create in Price Guide',
+    category: 'Price Guide',
+    description: 'Create categories and items in the price guide',
+  },
+  'priceGuide:update': {
+    label: 'Edit Price Guide',
+    category: 'Price Guide',
+    description: 'Modify price guide categories, items, and pricing',
+  },
+  'priceGuide:delete': {
+    label: 'Delete from Price Guide',
+    category: 'Price Guide',
+    description: 'Remove categories and items from the price guide',
   },
 
   // Platform (Internal Users Only)

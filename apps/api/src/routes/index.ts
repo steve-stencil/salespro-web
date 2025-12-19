@@ -9,6 +9,7 @@ import inviteRoutes from './invites';
 import oauthRoutes from './oauth';
 import officeRoutes from './offices';
 import platformRoutes from './platform';
+import priceGuideRoutes from './price-guide';
 import roleRoutes from './roles';
 import userRoutes from './users';
 
@@ -57,5 +58,8 @@ r.use('/platform', platformRoutes);
 
 // Internal user management routes
 r.use('/internal-users', internalUserRoutes);
+
+// Price guide routes (categories and items)
+r.use('/price-guide', priceGuideRoutes);
 
 export default r;

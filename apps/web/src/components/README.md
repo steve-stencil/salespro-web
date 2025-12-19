@@ -77,6 +77,37 @@ The `PlatformRoleEditDialog` provides:
 - Company permission selection (wildcard `*` or specific permissions)
 - Role name, display name, and description fields
 
+#### `price-guide/`
+
+Price guide category management components:
+
+| Component                  | Purpose                                      |
+| -------------------------- | -------------------------------------------- |
+| `index.ts`                 | Component exports                            |
+| `CategoryBreadcrumb.tsx`   | Breadcrumb navigation for category hierarchy |
+| `CategoryCard.tsx`         | Category display card with actions           |
+| `CategoryCardGrid.tsx`     | Grid layout for category cards               |
+| `CategoryContextMenu.tsx`  | Right-click context menu for categories      |
+| `CategoryDeleteDialog.tsx` | Category deletion confirmation               |
+| `CategoryEditDialog.tsx`   | Category create/edit form                    |
+| `CategoryEditPanel.tsx`    | Inline edit panel for leaf categories        |
+| `CategoryMoveDialog.tsx`   | Dialog for moving category to new parent     |
+| `CategoryOfficeFilter.tsx` | Filter categories by assigned offices        |
+| `CategoryTable.tsx`        | Table view for categories                    |
+| `CategoryTreeSidebar.tsx`  | Tree navigation sidebar                      |
+| `InlineEditInput.tsx`      | Inline text editing component                |
+| `MillerColumn.tsx`         | Individual column for Miller columns view    |
+| `MillerColumnsView.tsx`    | Miller columns navigation container          |
+| `ViewToggle.tsx`           | Toggle between grid/table/columns views      |
+
+The `MillerColumnsView` provides:
+
+- Fixed 3-column layout that shifts as user navigates deeper
+- Column 1 shows parent context, Column 2 shows current level, Column 3 shows children
+- Inline edit panel for leaf nodes (categories with no children)
+- Responsive single-column mode for mobile devices
+- Context menu for actions on parent categories
+
 ## Patterns
 
 ### Component Structure

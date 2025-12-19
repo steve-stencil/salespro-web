@@ -6,18 +6,20 @@ This folder contains custom React hooks that encapsulate reusable stateful logic
 
 ## Structure
 
-| Hook                   | Purpose                                 |
-| ---------------------- | --------------------------------------- |
-| `useAuth.ts`           | Authentication context access           |
-| `useApiError.ts`       | API error handling utilities            |
-| `useCompanies.ts`      | Multi-company access and switching      |
-| `useDebouncedValue.ts` | Debounce values for delayed updates     |
-| `useOffices.ts`        | Office data fetching and mutations      |
-| `useOfficeSettings.ts` | Office settings and logo management     |
-| `usePermissions.ts`    | Permission checking utilities           |
-| `usePlatform.ts`       | Platform/internal user data and actions |
-| `useRoles.ts`          | Role data fetching and mutations        |
-| `useUsers.ts`          | User data fetching and mutations        |
+| Hook                         | Purpose                                       |
+| ---------------------------- | --------------------------------------------- |
+| `useAuth.ts`                 | Authentication context access                 |
+| `useApiError.ts`             | API error handling utilities                  |
+| `useCompanies.ts`            | Multi-company access and switching            |
+| `useContextMenu.ts`          | Context menu state and positioning management |
+| `useDebouncedValue.ts`       | Debounce values for delayed updates           |
+| `useOffices.ts`              | Office data fetching and mutations            |
+| `useOfficeSettings.ts`       | Office settings and logo management           |
+| `usePermissions.ts`          | Permission checking utilities                 |
+| `usePlatform.ts`             | Platform/internal user data and actions       |
+| `usePriceGuideCategories.ts` | Price guide category data and mutations       |
+| `useRoles.ts`                | Role data fetching and mutations              |
+| `useUsers.ts`                | User data fetching and mutations              |
 
 ## Hook Reference
 
@@ -339,6 +341,112 @@ function CompanySelector() {
 - Uses `keepPreviousData` to maintain UI stability during search
 - Returns `isFetching` for subtle loading indicators during background updates
 - Automatically invalidates queries after company switch
+
+### useContextMenu
+
+Manage context menu state and positioning for right-click menus.
+
+```tsx
+import { useContextMenu } from '../hooks/useContextMenu';
+
+type Item = { id: string; name: string };
+
+function ItemList() {
+  const { contextItem, anchorPosition, isOpen, openMenu, closeMenu } =
+    useContextMenu<Item>();
+
+  return (
+    <>
+      {items.map(item => (
+        <div key={item.id} onContextMenu={e => openMenu(e, item)}>
+          {item.name}
+        </div>
+      ))}
+      <Menu
+        open={isOpen}
+        anchorReference="anchorPosition"
+        anchorPosition={
+          anchorPosition
+            ? { top: anchorPosition.y, left: anchorPosition.x }
+            : undefined
+        }
+        onClose={closeMenu}
+      >
+        <MenuItem onClick={() => handleEdit(contextItem!)}>Edit</MenuItem>
+        <MenuItem onClick={() => handleDelete(contextItem!)}>Delete</MenuItem>
+      </Menu>
+    </>
+  );
+}
+```
+
+**Returns:**
+
+| Property         | Type                                   | Description                          |
+| ---------------- | -------------------------------------- | ------------------------------------ |
+| `contextItem`    | `T \| null`                            | Item associated with the open menu   |
+| `anchorPosition` | `{ x: number; y: number } \| null`     | Position for anchoring the menu      |
+| `isOpen`         | `boolean`                              | Whether the context menu is open     |
+| `openMenu`       | `(event: MouseEvent, item: T) => void` | Open menu at event position for item |
+| `closeMenu`      | `() => void`                           | Close the context menu               |
+
+### usePriceGuideCategories
+
+Fetch and manage price guide category data with TanStack Query.
+
+```tsx
+import {
+  usePriceGuideCategoriesList,
+  usePriceGuideCategoriesTree,
+  useCreatePriceGuideCategory,
+  useUpdatePriceGuideCategory,
+  useDeletePriceGuideCategory,
+} from '../hooks/usePriceGuideCategories';
+
+function CategoryManager({ parentId }: { parentId: string | null }) {
+  // Fetch categories with optional parent filter
+  const { data, isLoading } = usePriceGuideCategoriesList({ parentId });
+
+  // Fetch full category tree
+  const { data: treeData } = usePriceGuideCategoriesTree();
+
+  // Mutations
+  const createCategory = useCreatePriceGuideCategory();
+  const updateCategory = useUpdatePriceGuideCategory();
+  const deleteCategory = useDeletePriceGuideCategory();
+
+  const handleCreate = async () => {
+    await createCategory.mutateAsync({
+      name: 'New Category',
+      parentId,
+      isActive: true,
+    });
+  };
+
+  return (
+    <CategoryList
+      categories={data?.categories ?? []}
+      onCreate={handleCreate}
+      onUpdate={updateCategory.mutate}
+      onDelete={deleteCategory.mutate}
+    />
+  );
+}
+```
+
+**Available hooks:**
+
+| Hook                              | Purpose                             |
+| --------------------------------- | ----------------------------------- |
+| `usePriceGuideCategoriesList`     | Fetch categories with parent filter |
+| `usePriceGuideCategoriesTree`     | Fetch full category tree            |
+| `usePriceGuideCategory`           | Fetch single category by ID         |
+| `usePriceGuideCategoryChildren`   | Fetch children of a category        |
+| `usePriceGuideCategoryBreadcrumb` | Fetch breadcrumb path to a category |
+| `useCreatePriceGuideCategory`     | Create a new category               |
+| `useUpdatePriceGuideCategory`     | Update an existing category         |
+| `useMovePriceGuideCategory`       | Move category to a new parent       |
+| `useDeletePriceGuideCategory`     | Delete a category                   |
 
 ### useDebouncedValue
 

@@ -26,6 +26,9 @@ import {
   File,
   OfficeSettings,
   OfficeIntegration,
+  PriceGuideCategory,
+  PriceGuideCategoryOffice,
+  MeasureSheetItem,
 } from './src/entities';
 
 /**
@@ -62,6 +65,9 @@ export default defineConfig({
     File,
     OfficeSettings,
     OfficeIntegration,
+    PriceGuideCategory,
+    PriceGuideCategoryOffice,
+    MeasureSheetItem,
   ],
   migrations: {
     path: './src/migrations',
