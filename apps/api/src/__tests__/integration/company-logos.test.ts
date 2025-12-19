@@ -722,7 +722,7 @@ describe('Company Logo Library Routes Integration Tests', () => {
         { id: testCompany.id },
         { populate: ['defaultLogo'] },
       );
-      expect(company?.defaultLogo).toBeUndefined();
+      expect(company?.defaultLogo).toBeNull();
     });
 
     it('should succeed even when no default is set', async () => {
