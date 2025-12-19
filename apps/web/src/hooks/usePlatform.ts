@@ -11,12 +11,16 @@ import type {
   UpdateInternalUserRequest,
   CreatePlatformRoleRequest,
   UpdatePlatformRoleRequest,
+  CreateCompanyRequest,
+  UpdateCompanyRequest,
 } from '../types/platform';
 
 /** Query key factory for platform data */
 export const platformKeys = {
   all: ['platform'] as const,
   companies: () => [...platformKeys.all, 'companies'] as const,
+  companyDetail: (companyId: string) =>
+    [...platformKeys.companies(), companyId] as const,
   internalUsers: () => [...platformKeys.all, 'internal-users'] as const,
   internalUsersList: () => [...platformKeys.internalUsers(), 'list'] as const,
   internalUserDetail: (userId: string) =>
@@ -38,6 +42,61 @@ export function usePlatformCompanies() {
   return useQuery({
     queryKey: platformKeys.companies(),
     queryFn: () => platformApi.getCompanies(),
+  });
+}
+
+/**
+ * Hook to fetch details of a specific company.
+ *
+ * @param companyId - The company's ID
+ * @param enabled - Whether to enable the query (default: true)
+ */
+export function usePlatformCompany(companyId: string, enabled = true) {
+  return useQuery({
+    queryKey: platformKeys.companyDetail(companyId),
+    queryFn: () => platformApi.getCompany(companyId),
+    enabled: enabled && !!companyId,
+  });
+}
+
+/**
+ * Hook to create a new company.
+ */
+export function useCreateCompany() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateCompanyRequest) => platformApi.createCompany(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: platformKeys.companies(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update a company.
+ */
+export function useUpdateCompany() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      companyId,
+      data,
+    }: {
+      companyId: string;
+      data: UpdateCompanyRequest;
+    }) => platformApi.updateCompany(companyId, data),
+    onSuccess: (_, { companyId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: platformKeys.companies(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: platformKeys.companyDetail(companyId),
+      });
+    },
   });
 }
 

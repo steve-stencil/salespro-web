@@ -186,16 +186,85 @@ export type RemoveInternalUserCompanyResponse = {
 // Platform Companies Types
 // ============================================================================
 
-/** Company info for platform views */
+/** Subscription tier levels */
+export type SubscriptionTier =
+  | 'free'
+  | 'starter'
+  | 'professional'
+  | 'enterprise';
+
+/** Session limit strategy options */
+export type SessionLimitStrategy =
+  | 'block_new'
+  | 'revoke_oldest'
+  | 'revoke_lru'
+  | 'prompt_user';
+
+/** Company info for platform list views */
 export type PlatformCompany = {
   id: string;
   name: string;
   isActive: boolean;
+  subscriptionTier: SubscriptionTier;
+  userCount: number;
+  officeCount: number;
   createdAt: string;
+};
+
+/** Full company details for platform management */
+export type PlatformCompanyDetails = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  subscriptionTier: SubscriptionTier;
+  maxUsers: number;
+  maxSessions: number;
+  sessionLimitStrategy: SessionLimitStrategy;
+  mfaRequired: boolean;
+  userCount?: number;
+  officeCount?: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 /** Response from GET /platform/companies */
 export type PlatformCompaniesResponse = {
   companies: PlatformCompany[];
   total: number;
+};
+
+/** Response from GET /platform/companies/:id */
+export type PlatformCompanyDetailResponse = PlatformCompanyDetails;
+
+/** Request body for POST /platform/companies */
+export type CreateCompanyRequest = {
+  name: string;
+  subscriptionTier?: SubscriptionTier;
+  maxUsers?: number;
+  maxSessions?: number;
+  sessionLimitStrategy?: SessionLimitStrategy;
+  mfaRequired?: boolean;
+};
+
+/** Response from POST /platform/companies */
+export type CreateCompanyResponse = {
+  message: string;
+  company: PlatformCompanyDetails;
+};
+
+/** Request body for PATCH /platform/companies/:id */
+export type UpdateCompanyRequest = {
+  name?: string;
+  isActive?: boolean;
+  subscriptionTier?: SubscriptionTier;
+  maxUsers?: number;
+  maxSessions?: number;
+  sessionLimitStrategy?: SessionLimitStrategy;
+  mfaRequired?: boolean;
+};
+
+/** Response from PATCH /platform/companies/:id */
+export type UpdateCompanyResponse = {
+  message: string;
+  company: PlatformCompanyDetails;
 };

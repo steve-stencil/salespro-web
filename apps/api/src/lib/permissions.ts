@@ -61,6 +61,8 @@ export const PERMISSIONS = {
   // Platform administration
   PLATFORM_ADMIN: 'platform:admin',
   PLATFORM_VIEW_COMPANIES: 'platform:view_companies',
+  PLATFORM_CREATE_COMPANY: 'platform:create_company',
+  PLATFORM_UPDATE_COMPANY: 'platform:update_company',
   PLATFORM_SWITCH_COMPANY: 'platform:switch_company',
   PLATFORM_VIEW_AUDIT_LOGS: 'platform:view_audit_logs',
   PLATFORM_MANAGE_INTERNAL_USERS: 'platform:manage_internal_users',
@@ -253,6 +255,16 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     label: 'View All Companies',
     category: 'Platform',
     description: 'View list of all companies in the platform',
+  },
+  'platform:create_company': {
+    label: 'Create Companies',
+    category: 'Platform',
+    description: 'Create new companies in the platform',
+  },
+  'platform:update_company': {
+    label: 'Update Companies',
+    category: 'Platform',
+    description: 'Update company settings and details',
   },
   'platform:switch_company': {
     label: 'Switch Company',

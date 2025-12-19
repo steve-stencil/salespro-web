@@ -8,6 +8,7 @@ import type { File } from '../../entities';
 export enum OfficeSettingsErrorCode {
   OFFICE_NOT_FOUND = 'OFFICE_NOT_FOUND',
   SETTINGS_NOT_FOUND = 'SETTINGS_NOT_FOUND',
+  LOGO_NOT_FOUND = 'LOGO_NOT_FOUND',
   INVALID_FILE_TYPE = 'INVALID_FILE_TYPE',
   FILE_TOO_LARGE = 'FILE_TOO_LARGE',
   INVALID_DIMENSIONS = 'INVALID_DIMENSIONS',
@@ -28,22 +29,44 @@ export class OfficeSettingsError extends Error {
 
 /** Logo information in API response */
 export type LogoInfo = {
+  /** CompanyLogo ID */
   id: string;
+  /** Logo name in the library */
+  name: string;
+  /** Signed URL for full logo */
   url: string;
+  /** Signed URL for thumbnail (may be null) */
   thumbnailUrl: string | null;
+  /** Original filename */
   filename: string;
 };
+
+/** Source of the logo being displayed */
+export type LogoSource = 'office' | 'company' | 'none';
 
 /** Office settings API response */
 export type OfficeSettingsResponse = {
   id: string;
   officeId: string;
+  /** Selected logo from company library (null if using inheritance or no logo) */
   logo: LogoInfo | null;
+  /** Company's default logo (for fallback display) */
+  companyDefaultLogo: LogoInfo | null;
+  /** Where the displayed logo comes from */
+  logoSource: LogoSource;
   createdAt: Date;
   updatedAt: Date;
 };
 
-/** Parameters for uploading a logo */
+/** Parameters for selecting a logo from the library */
+export type SelectLogoParams = {
+  officeId: string;
+  companyId: string;
+  /** CompanyLogo ID from the library */
+  logoId: string;
+};
+
+/** Parameters for uploading a new logo (adds to library and assigns) */
 export type UploadLogoParams = {
   officeId: string;
   companyId: string;
@@ -56,6 +79,8 @@ export type UploadLogoParams = {
     id: string;
     company: { id: string };
   };
+  /** Optional name for the logo in the library */
+  logoName?: string;
 };
 
 /** Result of logo validation */

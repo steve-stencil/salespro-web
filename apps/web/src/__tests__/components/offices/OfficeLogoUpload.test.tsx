@@ -16,6 +16,7 @@ import type { LogoInfo } from '../../../types/office-settings';
 
 const mockLogo: LogoInfo = {
   id: 'logo-123',
+  name: 'Test Logo',
   url: 'https://example.com/logo.png',
   thumbnailUrl: 'https://example.com/logo-thumb.png',
   filename: 'company-logo.png',

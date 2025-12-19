@@ -40,25 +40,7 @@ Platform roles will have **two explicit permission arrays**:
 - Remove the switch statement on `companyAccessLevel`
 - Keep wildcard matching logic for `*` and `resource:*` patterns
 
-Key change:
-
-\`\`\`typescript
-
-// BEFORE
-
-switch (platformRole.companyAccessLevel) {
-
-case CompanyAccessLevel.FULL: return ['*'];
-
-case CompanyAccessLevel.READ_ONLY: return getReadOnlyPermissions();
-
-case CompanyAccessLevel.CUSTOM: return platformRole.permissions.filter(...);
-
-}// AFTER
-
-return platformRole.companyPermissions;
-
-\`\`\`
+Key change:\`\`\`typescript// BEFOREswitch (platformRole.companyAccessLevel) {case CompanyAccessLevel.FULL: return ['*'];case CompanyAccessLevel.READ_ONLY: return getReadOnlyPermissions();case CompanyAccessLevel.CUSTOM: return platformRole.permissions.filter(...);}// AFTERreturn platformRole.companyPermissions;\`\`\`
 
 ### 3. Seed Script Updates
 
@@ -67,87 +49,11 @@ return platformRole.companyPermissions;
 - Update `PLATFORM_ROLES` array to use `companyPermissions` instead of `companyAccessLevel`
 - Remove `CompanyAccessLevel` import
 
-Example transformation:
-
-\`\`\`typescript
-
-// BEFORE
-
-{
-
-name: 'platformAdmin',
-
-companyAccessLevel: CompanyAccessLevel.FULL,
-
-permissions: ['platform:admin', 'platform:view_companies', ...],
-
-}// AFTER
-
-{
-
-name: 'platformAdmin',
-
-permissions: ['platform:admin', 'platform:view_companies', ...],
-
-companyPermissions: ['*'], // Full access in any company
-
-}// BEFORE
-
-{
-
-name: 'platformSupport',
-
-companyAccessLevel: CompanyAccessLevel.READ_ONLY,
-
-permissions: ['platform:view_companies', ...],
-
-}// AFTER
-
-{
-
-name: 'platformSupport',
-
-permissions: ['platform:view_companies', ...],
-
-companyPermissions: [
-
-'customer:read', 'user:read', 'office:read',
-
-'role:read', 'report:read', 'settings:read',
-
-'company:read', 'file:read'
-
-],
-
-}
-
-\`\`\`
+Example transformation:\`\`\`typescript// BEFORE{name: 'platformAdmin',companyAccessLevel: CompanyAccessLevel.FULL,permissions: ['platform:admin', 'platform:view_companies', ...],}// AFTER{name: 'platformAdmin',permissions: ['platform:admin', 'platform:view_companies', ...],companyPermissions: ['*'], // Full access in any company}// BEFORE{name: 'platformSupport',companyAccessLevel: CompanyAccessLevel.READ_ONLY,permissions: ['platform:view_companies', ...],}// AFTER{name: 'platformSupport',permissions: ['platform:view_companies', ...],companyPermissions: ['customer:read', 'user:read', 'office:read','role:read', 'report:read', 'settings:read','company:read', 'file:read'],}\`\`\`
 
 ### 4. Database Migration
 
-**New migration file**: Migration20251218000000_platform-role-company-permissions.ts\`\`\`sql
-
--- Add companyPermissions column
-
-ALTER TABLE "role" ADD COLUMN "company_permissions" jsonb NOT NULL DEFAULT '[]';-- Migrate existing platform roles based on companyAccessLevel
-
-UPDATE "role" SET "company_permissions" = '["*"]'
-
-WHERE "type" = 'platform' AND "company_access_level" = 'full';UPDATE "role" SET "company_permissions" = '["customer:read", "user:read", ...]'
-
-WHERE "type" = 'platform' AND "company_access_level" = 'read_only';UPDATE "role" SET "company_permissions" = (
-
-SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("permissions") AS elem
-
-WHERE elem NOT LIKE 'platform:%'
-
-)
-
-WHERE "type" = 'platform' AND "company_access_level" = 'custom';-- Drop old column
-
-ALTER TABLE "role" DROP COLUMN "company_access_level";
-
-\`\`\`
+**New migration file**: Migration20251218000000_platform-role-company-permissions.ts\`\`\`sql-- Add companyPermissions columnALTER TABLE "role" ADD COLUMN "company_permissions" jsonb NOT NULL DEFAULT '[]';-- Migrate existing platform roles based on companyAccessLevelUPDATE "role" SET "company_permissions" = '["*"]'WHERE "type" = 'platform' AND "company_access_level" = 'full';UPDATE "role" SET "company_permissions" = '["customer:read", "user:read", ...]'WHERE "type" = 'platform' AND "company_access_level" = 'read_only';UPDATE "role" SET "company_permissions" = (SELECT jsonb_agg(elem) FROM jsonb_array_elements_text("permissions") AS elemWHERE elem NOT LIKE 'platform:%')WHERE "type" = 'platform' AND "company_access_level" = 'custom';-- Drop old columnALTER TABLE "role" DROP COLUMN "company_access_level";\`\`\`
 
 ### 5. Route Updates
 
@@ -180,7 +86,3 @@ ALTER TABLE "role" DROP COLUMN "company_access_level";
 5. Update entity and service code
 
 ## Testing Checklist
-
-- Unit tests for `PermissionService.getInternalUserCompanyPermissions()`
-- Integration tests for internal user permission checks
-- Verify wildcard patterns (`*`, `customer:*`) still work

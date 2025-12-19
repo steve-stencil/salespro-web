@@ -22,6 +22,11 @@ import type {
   CreatePlatformRoleResponse,
   UpdatePlatformRoleRequest,
   UpdatePlatformRoleResponse,
+  PlatformCompanyDetailResponse,
+  CreateCompanyRequest,
+  CreateCompanyResponse,
+  UpdateCompanyRequest,
+  UpdateCompanyResponse,
 } from '../types/platform';
 
 /**
@@ -114,6 +119,49 @@ export const platformApi = {
    */
   getCompanies: async (): Promise<PlatformCompaniesResponse> => {
     return apiClient.get<PlatformCompaniesResponse>('/platform/companies');
+  },
+
+  /**
+   * Gets details of a specific company.
+   *
+   * @param companyId - The company's ID
+   * @returns Company details
+   */
+  getCompany: async (
+    companyId: string,
+  ): Promise<PlatformCompanyDetailResponse> => {
+    return apiClient.get<PlatformCompanyDetailResponse>(
+      `/platform/companies/${companyId}`,
+    );
+  },
+
+  /**
+   * Creates a new company.
+   *
+   * @param data - Company creation data
+   * @returns Created company details
+   */
+  createCompany: async (
+    data: CreateCompanyRequest,
+  ): Promise<CreateCompanyResponse> => {
+    return apiClient.post<CreateCompanyResponse>('/platform/companies', data);
+  },
+
+  /**
+   * Updates a company.
+   *
+   * @param companyId - The company's ID
+   * @param data - Company update data
+   * @returns Updated company details
+   */
+  updateCompany: async (
+    companyId: string,
+    data: UpdateCompanyRequest,
+  ): Promise<UpdateCompanyResponse> => {
+    return apiClient.patch<UpdateCompanyResponse>(
+      `/platform/companies/${companyId}`,
+      data,
+    );
   },
 
   // ============================================================================

@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { Company, Session, UserCompany } from '../entities';
+import { Company, Office, Session, User, UserCompany } from '../entities';
+import { SessionLimitStrategy, SubscriptionTier } from '../entities/types';
 import { getORM } from '../lib/db';
 import { PERMISSIONS } from '../lib/permissions';
 import {
@@ -51,6 +52,56 @@ const switchCompanySchema = z.object({
   companyId: z.string().uuid('Invalid company ID format'),
 });
 
+const createCompanySchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Company name is required')
+    .max(255, 'Company name must be 255 characters or less'),
+  subscriptionTier: z.nativeEnum(SubscriptionTier).optional(),
+  maxUsers: z.number().int().min(1).max(10000).optional(),
+  maxSessions: z.number().int().min(1).max(100).optional(),
+  sessionLimitStrategy: z.nativeEnum(SessionLimitStrategy).optional(),
+  mfaRequired: z.boolean().optional(),
+});
+
+const updateCompanySchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Company name cannot be empty')
+    .max(255, 'Company name must be 255 characters or less')
+    .optional(),
+  isActive: z.boolean().optional(),
+  subscriptionTier: z.nativeEnum(SubscriptionTier).optional(),
+  maxUsers: z.number().int().min(1).max(10000).optional(),
+  maxSessions: z.number().int().min(1).max(100).optional(),
+  sessionLimitStrategy: z.nativeEnum(SessionLimitStrategy).optional(),
+  mfaRequired: z.boolean().optional(),
+});
+
+/**
+ * Map company entity to response object with counts.
+ */
+function mapCompanyToResponse(
+  company: Company,
+  userCount: number,
+  officeCount: number,
+): Record<string, unknown> {
+  return {
+    id: company.id,
+    name: company.name,
+    isActive: company.isActive,
+    subscriptionTier: company.tier,
+    maxUsers: company.maxSeats,
+    maxSessions: company.maxSessionsPerUser,
+    sessionLimitStrategy: company.sessionLimitStrategy,
+    mfaRequired: company.mfaRequired,
+    userCount,
+    officeCount,
+    createdAt: company.createdAt,
+    updatedAt: company.updatedAt,
+  };
+}
+
 /**
  * GET /platform/companies
  * List companies in the platform that the internal user has access to.
@@ -94,13 +145,25 @@ router.get(
         companies = await em.find(Company, {}, { orderBy: { name: 'asc' } });
       }
 
+      // Fetch user and office counts for each company
+      const companiesWithCounts = await Promise.all(
+        companies.map(async c => {
+          const userCount = await em.count(User, { company: c.id });
+          const officeCount = await em.count(Office, { company: c.id });
+          return {
+            id: c.id,
+            name: c.name,
+            isActive: c.isActive,
+            subscriptionTier: c.tier,
+            userCount,
+            officeCount,
+            createdAt: c.createdAt,
+          };
+        }),
+      );
+
       res.json({
-        companies: companies.map(c => ({
-          id: c.id,
-          name: c.name,
-          isActive: c.isActive,
-          createdAt: c.createdAt,
-        })),
+        companies: companiesWithCounts,
         total: companies.length,
       });
     } catch (err) {
@@ -139,18 +202,235 @@ router.get(
         return;
       }
 
-      res.json({
-        id: company.id,
-        name: company.name,
-        isActive: company.isActive,
-        subscriptionTier: company.tier,
-        maxUsers: company.maxSeats,
-        maxSessions: company.maxSessionsPerUser,
-        createdAt: company.createdAt,
-        updatedAt: company.updatedAt,
-      });
+      // Get counts
+      const userCount = await em.count(User, { company: id });
+      const officeCount = await em.count(Office, { company: id });
+
+      res.json(mapCompanyToResponse(company, userCount, officeCount));
     } catch (err) {
       req.log.error({ err }, 'Error fetching company');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * POST /platform/companies
+ * Create a new company in the platform.
+ * Requires internal user with platform:create_company permission.
+ */
+router.post(
+  '/companies',
+  requireAuth(),
+  requireInternalUser(),
+  requirePermission(PERMISSIONS.PLATFORM_CREATE_COMPANY),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const parseResult = createCompanySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation error',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const {
+        name,
+        subscriptionTier,
+        maxUsers,
+        maxSessions,
+        sessionLimitStrategy,
+        mfaRequired,
+      } = parseResult.data;
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Check for duplicate company name
+      const existingCompany = await em.findOne(Company, { name });
+      if (existingCompany) {
+        res
+          .status(409)
+          .json({ error: 'A company with this name already exists' });
+        return;
+      }
+
+      // Create the new company
+      const company = new Company();
+      company.name = name;
+
+      if (subscriptionTier !== undefined) {
+        company.tier = subscriptionTier as SubscriptionTier;
+      }
+      if (maxUsers !== undefined) {
+        company.maxSeats = maxUsers;
+      }
+      if (maxSessions !== undefined) {
+        company.maxSessionsPerUser = maxSessions;
+      }
+      if (sessionLimitStrategy !== undefined) {
+        company.sessionLimitStrategy =
+          sessionLimitStrategy as SessionLimitStrategy;
+      }
+      if (mfaRequired !== undefined) {
+        company.mfaRequired = mfaRequired;
+      }
+
+      await em.persistAndFlush(company);
+
+      req.log.info(
+        { companyId: company.id, companyName: company.name },
+        'Company created',
+      );
+
+      res.status(201).json({
+        message: 'Company created successfully',
+        company: mapCompanyToResponse(company, 0, 0),
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Error creating company');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PATCH /platform/companies/:id
+ * Update a company's settings.
+ * Requires internal user with platform:update_company permission.
+ */
+router.patch(
+  '/companies/:id',
+  requireAuth(),
+  requireInternalUser(),
+  requirePermission(PERMISSIONS.PLATFORM_UPDATE_COMPANY),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      if (!id || !UUID_REGEX.test(id)) {
+        res.status(400).json({ error: 'Invalid company ID format' });
+        return;
+      }
+
+      const parseResult = updateCompanySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation error',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const company = await em.findOne(Company, { id });
+
+      if (!company) {
+        res.status(404).json({ error: 'Company not found' });
+        return;
+      }
+
+      const {
+        name,
+        isActive,
+        subscriptionTier,
+        maxUsers,
+        maxSessions,
+        sessionLimitStrategy,
+        mfaRequired,
+      } = parseResult.data;
+
+      const changes: Record<string, { from: unknown; to: unknown }> = {};
+
+      // Check for duplicate name if changing
+      if (name !== undefined && name !== company.name) {
+        const existingCompany = await em.findOne(Company, { name });
+        if (existingCompany) {
+          res
+            .status(409)
+            .json({ error: 'A company with this name already exists' });
+          return;
+        }
+        changes['name'] = { from: company.name, to: name };
+        company.name = name;
+      }
+
+      if (isActive !== undefined && isActive !== company.isActive) {
+        changes['isActive'] = { from: company.isActive, to: isActive };
+        company.isActive = isActive;
+      }
+
+      if (
+        subscriptionTier !== undefined &&
+        String(subscriptionTier) !== String(company.tier)
+      ) {
+        changes['subscriptionTier'] = {
+          from: company.tier,
+          to: subscriptionTier,
+        };
+        company.tier = subscriptionTier as SubscriptionTier;
+      }
+
+      if (maxUsers !== undefined && maxUsers !== company.maxSeats) {
+        changes['maxUsers'] = { from: company.maxSeats, to: maxUsers };
+        company.maxSeats = maxUsers;
+      }
+
+      if (
+        maxSessions !== undefined &&
+        maxSessions !== company.maxSessionsPerUser
+      ) {
+        changes['maxSessions'] = {
+          from: company.maxSessionsPerUser,
+          to: maxSessions,
+        };
+        company.maxSessionsPerUser = maxSessions;
+      }
+
+      if (
+        sessionLimitStrategy !== undefined &&
+        String(sessionLimitStrategy) !== String(company.sessionLimitStrategy)
+      ) {
+        changes['sessionLimitStrategy'] = {
+          from: company.sessionLimitStrategy,
+          to: sessionLimitStrategy,
+        };
+        company.sessionLimitStrategy =
+          sessionLimitStrategy as SessionLimitStrategy;
+      }
+
+      if (mfaRequired !== undefined && mfaRequired !== company.mfaRequired) {
+        changes['mfaRequired'] = { from: company.mfaRequired, to: mfaRequired };
+        company.mfaRequired = mfaRequired;
+      }
+
+      if (Object.keys(changes).length > 0) {
+        await em.flush();
+        req.log.info(
+          { companyId: company.id, companyName: company.name, changes },
+          'Company updated',
+        );
+      }
+
+      // Get counts
+      const userCount = await em.count(User, { company: id });
+      const officeCount = await em.count(Office, { company: id });
+
+      res.json({
+        message: 'Company updated successfully',
+        company: mapCompanyToResponse(company, userCount, officeCount),
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Error updating company');
       res.status(500).json({ error: 'Internal server error' });
     }
   },
