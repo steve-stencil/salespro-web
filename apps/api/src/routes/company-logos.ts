@@ -30,7 +30,12 @@ import { requireAuth, requirePermission } from '../middleware';
 import { LOGO_CONFIG, isValidLogoMimeType } from '../services/office-settings';
 
 import type { AuthenticatedRequest } from '../middleware/requireAuth';
-import type { Request, Response, Router as RouterType } from 'express';
+import type {
+  NextFunction,
+  Request,
+  Response,
+  Router as RouterType,
+} from 'express';
 
 const router: RouterType = Router();
 
@@ -57,6 +62,31 @@ const upload = multer({
     }
   },
 });
+
+/**
+ * Handle multer upload errors and return appropriate HTTP responses.
+ */
+function handleMulterUploadError(err: unknown, res: Response): boolean {
+  if (!err) {
+    return false;
+  }
+  if (err instanceof multer.MulterError) {
+    // Multer-specific errors (file size, etc.)
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({ error: 'File too large' });
+      return true;
+    }
+    res.status(400).json({ error: err.message });
+    return true;
+  }
+  if (err instanceof Error) {
+    // Custom errors from fileFilter
+    res.status(400).json({ error: err.message });
+    return true;
+  }
+  res.status(400).json({ error: 'Upload failed' });
+  return true;
+}
 
 // ============================================================================
 // Validation Schemas
@@ -258,7 +288,14 @@ router.post(
   '/',
   requireAuth(),
   requirePermission(PERMISSIONS.COMPANY_UPDATE),
-  upload.single('logo'),
+  (req: Request, res: Response, next: NextFunction) => {
+    upload.single('logo')(req, res, (err: unknown) => {
+      if (handleMulterUploadError(err, res)) {
+        return;
+      }
+      next();
+    });
+  },
   async (req: Request, res: Response) => {
     try {
       const context = getCompanyContext(req);
