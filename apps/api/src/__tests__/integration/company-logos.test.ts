@@ -121,15 +121,24 @@ describe('Company Logo Library Routes Integration Tests', () => {
     const orm = getORM();
     const em = orm.em.fork();
 
-    // Clean up in correct order
+    // Clean up in correct order (respecting FK constraints)
+    // 1. office_settings references company_logo
     await em.nativeDelete('office_settings', {});
+    // 2. office references company
     await em.nativeDelete('office', {});
+    // 3. company_logo references file and company
     await em.nativeDelete('company_logo', {});
-    await em.nativeDelete('user_role', {});
-    await em.nativeDelete('session', {});
-    await em.nativeDelete('user', {});
-    await em.nativeDelete('role', {});
+    // 4. file references user (uploaded_by_id) - must delete before user
     await em.nativeDelete('file', {});
+    // 5. user_role references user, role, company
+    await em.nativeDelete('user_role', {});
+    // 6. session references user
+    await em.nativeDelete('session', {});
+    // 7. user references company
+    await em.nativeDelete('user', {});
+    // 8. role (no FK to other test tables)
+    await em.nativeDelete('role', {});
+    // 9. company (referenced by others, delete last)
     await em.nativeDelete('company', {});
   });
 
