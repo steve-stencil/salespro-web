@@ -143,6 +143,7 @@ describe('Office Settings Routes Integration Tests', () => {
 
     // Clean up test data in correct order
     await em.nativeDelete(OfficeSettings, {});
+    await em.nativeDelete(CompanyLogo, { company: testCompany.id });
     await em.nativeDelete(File, { company: testCompany.id });
     await em.nativeDelete(Session, { company: testCompany.id });
     await em.nativeDelete(UserRole, { company: testCompany.id });
@@ -248,7 +249,9 @@ describe('Office Settings Routes Integration Tests', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.message).toBe('Logo updated successfully');
+      expect(response.body.message).toBe(
+        'Logo uploaded and selected successfully',
+      );
       expect(response.body.settings).toBeDefined();
     });
 
