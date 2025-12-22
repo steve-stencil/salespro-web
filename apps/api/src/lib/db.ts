@@ -28,6 +28,9 @@ import {
   File,
   OfficeSettings,
   OfficeIntegration,
+  DocumentTemplate,
+  DocumentTemplateCategory,
+  DocumentDraft,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -61,6 +64,9 @@ const entities = [
   File,
   OfficeSettings,
   OfficeIntegration,
+  DocumentTemplate,
+  DocumentTemplateCategory,
+  DocumentDraft,
 ];
 
 /**
