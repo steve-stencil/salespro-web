@@ -127,8 +127,8 @@ export function ForbiddenPage(): React.ReactElement {
         administrator if you believe this is a mistake.
       </Typography>
       <Box sx={{ display: 'flex', gap: 2 }}>
-        <Button variant="contained" onClick={() => void navigate('/dashboard')}>
-          Go to Dashboard
+        <Button variant="contained" onClick={() => void navigate('/')}>
+          Go to Home
         </Button>
         <Button variant="outlined" onClick={() => void navigate(-1)}>
           Go Back

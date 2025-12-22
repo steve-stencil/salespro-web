@@ -1,6 +1,7 @@
 /**
  * Main application layout component.
  * Provides sidebar navigation and top app bar for authenticated pages.
+ * Serves as the shell for both web and mobile apps.
  */
 import LogoutIcon from '@mui/icons-material/Logout';
 import AppBar from '@mui/material/AppBar';
@@ -13,7 +14,9 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 
+import { AppSwitcher } from '../components/AppSwitcher';
 import { MobileMenuButton, Sidebar } from '../components/Sidebar';
+import { AppProvider } from '../context/AppContext';
 import { useAuth } from '../hooks/useAuth';
 
 /** Width of the sidebar drawer */
@@ -58,103 +61,108 @@ export function AppLayout(): React.ReactElement {
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <Sidebar mobileOpen={mobileOpen} onMobileClose={handleDrawerToggle} />
+    <AppProvider>
+      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+        {/* Sidebar */}
+        <Sidebar mobileOpen={mobileOpen} onMobileClose={handleDrawerToggle} />
 
-      {/* Main content area */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          minHeight: '100vh',
-          bgcolor: 'background.default',
-        }}
-      >
-        {/* Top App Bar */}
-        <AppBar
-          position="sticky"
-          color="default"
-          elevation={0}
+        {/* Main content area */}
+        <Box
+          component="main"
           sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+            minHeight: '100vh',
+            bgcolor: 'background.default',
           }}
         >
-          <Toolbar>
-            <MobileMenuButton onClick={handleDrawerToggle} />
+          {/* Top App Bar */}
+          <AppBar
+            position="sticky"
+            color="default"
+            elevation={0}
+            sx={{
+              borderBottom: 1,
+              borderColor: 'divider',
+              bgcolor: 'background.paper',
+            }}
+          >
+            <Toolbar>
+              <MobileMenuButton onClick={handleDrawerToggle} />
 
-            {/* Spacer */}
-            <Box sx={{ flexGrow: 1 }} />
+              {/* Spacer */}
+              <Box sx={{ flexGrow: 1 }} />
 
-            {/* User info and logout */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box
-                sx={{
-                  display: { xs: 'none', sm: 'flex' },
-                  alignItems: 'center',
-                  gap: 1,
-                }}
-              >
-                <Avatar
+              {/* User info and logout */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {/* App Switcher - only shows if user has access to multiple apps */}
+                <AppSwitcher />
+
+                <Box
                   sx={{
-                    bgcolor: 'primary.main',
-                    width: 32,
-                    height: 32,
-                    fontSize: '0.875rem',
+                    display: { xs: 'none', sm: 'flex' },
+                    alignItems: 'center',
+                    gap: 1,
                   }}
                 >
-                  {(user?.nameFirst ?? user?.email ?? 'U').charAt(0)}
-                </Avatar>
-                <Box>
-                  <Typography
-                    variant="body2"
-                    sx={{ fontWeight: 500, lineHeight: 1.2 }}
+                  <Avatar
+                    sx={{
+                      bgcolor: 'primary.main',
+                      width: 32,
+                      height: 32,
+                      fontSize: '0.875rem',
+                    }}
                   >
-                    {user?.nameFirst} {user?.nameLast}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ lineHeight: 1.2 }}
-                  >
-                    {user?.company?.name}
-                  </Typography>
+                    {(user?.nameFirst ?? user?.email ?? 'U').charAt(0)}
+                  </Avatar>
+                  <Box>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 500, lineHeight: 1.2 }}
+                    >
+                      {user?.nameFirst} {user?.nameLast}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ lineHeight: 1.2 }}
+                    >
+                      {user?.company?.name}
+                    </Typography>
+                  </Box>
                 </Box>
+
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  size="small"
+                  onClick={onLogoutClick}
+                  disabled={isLoggingOut}
+                  startIcon={
+                    isLoggingOut ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <LogoutIcon />
+                    )
+                  }
+                  sx={{ minWidth: 'auto' }}
+                >
+                  <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                    {isLoggingOut ? 'Logging out...' : 'Log Out'}
+                  </Box>
+                </Button>
               </Box>
+            </Toolbar>
+          </AppBar>
 
-              <Button
-                variant="outlined"
-                color="inherit"
-                size="small"
-                onClick={onLogoutClick}
-                disabled={isLoggingOut}
-                startIcon={
-                  isLoggingOut ? (
-                    <CircularProgress size={16} color="inherit" />
-                  ) : (
-                    <LogoutIcon />
-                  )
-                }
-                sx={{ minWidth: 'auto' }}
-              >
-                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                  {isLoggingOut ? 'Logging out...' : 'Log Out'}
-                </Box>
-              </Button>
-            </Box>
-          </Toolbar>
-        </AppBar>
-
-        {/* Page content */}
-        <Box sx={{ flex: 1, p: 3 }}>
-          <Outlet />
+          {/* Page content */}
+          <Box sx={{ flex: 1, p: 3 }}>
+            <Outlet />
+          </Box>
         </Box>
       </Box>
-    </Box>
+    </AppProvider>
   );
 }
