@@ -464,4 +464,9 @@ describe('PERMISSIONS constant', () => {
     expect(PERMISSIONS.CUSTOMER_UPDATE).toBe('customer:update');
     expect(PERMISSIONS.CUSTOMER_DELETE).toBe('customer:delete');
   });
+
+  it('should have all expected app access permissions', () => {
+    expect(PERMISSIONS.APP_WEB).toBe('app:web');
+    expect(PERMISSIONS.APP_MOBILE).toBe('app:mobile');
+  });
 });

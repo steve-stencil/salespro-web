@@ -265,6 +265,10 @@ export const PERMISSIONS = {
   COMPANY_READ: 'company:read',
   COMPANY_UPDATE: 'company:update',
 
+  // App Access
+  APP_WEB: 'app:web',
+  APP_MOBILE: 'app:mobile',
+
   // Platform (internal users only)
   PLATFORM_ADMIN: 'platform:admin',
   PLATFORM_VIEW_COMPANIES: 'platform:view_companies',
