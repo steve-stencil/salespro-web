@@ -3,9 +3,11 @@ import { Router } from 'express';
 import authRoutes from './auth';
 import companyRoutes from './companies';
 import companyLogoRoutes from './company-logos';
+import documentTemplateRoutes from './document-templates';
 import fileRoutes from './files';
 import internalUserRoutes from './internal-users';
 import inviteRoutes from './invites';
+import mobileRoutes from './mobile';
 import oauthRoutes from './oauth';
 import officeRoutes from './offices';
 import platformRoutes from './platform';
@@ -51,6 +53,12 @@ r.use('/companies', companyRoutes);
 
 // File management routes
 r.use('/files', fileRoutes);
+
+// Document template routes (ingest/ETL)
+r.use('/document-templates', documentTemplateRoutes);
+
+// Mobile app routes
+r.use('/mobile', mobileRoutes);
 
 // Platform routes (internal users only)
 r.use('/platform', platformRoutes);
