@@ -54,6 +54,18 @@ export const PERMISSIONS = {
   FILE_UPDATE: 'file:update',
   FILE_DELETE: 'file:delete',
 
+  // Contract Templates
+  TEMPLATE_READ: 'template:read',
+  TEMPLATE_INGEST: 'template:ingest',
+
+  // ==================================
+  // App Access Permissions
+  // ==================================
+
+  // Controls which apps a user can access in the unified shell
+  APP_WEB: 'app:web',
+  APP_MOBILE: 'app:mobile',
+
   // ==================================
   // Platform Permissions (Internal Users Only)
   // ==================================
@@ -245,6 +257,30 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     description: 'Delete files from the system',
   },
 
+  // Contract Templates
+  'template:read': {
+    label: 'View Templates',
+    category: 'Contract Templates',
+    description: 'View and select contract templates for documents',
+  },
+  'template:ingest': {
+    label: 'Ingest Templates',
+    category: 'Contract Templates',
+    description: 'Upload and manage contract templates via ETL',
+  },
+
+  // App Access
+  'app:web': {
+    label: 'Web Dashboard Access',
+    category: 'App Access',
+    description: 'Access to the web dashboard application',
+  },
+  'app:mobile': {
+    label: 'Mobile Contracts Access',
+    category: 'App Access',
+    description: 'Access to the mobile contracts application',
+  },
+
   // Platform (Internal Users Only)
   'platform:admin': {
     label: 'Platform Admin',
@@ -414,11 +450,13 @@ export function getPlatformPermissions(): Permission[] {
 }
 
 /**
- * Get all company/resource permissions (non-platform).
+ * Get all company/resource permissions (non-platform, non-app).
  * These are the permissions that apply to actions within a company.
  */
 export function getCompanyPermissions(): Permission[] {
-  return getAllPermissions().filter(p => !isPlatformPermission(p));
+  return getAllPermissions().filter(
+    p => !isPlatformPermission(p) && !isAppPermission(p),
+  );
 }
 
 /**
@@ -427,4 +465,24 @@ export function getCompanyPermissions(): Permission[] {
  */
 export function getReadOnlyPermissions(): Permission[] {
   return getCompanyPermissions().filter(p => p.endsWith(':read'));
+}
+
+// ==================================
+// App Access Permission Helpers
+// ==================================
+
+/**
+ * Check if a permission is an app-access permission.
+ * App permissions are prefixed with 'app:'.
+ */
+export function isAppPermission(permission: string): boolean {
+  return permission.startsWith('app:');
+}
+
+/**
+ * Get all app access permissions.
+ * These control which applications a user can access in the shell.
+ */
+export function getAppPermissions(): Permission[] {
+  return getAllPermissions().filter(p => isAppPermission(p));
 }

@@ -1,0 +1,491 @@
+---
+description: TypeScript and ESLint patterns - MUST follow when writing code
+globs:
+  - '**/*.{ts,tsx}'
+alwaysApply: true
+---
+
+# TypeScript & ESLint Patterns (MANDATORY)
+
+**IMPORTANT**: Follow these patterns PROACTIVELY when writing code. Do NOT write code that violates these rules and fix later - get it right the first time.
+
+## Critical Rules Quick Reference
+
+| Rule | Requirement |
+|------|-------------|
+| `any` type | ❌ FORBIDDEN - use proper types or `unknown` |
+| Type imports | Use `import type { X }` or `import { type X }` |
+| Type vs Interface | Always use `type`, never `interface` |
+| Quotes | Single quotes only |
+| Optional chaining | Required: `obj?.prop` not `obj && obj.prop` |
+| Nullish coalescing | Required: `x ?? default` not `x \|\| default` |
+| Unused vars | Prefix with `_` if intentionally unused |
+| Return types | Explicit for non-trivial functions |
+| Promise handling | Must await or return - no floating promises |
+| Import order | builtin → external → internal → parent → sibling → index → type |
+
+---
+
+## 1. Type Imports (verbatimModuleSyntax)
+
+Your tsconfig has `verbatimModuleSyntax: true`. Type-only imports MUST use the `type` keyword.
+
+```typescript
+// ❌ BAD - Will cause lint error
+import { User, ApiResponse } from '@shared/core';
+import { Request, Response } from 'express';
+
+// ✅ GOOD - Separate type imports
+import type { User, ApiResponse } from '@shared/core';
+import type { Request, Response } from 'express';
+
+// ✅ GOOD - Inline type imports (when mixing values and types)
+import { createUser, type User, type CreateUserInput } from '@shared/core';
+```
+
+**Rule**: If you're only importing types (interfaces, type aliases), use `import type`.
+
+---
+
+## 2. Type Definitions (NO interfaces)
+
+ESLint enforces `@typescript-eslint/consistent-type-definitions: ['error', 'type']`.
+
+```typescript
+// ❌ BAD - interfaces are forbidden
+interface User {
+  id: string;
+  name: string;
+}
+
+interface ApiResponse<T> {
+  data: T;
+  error?: string;
+}
+
+// ✅ GOOD - use type definitions
+type User = {
+  id: string;
+  name: string;
+};
+
+type ApiResponse<T> = {
+  data: T;
+  error?: string;
+};
+```
+
+---
+
+## 3. No `any` Type (STRICTLY FORBIDDEN)
+
+ESLint enforces `@typescript-eslint/no-explicit-any: 'error'`.
+
+```typescript
+// ❌ BAD - any is forbidden
+const data: any = response.data;
+function process(input: any): any { }
+const items: any[] = [];
+
+// ✅ GOOD - use proper types
+const data: User = response.data;
+function process(input: unknown): ProcessedResult { }
+const items: User[] = [];
+
+// ✅ GOOD - use unknown for truly unknown data
+function parseJson(text: string): unknown {
+  return JSON.parse(text);
+}
+
+// ✅ GOOD - use generics for flexible typing
+function process<T>(input: T): ProcessedResult<T> { }
+```
+
+---
+
+## 4. Unused Variables (prefix with `_`)
+
+ESLint enforces `@typescript-eslint/no-unused-vars` with `argsIgnorePattern: '^_'`.
+
+```typescript
+// ❌ BAD - unused variable
+const { id, name, email } = user; // email unused
+function handler(req: Request, res: Response) { } // req unused
+
+// ✅ GOOD - prefix unused with underscore
+const { id, name, _email } = user;
+function handler(_req: Request, res: Response) { }
+
+// ✅ GOOD - omit if not needed
+const { id, name } = user;
+function handler(_: Request, res: Response) { }
+```
+
+---
+
+## 5. Optional Chaining (REQUIRED)
+
+ESLint enforces `@typescript-eslint/prefer-optional-chain: 'error'`.
+
+```typescript
+// ❌ BAD - manual null checks
+if (user && user.profile && user.profile.avatar) { }
+const name = user && user.name;
+const city = user && user.address && user.address.city;
+
+// ✅ GOOD - optional chaining
+if (user?.profile?.avatar) { }
+const name = user?.name;
+const city = user?.address?.city;
+```
+
+---
+
+## 6. Nullish Coalescing (REQUIRED for non-booleans)
+
+ESLint enforces `@typescript-eslint/prefer-nullish-coalescing: 'error'`.
+
+```typescript
+// ❌ BAD - || can be wrong for falsy values (0, '')
+const count = user.count || 10;        // Bug: 0 becomes 10
+const name = user.name || 'Anonymous'; // Bug: '' becomes 'Anonymous'
+
+// ✅ GOOD - ?? only checks null/undefined
+const count = user.count ?? 10;        // 0 stays 0
+const name = user.name ?? 'Anonymous'; // '' stays ''
+
+// ✅ OK - || is fine for booleans
+const isActive = user.isActive || false;
+```
+
+---
+
+## 7. No Unnecessary Conditions
+
+ESLint enforces `@typescript-eslint/no-unnecessary-condition: 'error'`.
+
+```typescript
+// ❌ BAD - condition is always true/false
+const name: string = user.name;
+if (name) { } // string is always truthy check - unnecessary
+
+const items: User[] = getUsers();
+if (items) { } // array is always truthy - unnecessary
+
+// ✅ GOOD - check what might actually be null/undefined
+const name: string | undefined = user.name;
+if (name) { } // might be undefined
+
+const items: User[] | undefined = getUsers();
+if (items) { } // might be undefined
+```
+
+---
+
+## 8. Promise Handling (NO floating promises)
+
+ESLint enforces `@typescript-eslint/no-floating-promises: 'error'`.
+
+```typescript
+// ❌ BAD - floating promise (not handled)
+fetchUser(id);
+saveData(data);
+
+// ✅ GOOD - await the promise
+await fetchUser(id);
+await saveData(data);
+
+// ✅ GOOD - return the promise
+return fetchUser(id);
+
+// ✅ GOOD - explicitly ignore with void
+void fetchUser(id); // Only when you truly don't care about result
+
+// ✅ GOOD - handle in try/catch
+try {
+  await fetchUser(id);
+} catch (error) {
+  console.error('Failed to fetch user:', error);
+}
+```
+
+---
+
+## 9. Import Order (REQUIRED)
+
+ESLint enforces strict import ordering with `import-x/order`.
+
+```typescript
+// ✅ CORRECT ORDER (with blank lines between groups)
+
+// 1. Builtin (node modules)
+import path from 'node:path';
+import fs from 'node:fs';
+
+// 2. External (npm packages)
+import express from 'express';
+import { z } from 'zod';
+
+// 3. Internal (@shared, @app aliases)
+import { createUser } from '@shared/core';
+
+// 4. Parent (../)
+import { config } from '../config';
+
+// 5. Sibling (./)
+import { helper } from './helper';
+
+// 6. Index
+import { utils } from './';
+
+// 7. Type imports (last)
+import type { User } from '@shared/core';
+import type { Request, Response } from 'express';
+```
+
+**Within each group**: Sort alphabetically (case-insensitive).
+
+---
+
+## 10. Quotes (Single quotes only)
+
+ESLint enforces `quotes: ['error', 'single']`.
+
+```typescript
+// ❌ BAD - double quotes
+const name = "John";
+const message = "Hello world";
+
+// ✅ GOOD - single quotes
+const name = 'John';
+const message = 'Hello world';
+
+// ✅ OK - double quotes to avoid escaping
+const message = "It's a nice day";
+
+// ✅ OK - template literals for interpolation
+const greeting = \`Hello, \${name}!\`;
+```
+
+---
+
+## 11. Explicit Return Types
+
+TypeScript strict mode with `noImplicitReturns: true`.
+
+```typescript
+// ❌ BAD - implicit return type for complex functions
+async function getUser(id: string) {
+  const user = await db.findUser(id);
+  return user;
+}
+
+// ✅ GOOD - explicit return type
+async function getUser(id: string): Promise<User | null> {
+  const user = await db.findUser(id);
+  return user;
+}
+
+// ✅ OK - simple functions can infer
+const double = (n: number) => n * 2;
+```
+
+---
+
+## 12. Catch Variable Typing
+
+TypeScript has `useUnknownInCatchVariables: true`.
+
+```typescript
+// ❌ BAD - assuming error is Error
+try {
+  await fetchData();
+} catch (error) {
+  console.log(error.message); // Error: 'error' is of type 'unknown'
+}
+
+// ✅ GOOD - type guard for errors
+try {
+  await fetchData();
+} catch (error) {
+  if (error instanceof Error) {
+    console.log(error.message);
+  } else {
+    console.log('Unknown error:', error);
+  }
+}
+
+// ✅ GOOD - use a helper
+import { getErrorMessage } from '@shared/core';
+
+try {
+  await fetchData();
+} catch (error) {
+  console.log(getErrorMessage(error));
+}
+```
+
+---
+
+## 13. Index Access Safety
+
+TypeScript has `noUncheckedIndexedAccess: true`.
+
+```typescript
+// ❌ BAD - assuming index access always succeeds
+const users: User[] = getUsers();
+const first = users[0];
+console.log(first.name); // Error: first might be undefined
+
+// ✅ GOOD - check for undefined
+const users: User[] = getUsers();
+const first = users[0];
+if (first) {
+  console.log(first.name);
+}
+
+// ✅ GOOD - use optional chaining
+const name = users[0]?.name;
+
+// ✅ GOOD - use at() method with check
+const first = users.at(0);
+if (first) {
+  console.log(first.name);
+}
+```
+
+---
+
+## 14. Object Property Access
+
+TypeScript has `noPropertyAccessFromIndexSignature: true`.
+
+```typescript
+type Config = {
+  [key: string]: string;
+};
+
+// ❌ BAD - dot notation on index signature
+const config: Config = getConfig();
+const value = config.someKey; // Error
+
+// ✅ GOOD - bracket notation for index signatures
+const value = config['someKey'];
+```
+
+---
+
+## 15. Readonly Preference
+
+ESLint enforces `@typescript-eslint/prefer-readonly: 'error'` for class members.
+
+```typescript
+// ❌ BAD - mutable when not mutated
+class UserService {
+  private apiClient: ApiClient;
+  
+  constructor(client: ApiClient) {
+    this.apiClient = client;
+  }
+}
+
+// ✅ GOOD - readonly when not reassigned
+class UserService {
+  private readonly apiClient: ApiClient;
+  
+  constructor(client: ApiClient) {
+    this.apiClient = client;
+  }
+}
+```
+
+---
+
+## Common Patterns Summary
+
+### Function Signature Template
+
+```typescript
+/**
+ * Brief description of what the function does.
+ * @param paramName - Description of parameter
+ * @returns Description of return value
+ */
+export async function functionName(
+  requiredParam: ParamType,
+  optionalParam?: OptionalType | undefined,
+): Promise<ReturnType> {
+  // Implementation
+}
+```
+
+### API Route Handler Template
+
+```typescript
+import type { Request, Response, NextFunction } from 'express';
+
+export async function handleGetUser(
+  req: Request<{ id: string }>,
+  res: Response,
+  _next: NextFunction,
+): Promise<void> {
+  const { id } = req.params;
+  
+  try {
+    const user = await userService.findById(id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    res.json({ data: user });
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
+}
+```
+
+### React Component Template
+
+```tsx
+import { useState } from 'react';
+
+import type { FC } from 'react';
+
+type UserCardProps = {
+  readonly user: User;
+  readonly onEdit?: ((user: User) => void) | undefined;
+};
+
+export const UserCard: FC<UserCardProps> = ({ user, onEdit }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  return (
+    <div onClick={() => setIsExpanded(!isExpanded)}>
+      {user.name}
+    </div>
+  );
+};
+```
+
+---
+
+## Pre-Coding Checklist
+
+Before writing ANY TypeScript code, mentally verify:
+
+- [ ] All type imports use `import type` or `type` keyword
+- [ ] Using `type` not `interface` for type definitions
+- [ ] No `any` types anywhere
+- [ ] Unused params prefixed with `_`
+- [ ] Using `?.` for optional chaining
+- [ ] Using `??` for nullish coalescing (not `||`)
+- [ ] All promises are awaited or returned
+- [ ] Imports are in correct order with blank lines
+- [ ] Using single quotes
+- [ ] Explicit return types on complex functions
+- [ ] Error catches handle `unknown` type
+- [ ] Array access checks for undefined

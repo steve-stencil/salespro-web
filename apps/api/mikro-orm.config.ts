@@ -26,6 +26,9 @@ import {
   File,
   OfficeSettings,
   OfficeIntegration,
+  DocumentTemplate,
+  DocumentTemplateCategory,
+  DocumentDraft,
 } from './src/entities';
 
 /**
@@ -62,6 +65,9 @@ export default defineConfig({
     File,
     OfficeSettings,
     OfficeIntegration,
+    DocumentTemplate,
+    DocumentTemplateCategory,
+    DocumentDraft,
   ],
   migrations: {
     path: './src/migrations',
