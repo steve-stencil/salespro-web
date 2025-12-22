@@ -23,7 +23,9 @@
     "db:seed-roles": "tsx scripts/seed-roles.ts",
     "db:seed-roles:force": "tsx scripts/seed-roles.ts --force",
     "db:seed-internal-user": "tsx scripts/seed-internal-user.ts",
-    "db:seed-internal-user:force": "tsx scripts/seed-internal-user.ts --force"
+    "db:seed-internal-user:force": "tsx scripts/seed-internal-user.ts --force",
+    "db:seed-templates": "tsx scripts/seed-document-templates.ts",
+    "db:seed-templates:list": "tsx scripts/seed-document-templates.ts --list"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.953.0",
