@@ -42,6 +42,24 @@ const EnvSchema = z.object({
    * Required in production for integration credentials.
    */
   KMS_KEY_ID: z.string().optional(),
+
+  // Parse Platform ETL Configuration (for document template import)
+  /**
+   * Parse Application ID for connecting to the source Parse server.
+   * Required for document template ETL import feature.
+   */
+  PARSE_APP_ID: z.string().optional(),
+  /**
+   * Parse Server URL (e.g., https://api.example.com/parse).
+   * Required for document template ETL import feature.
+   */
+  PARSE_SERVER_URL: z.url().optional(),
+  /**
+   * Parse Master Key for service-level authentication.
+   * Required for document template ETL import feature.
+   * Never expose this key on the client side.
+   */
+  PARSE_MASTER_KEY: z.string().optional(),
 });
 
 export const env = EnvSchema.parse(process.env);
