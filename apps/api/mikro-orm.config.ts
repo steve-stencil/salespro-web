@@ -1,74 +1,19 @@
 import { defineConfig } from '@mikro-orm/postgresql';
 
-import {
-  Company,
-  CompanyLogo,
-  User,
-  Session,
-  Role,
-  UserRole,
-  Office,
-  UserOffice,
-  UserCompany,
-  OAuthClient,
-  OAuthToken,
-  OAuthAuthorizationCode,
-  LoginAttempt,
-  LoginEvent,
-  PasswordResetToken,
-  PasswordHistory,
-  UserInvite,
-  EmailVerificationToken,
-  MfaRecoveryCode,
-  TrustedDevice,
-  RememberMeToken,
-  ApiKey,
-  File,
-  OfficeSettings,
-  OfficeIntegration,
-  DocumentTemplate,
-  DocumentTemplateCategory,
-  DocumentDraft,
-} from './src/entities';
+import { entities } from './src/lib/db';
 
 /**
- * MikroORM configuration for CLI and migrations
+ * MikroORM configuration for CLI and migrations.
  * Used by: mikro-orm CLI commands (migrations, schema generation, etc.)
+ *
+ * NOTE: Entities are imported from db.ts which is the SINGLE SOURCE OF TRUTH.
+ * When adding a new entity, only add it to the entities array in db.ts.
  */
 export default defineConfig({
   clientUrl:
     process.env['DATABASE_URL'] ??
     'postgresql://postgres:postgres@localhost:5432/salespro_dev',
-  entities: [
-    Company,
-    CompanyLogo,
-    User,
-    Session,
-    Role,
-    UserRole,
-    Office,
-    UserOffice,
-    UserCompany,
-    OAuthClient,
-    OAuthToken,
-    OAuthAuthorizationCode,
-    LoginAttempt,
-    LoginEvent,
-    PasswordResetToken,
-    PasswordHistory,
-    UserInvite,
-    EmailVerificationToken,
-    MfaRecoveryCode,
-    TrustedDevice,
-    RememberMeToken,
-    ApiKey,
-    File,
-    OfficeSettings,
-    OfficeIntegration,
-    DocumentTemplate,
-    DocumentTemplateCategory,
-    DocumentDraft,
-  ],
+  entities,
   migrations: {
     path: './src/migrations',
     pathTs: './src/migrations',

@@ -27,6 +27,82 @@ globs:
 - Use proper error handling for database connection issues.
 - Configure connection pooling in `mikro-orm.config.ts`.
 
+## Query-Level Filtering (CRITICAL)
+
+**ALWAYS filter data at the database level, NEVER in JavaScript after fetching.**
+
+❌ **BAD - In-memory filtering:**
+
+```typescript
+// Fetches ALL templates, then filters in JS - breaks pagination, wastes memory
+const templates = await em.find(Template, { company: companyId });
+const filtered = templates.filter(t => t.state === 'CA');
+```
+
+✅ **GOOD - SQL-level filtering:**
+
+```typescript
+// Filters at database level - correct pagination, uses indexes
+const templates = await em.find(Template, {
+  company: companyId,
+  state: 'CA',
+});
+```
+
+### Complex Filters with PostgreSQL
+
+**Array containment** (for array columns like `includedStates`):
+
+```typescript
+import { raw } from '@mikro-orm/core';
+
+// Check if array contains a value
+filter['$and'] = [raw(`included_states @> ARRAY[?]::text[]`, [state])];
+```
+
+**M2M relationship filtering** (for pivot tables):
+
+```typescript
+// Use EXISTS subqueries for M2M filtering
+filter['$and'] = [
+  raw(
+    `(
+    NOT EXISTS (SELECT 1 FROM pivot_table WHERE fk = entity.id)
+    OR EXISTS (SELECT 1 FROM pivot_table WHERE fk = entity.id AND other_fk = ?)
+  )`,
+    [targetId],
+  ),
+];
+```
+
+**Why this matters:**
+
+- In-memory filtering breaks pagination (fetch 50, filter to 10 = missing data)
+- Database can use indexes for fast filtering
+- Reduces memory usage and data transfer
+- Enables proper `LIMIT`/`OFFSET` pagination
+
+## Entity Registration Checklist (CRITICAL)
+
+When creating a new entity, you MUST register it in TWO places:
+
+1. **Export from `entities/index.ts`**:
+
+   ```typescript
+   export { MyNewEntity } from './MyNewEntity.entity';
+   ```
+
+2. **Add to `entities` array in `lib/db.ts`** (single source of truth):
+   - Add import: `import { MyNewEntity } from '../entities';`
+   - Add to the exported `entities` array: `MyNewEntity,`
+
+**Note:** `mikro-orm.config.ts` imports the `entities` array from `db.ts`, so you only need to add entities in one place.
+
+**Why both?** Missing registration causes:
+
+- Missing from `entities/index.ts`: Import errors in other files
+- Missing from `lib/db.ts`: Runtime errors, failing integration tests, and migration generation failures
+
 # Shared Types
 
 - Use shared types from `@shared/core` for API request/response types.
