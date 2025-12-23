@@ -9,6 +9,7 @@ import { Router } from 'express';
 import {
   DocumentTemplate,
   DocumentTemplateCategory,
+  DocumentType,
   File,
   Office,
 } from '../../entities';
@@ -25,12 +26,7 @@ import {
 import { ingestUpsertRequestSchema, assetKindSchema } from './schemas';
 
 import type { DocumentTemplateUpsert } from './schemas';
-import type {
-  DocumentDataJson,
-  ImagesJson,
-  Company,
-  User,
-} from '../../entities';
+import type { DocumentDataJson, Company, User } from '../../entities';
 import type { AuthenticatedRequest } from '../../middleware/requireAuth';
 import type {
   EntityManager,
@@ -197,9 +193,24 @@ router.post(
             { populate: ['includedOffices'] },
           );
 
+          // Resolve document type
+          const documentType = await em.findOne(DocumentType, {
+            id: data.documentTypeId,
+            company,
+            deletedAt: null,
+          });
+
+          if (!documentType) {
+            results.errors.push({
+              sourceTemplateId: data.sourceTemplateId,
+              error: `Document type not found: ${data.documentTypeId}`,
+            });
+            continue;
+          }
+
           if (existing) {
             // Update existing template
-            existing.type = data.type;
+            existing.documentType = documentType;
             existing.pageId = data.pageId;
             existing.category = category;
             existing.displayName = data.displayName;
@@ -208,7 +219,6 @@ router.post(
             existing.isTemplate = data.isTemplate;
             existing.includedStates = data.includedStates;
             existing.excludedStates = data.excludedStates;
-            existing.pageSizeStr = data.pageSizeStr;
             existing.pageWidth = data.pageWidth;
             existing.pageHeight = data.pageHeight;
             existing.hMargin = data.hMargin;
@@ -219,11 +229,15 @@ router.post(
             existing.watermarkAlpha = data.watermarkAlpha;
             existing.documentDataJson =
               data.documentDataJson as DocumentDataJson;
-            existing.imagesJson = data.imagesJson as ImagesJson | undefined;
-            existing.iconBackgroundColor = data.iconBackgroundColor;
             existing.hasUserInput = data.hasUserInput;
             existing.signatureFieldCount = data.signatureFieldCount;
             existing.initialsFieldCount = data.initialsFieldCount;
+
+            // Update template images (clear and re-add)
+            existing.templateImages.removeAll();
+            for (const fileId of data.templateImageFileIds) {
+              existing.templateImages.add(em.getReference(File, fileId));
+            }
 
             // Update offices (clear and re-add)
             existing.includedOffices.removeAll();
@@ -237,7 +251,7 @@ router.post(
             const template = new DocumentTemplate();
             template.company = company;
             template.sourceTemplateId = data.sourceTemplateId;
-            template.type = data.type;
+            template.documentType = documentType;
             template.pageId = data.pageId;
             template.category = category;
             template.displayName = data.displayName;
@@ -246,7 +260,6 @@ router.post(
             template.isTemplate = data.isTemplate;
             template.includedStates = data.includedStates;
             template.excludedStates = data.excludedStates;
-            template.pageSizeStr = data.pageSizeStr;
             template.pageWidth = data.pageWidth;
             template.pageHeight = data.pageHeight;
             template.hMargin = data.hMargin;
@@ -257,11 +270,14 @@ router.post(
             template.watermarkAlpha = data.watermarkAlpha;
             template.documentDataJson =
               data.documentDataJson as DocumentDataJson;
-            template.imagesJson = data.imagesJson as ImagesJson | undefined;
-            template.iconBackgroundColor = data.iconBackgroundColor;
             template.hasUserInput = data.hasUserInput;
             template.signatureFieldCount = data.signatureFieldCount;
             template.initialsFieldCount = data.initialsFieldCount;
+
+            // Add template images
+            for (const fileId of data.templateImageFileIds) {
+              template.templateImages.add(em.getReference(File, fileId));
+            }
 
             // Add offices
             for (const office of offices) {

@@ -4,11 +4,11 @@
 import { z } from 'zod';
 
 /**
- * Schema for a single document data group (header, body, footer).
+ * Schema for a single document data group (header, body, signature).
  */
 const documentDataGroupSchema = z.object({
   objectId: z.string().optional(),
-  groupType: z.enum(['header', 'body', 'footer']),
+  groupType: z.enum(['header', 'body', 'signature']),
   data: z.array(z.unknown()),
 });
 
@@ -18,17 +18,9 @@ const documentDataGroupSchema = z.object({
 export const documentDataJsonSchema = z.array(documentDataGroupSchema);
 
 /**
- * Schema for the images JSON payload.
+ * Schema for template image file IDs (references to File entities).
  */
-export const imagesJsonSchema = z
-  .array(
-    z.object({
-      __type: z.string().optional(),
-      name: z.string().optional(),
-      url: z.string().optional(),
-    }),
-  )
-  .optional();
+export const templateImageFileIdsSchema = z.array(z.uuid()).default([]);
 
 /**
  * Schema for category data in upsert.
@@ -51,8 +43,8 @@ export const documentTemplateUpsertSchema = z.object({
   /** Source system's template ID (for upsert matching) */
   sourceTemplateId: z.string().min(1),
 
-  /** Template type: contract, proposal, etc. */
-  type: z.string().min(1),
+  /** Document type ID (UUID reference to DocumentType entity) */
+  documentTypeId: z.uuid(),
 
   /** Page identifier: singlePage, pdfPage, etc. */
   pageId: z.string().min(1),
@@ -79,10 +71,7 @@ export const documentTemplateUpsertSchema = z.object({
   excludedStates: z.array(z.string()).default([]),
 
   /** Office IDs where this template is available. Empty means all offices. */
-  includedOfficeIds: z.array(z.string().uuid()).default([]),
-
-  /** Page size string in iOS format: "width,height" */
-  pageSizeStr: z.string().min(1),
+  includedOfficeIds: z.array(z.uuid()).default([]),
 
   /** Page width in points */
   pageWidth: z.number().int().positive(),
@@ -111,11 +100,8 @@ export const documentTemplateUpsertSchema = z.object({
   /** Full documentData structure from iOS */
   documentDataJson: documentDataJsonSchema,
 
-  /** Images array from iOS */
-  imagesJson: imagesJsonSchema,
-
-  /** Icon background color from iOS: [r, g, b, a] format */
-  iconBackgroundColor: z.array(z.number()).length(4).optional(),
+  /** File IDs for template images (references to File entities) */
+  templateImageFileIds: templateImageFileIdsSchema,
 
   /** Whether this template contains user input sections (computed) */
   hasUserInput: z.boolean().default(false),

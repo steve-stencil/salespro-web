@@ -12,6 +12,7 @@ import { v4 as uuid } from 'uuid';
 
 import type { Company } from './Company.entity';
 import type { DocumentTemplateCategory } from './DocumentTemplateCategory.entity';
+import type { DocumentType } from './DocumentType.entity';
 import type { File } from './File.entity';
 import type { Office } from './Office.entity';
 
@@ -21,17 +22,8 @@ import type { Office } from './Office.entity';
  */
 export type DocumentDataJson = {
   objectId?: string;
-  groupType: 'header' | 'body' | 'footer';
+  groupType: 'header' | 'body' | 'signature';
   data: unknown[];
-}[];
-
-/**
- * Raw iOS/Parse images array structure.
- */
-export type ImagesJson = {
-  __type?: string;
-  name?: string;
-  url?: string;
 }[];
 
 /**
@@ -60,10 +52,10 @@ export class DocumentTemplate {
 
   // --- Catalog fields (indexed for fast filtering) ---
 
-  /** Template type: contract, proposal, etc. */
-  @Property({ type: 'string' })
+  /** Document type (contract, proposal, etc.) */
+  @ManyToOne('DocumentType', { nullable: false })
   @Index()
-  type!: string;
+  documentType!: DocumentType;
 
   /** Page identifier: singlePage, pdfPage, etc. */
   @Property({ type: 'string' })
@@ -117,10 +109,6 @@ export class DocumentTemplate {
 
   // --- Layout fields ---
 
-  /** Page size string in iOS format: "width,height" */
-  @Property({ type: 'string' })
-  pageSizeStr!: string;
-
   /** Page width in points */
   @Property({ type: 'integer' })
   pageWidth!: number;
@@ -151,7 +139,7 @@ export class DocumentTemplate {
   @Property({ type: 'float' })
   watermarkWidthPercent: Opt<number> = 100;
 
-  /** Watermark transparency (0-1) */
+  /** Watermark transparency (0-1, constrained by CHECK) */
   @Property({ type: 'float' })
   watermarkAlpha: Opt<number> = 0.05;
 
@@ -173,23 +161,21 @@ export class DocumentTemplate {
 
   /**
    * Full documentData structure from iOS.
-   * Contains header, body, footer groups with sections and cells.
+   * Contains header, body, signature groups with sections and cells.
    */
   @Property({ type: 'json' })
   documentDataJson!: DocumentDataJson;
 
   /**
-   * Images array from iOS.
-   * References images used within the template.
+   * Images used within this template (many-to-many with File).
+   * Replaces legacy imagesJson JSONB field with proper FK references.
    */
-  @Property({ type: 'json', nullable: true })
-  imagesJson?: ImagesJson;
-
-  /**
-   * Icon background color from iOS: [r, g, b, a] format.
-   */
-  @Property({ type: 'json', nullable: true })
-  iconBackgroundColor?: number[];
+  @ManyToMany('File', undefined, {
+    pivotTable: 'document_template_image',
+    joinColumn: 'document_template_id',
+    inverseJoinColumn: 'file_id',
+  })
+  templateImages = new Collection<File>(this);
 
   // --- Derived fields (computed during ingest for performance) ---
 
