@@ -18,6 +18,10 @@ export type DocumentTemplate = {
   category: string;
   /** Category ID for grouping */
   categoryId: string;
+  /** Document type name (e.g., 'contract', 'proposal') */
+  documentType: string;
+  /** Document type ID */
+  documentTypeId: string;
   /** URL for the template thumbnail image */
   thumbnailUrl?: string;
   /** URL for the template icon (fallback when no thumbnail) */
@@ -34,8 +38,6 @@ export type DocumentTemplate = {
   pageId: string;
   /** Number of photos per page for photo templates */
   photosPerPage: number;
-  /** Icon background color from iOS: [r, g, b, a] format */
-  iconBackgroundColor?: number[];
 };
 
 /**
