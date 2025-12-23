@@ -48,8 +48,17 @@ export { File } from './File.entity';
 
 // Document template entities
 export { DocumentTemplate } from './DocumentTemplate.entity';
-export type { DocumentDataJson, ImagesJson } from './DocumentTemplate.entity';
+export type { DocumentDataJson } from './DocumentTemplate.entity';
 export { DocumentTemplateCategory } from './DocumentTemplateCategory.entity';
+export { DocumentType } from './DocumentType.entity';
+
+// ETL entities
+export { ImportSession, ImportSessionStatus } from './ImportSession.entity';
+export type {
+  OfficeMapping,
+  TypeMapping,
+  ImportError,
+} from './ImportSession.entity';
 
 // Document draft entities
 export { DocumentDraft, DocumentDraftStatus } from './DocumentDraft.entity';

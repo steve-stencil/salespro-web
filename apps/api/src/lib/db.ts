@@ -31,14 +31,25 @@ import {
   DocumentTemplate,
   DocumentTemplateCategory,
   DocumentDraft,
+  DocumentType,
+  ImportSession,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
 
 let orm: MikroORM | null = null;
 
-/** All entity classes for MikroORM registration */
-const entities = [
+/**
+ * All entity classes for MikroORM registration.
+ * This is the SINGLE SOURCE OF TRUTH for entity registration.
+ * Used by both runtime (db.ts) and CLI tools (mikro-orm.config.ts).
+ *
+ * When adding a new entity:
+ * 1. Create entity file in entities/
+ * 2. Export from entities/index.ts
+ * 3. Add to this array
+ */
+export const entities = [
   Company,
   CompanyLogo,
   User,
@@ -67,6 +78,8 @@ const entities = [
   DocumentTemplate,
   DocumentTemplateCategory,
   DocumentDraft,
+  DocumentType,
+  ImportSession,
 ];
 
 /**
