@@ -64,11 +64,8 @@ export const documentTemplateUpsertSchema = z.object({
   /** Whether this is a template (vs imported document) */
   isTemplate: z.boolean().default(false),
 
-  /** States where this template is available. ['ALL'] means all states. */
-  includedStates: z.array(z.string()).default(['ALL']),
-
-  /** States where this template is NOT available */
-  excludedStates: z.array(z.string()).default([]),
+  /** States where this template is available. Empty array means no states. */
+  includedStates: z.array(z.string()).default([]),
 
   /** Office IDs where this template is available. Empty means all offices. */
   includedOfficeIds: z.array(z.uuid()).default([]),

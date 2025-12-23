@@ -555,7 +555,6 @@ export class DocumentTemplateEtlService {
     template.canAddMultiplePages = data.canAddMultiplePages;
     template.isTemplate = data.isTemplate;
     template.includedStates = data.includedStates;
-    template.excludedStates = data.excludedStates;
     template.pageWidth = data.pageWidth;
     template.pageHeight = data.pageHeight;
     template.hMargin = data.hMargin;

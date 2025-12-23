@@ -7,9 +7,10 @@
  *
  * @see readonlytemplatesschema_08cb2e06.plan.md for parity requirements
  */
+import { raw } from '@mikro-orm/core';
 import { Router } from 'express';
 
-import { DocumentTemplate  } from '../../entities';
+import { DocumentTemplate, DocumentType } from '../../entities';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 import { getStorageAdapter } from '../../lib/storage';
@@ -17,7 +18,7 @@ import { requireAuth, requirePermission } from '../../middleware';
 
 import { listTemplatesQuerySchema, templateIdParamSchema } from './schemas';
 
-import type {DocumentTemplateCategory} from '../../entities';
+import type { DocumentTemplateCategory } from '../../entities';
 import type { Company, User } from '../../entities';
 import type { AuthenticatedRequest } from '../../middleware/requireAuth';
 import type { Request, Response } from 'express';
@@ -43,6 +44,8 @@ type TemplateListItem = {
   displayName: string;
   category: string;
   categoryId: string;
+  documentType: string;
+  documentTypeId: string;
   thumbnailUrl?: string;
   iconUrl?: string;
   canAddMultiplePages: boolean;
@@ -51,7 +54,6 @@ type TemplateListItem = {
   sortOrder: number;
   pageId: string;
   photosPerPage: number;
-  iconBackgroundColor?: number[];
 };
 
 /**
@@ -70,7 +72,7 @@ type CategoryInfo = {
  */
 type TemplateDetail = TemplateListItem & {
   documentDataJson: unknown;
-  imagesJson?: unknown;
+  imageUrls: string[];
   pdfUrl?: string;
   watermarkUrl?: string;
   hasUserInput: boolean;
@@ -86,12 +88,15 @@ function mapTemplateToListItem(
   signedUrls: { iconUrl?: string; thumbnailUrl?: string },
 ): TemplateListItem {
   const category = template.category;
+  const docType = template.documentType;
   return {
     id: template.id,
     objectId: template.sourceTemplateId ?? template.id,
     displayName: template.displayName,
     category: category.name,
     categoryId: category.id,
+    documentType: docType.name,
+    documentTypeId: docType.id,
     thumbnailUrl: signedUrls.thumbnailUrl,
     iconUrl: signedUrls.iconUrl,
     canAddMultiplePages: template.canAddMultiplePages,
@@ -100,7 +105,6 @@ function mapTemplateToListItem(
     sortOrder: template.sortOrder,
     pageId: template.pageId,
     photosPerPage: template.photosPerPage,
-    iconBackgroundColor: template.iconBackgroundColor ?? undefined,
   };
 }
 
@@ -144,65 +148,93 @@ router.get(
         return;
       }
 
-      const { type, state, officeId, sort, includeTemplates } =
+      const { state, officeIds, documentTypeIds, sort, includeTemplates } =
         queryResult.data;
+
+      // Validate documentTypeIds - empty array is an error (all templates must have a type)
+      if (documentTypeIds.provided && documentTypeIds.ids.length === 0) {
+        res.status(400).json({
+          error:
+            'documentTypeIds cannot be empty. All templates have a document type.',
+        });
+        return;
+      }
 
       const orm = getORM();
       const em = orm.em.fork();
       const storage = getStorageAdapter();
 
-      // Build filter criteria
-      const filter: {
-        company: Company;
-        deletedAt: null;
-        type?: string;
-        isTemplate?: boolean;
-      } = {
-        company: company,
+      // Build filter criteria with SQL-level filtering
+      // Using Record to allow raw() expressions in filter
+      const filter: Record<string, unknown> = {
+        company: company.id,
         deletedAt: null,
       };
 
-      // Filter by type if specified
-      if (type) {
-        filter.type = type;
+      // Filter by documentTypeIds if specified
+      if (documentTypeIds.provided && documentTypeIds.ids.length > 0) {
+        filter['documentType'] = { $in: documentTypeIds.ids };
       }
 
       // Filter by isTemplate (exclude templates unless specifically requested)
       if (!includeTemplates) {
-        filter.isTemplate = false;
+        filter['isTemplate'] = false;
+      }
+
+      // Build $and conditions for complex filters
+      const andConditions: unknown[] = [];
+
+      // State filtering using PostgreSQL array operators
+      // Only return templates where includedStates explicitly contains this state
+      if (state) {
+        andConditions.push(raw(`included_states @> ARRAY[?]::text[]`, [state]));
+      }
+
+      // Office filtering:
+      // - Not provided: no filter
+      // - Empty array: templates with NO offices assigned
+      // - Array with values: templates assigned to any of these offices
+      if (officeIds.provided) {
+        if (officeIds.ids.length === 0) {
+          // Empty array: return templates with no offices assigned
+          andConditions.push(
+            raw(
+              `NOT EXISTS (
+                SELECT 1 FROM document_template_office dto 
+                WHERE dto.document_template_id = "DocumentTemplate".id
+              )`,
+            ),
+          );
+        } else {
+          // Array with values: return templates assigned to any of these offices
+          andConditions.push(
+            raw(
+              `EXISTS (
+                SELECT 1 FROM document_template_office dto 
+                WHERE dto.document_template_id = "DocumentTemplate".id 
+                AND dto.office_id = ANY(?)
+              )`,
+              [officeIds.ids],
+            ),
+          );
+        }
+      }
+
+      // Add $and conditions if any
+      if (andConditions.length > 0) {
+        filter['$and'] = andConditions;
       }
 
       // Execute query with relationships populated
-      const templates = await em.find(DocumentTemplate, filter, {
-        populate: ['iconFile', 'category', 'includedOffices'],
-      });
+      const templates = await em.find(
+        DocumentTemplate,
+        filter as Parameters<typeof em.find<DocumentTemplate>>[1],
+        {
+          populate: ['iconFile', 'category', 'documentType', 'includedOffices'],
+        },
+      );
 
-      // Apply state filtering in memory (more complex array operations)
-      let filteredTemplates = templates;
-      if (state) {
-        filteredTemplates = filteredTemplates.filter(t => {
-          // Include if included_states contains state OR contains 'ALL'
-          const isIncluded =
-            t.includedStates.includes(state) ||
-            t.includedStates.includes('ALL');
-          // Exclude if excluded_states contains state
-          const isExcluded = t.excludedStates.includes(state);
-          return isIncluded && !isExcluded;
-        });
-      }
-
-      // Apply office filtering using the relationship
-      if (officeId) {
-        filteredTemplates = filteredTemplates.filter(t => {
-          // Include if no offices specified (available to all) OR office is in the collection
-          const officeCollection = t.includedOffices;
-          if (!officeCollection.isInitialized()) {
-            return true; // Can't filter, include by default
-          }
-          const offices = officeCollection.getItems();
-          return offices.length === 0 || offices.some(o => o.id === officeId);
-        });
-      }
+      const filteredTemplates = templates;
 
       // Generate signed URLs for icons
       const templatesWithUrls: TemplateListItem[] = await Promise.all(
@@ -283,6 +315,106 @@ router.get(
 );
 
 /**
+ * GET /mobile/templates/document-types
+ * List document types available for the mobile app.
+ *
+ * Query parameters:
+ * - officeIds (optional): Filter to types available in these offices (comma-separated UUIDs)
+ *   - Not provided: no office filter applied
+ *   - Empty string: return types with NO offices assigned
+ *   - UUIDs: return types assigned to any of these offices
+ */
+router.get(
+  '/document-types',
+  requireAuth(),
+  requirePermission(PERMISSIONS.TEMPLATE_READ),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getAuthContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { company } = context;
+
+      // Parse officeIds parameter
+      const officeIdsParam = req.query['officeIds'];
+      const officeIds: { provided: false } | { provided: true; ids: string[] } =
+        officeIdsParam === undefined
+          ? { provided: false }
+          : typeof officeIdsParam === 'string' && officeIdsParam === ''
+            ? { provided: true, ids: [] }
+            : typeof officeIdsParam === 'string'
+              ? {
+                  provided: true,
+                  ids: officeIdsParam.split(',').map(id => id.trim()),
+                }
+              : { provided: false };
+
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      // Build filter with SQL-level office filtering
+      const filter: Record<string, unknown> = {
+        company: company.id,
+        deletedAt: null,
+      };
+
+      // Office filtering:
+      // - Not provided: no filter
+      // - Empty array: types with NO offices assigned
+      // - Array with values: types assigned to any of these offices
+      if (officeIds.provided) {
+        if (officeIds.ids.length === 0) {
+          // Empty array: return types with no offices assigned
+          filter['$and'] = [
+            raw(
+              `NOT EXISTS (
+                SELECT 1 FROM document_type_office dto 
+                WHERE dto.document_type_id = "DocumentType".id
+              )`,
+            ),
+          ];
+        } else {
+          // Array with values: return types assigned to any of these offices
+          filter['$and'] = [
+            raw(
+              `EXISTS (
+                SELECT 1 FROM document_type_office dto 
+                WHERE dto.document_type_id = "DocumentType".id 
+                AND dto.office_id = ANY(?)
+              )`,
+              [officeIds.ids],
+            ),
+          ];
+        }
+      }
+
+      const documentTypes = await em.find(
+        DocumentType,
+        filter as Parameters<typeof em.find<DocumentType>>[1],
+        {
+          orderBy: { sortOrder: 'ASC', name: 'ASC' },
+        },
+      );
+
+      res.status(200).json({
+        documentTypes: documentTypes.map(dt => ({
+          id: dt.id,
+          name: dt.name,
+          isDefault: dt.isDefault,
+          sortOrder: dt.sortOrder,
+        })),
+      });
+    } catch (err) {
+      req.log.error({ err }, 'List document types error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
  * GET /mobile/templates/:id
  * Get full template detail including contractDataJson.
  *
@@ -319,7 +451,16 @@ router.get(
       const template = await em.findOne(
         DocumentTemplate,
         { id, company: company.id, deletedAt: null },
-        { populate: ['pdfFile', 'iconFile', 'watermarkFile', 'category'] },
+        {
+          populate: [
+            'pdfFile',
+            'iconFile',
+            'watermarkFile',
+            'category',
+            'documentType',
+            'templateImages',
+          ],
+        },
       );
 
       if (!template) {
@@ -360,13 +501,26 @@ router.get(
         });
       }
 
+      // Generate signed URLs for template images
+      const imageUrls: string[] = [];
+      for (const imageFile of template.templateImages.getItems()) {
+        const imageUrl = await storage.getSignedDownloadUrl({
+          key: imageFile.storageKey,
+          expiresIn: 3600,
+        });
+        imageUrls.push(imageUrl);
+      }
+
       const cat = template.category as DocumentTemplateCategory;
+      const docType = template.documentType;
       const response: TemplateDetail = {
         id: template.id,
         objectId: template.sourceTemplateId ?? template.id,
         displayName: template.displayName,
         category: cat.name,
         categoryId: cat.id,
+        documentType: docType.name,
+        documentTypeId: docType.id,
         thumbnailUrl,
         iconUrl,
         canAddMultiplePages: template.canAddMultiplePages,
@@ -375,9 +529,8 @@ router.get(
         sortOrder: template.sortOrder,
         pageId: template.pageId,
         photosPerPage: template.photosPerPage,
-        iconBackgroundColor: template.iconBackgroundColor ?? undefined,
         documentDataJson: template.documentDataJson,
-        imagesJson: template.imagesJson,
+        imageUrls,
         pdfUrl,
         watermarkUrl,
         hasUserInput: template.hasUserInput,

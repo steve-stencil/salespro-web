@@ -33,10 +33,11 @@ import {
   Company,
   DocumentTemplate,
   DocumentTemplateCategory,
+  DocumentType,
   Office,
 } from '../src/entities';
 
-import type { DocumentDataJson, ImagesJson } from '../src/entities';
+import type { DocumentDataJson } from '../src/entities';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -84,7 +85,6 @@ type RawDocumentObject = {
   canAddMultiplePages: boolean;
   isTemplate?: boolean;
   includedStates?: string[];
-  excludedStates?: string[];
   includedOffices?: Array<{ objectId: string; className: string }>;
   pageSize: string;
   hMargin: number;
@@ -94,7 +94,8 @@ type RawDocumentObject = {
   watermarkWidthPercent?: number;
   watermarkAlpha?: number;
   documentData: DocumentDataJson;
-  images?: ImagesJson;
+  /** Parse file references for images (URLs to download - not used in seed) */
+  images?: Array<{ url?: string; name?: string }>;
   iconBackgroundColor?: number[];
   iconImage?: { url: string; name: string };
   pdf?: { url: string; name: string };
@@ -253,17 +254,16 @@ type TransformedTemplateData = {
   categoryName: string;
   // Office IDs (will be resolved to entities later)
   includedOfficeIds: string[];
+  // Document type name (will be resolved to entity later)
+  documentTypeName: string;
   // Template fields
   sourceTemplateId: string;
-  type: string;
   pageId: string;
   displayName: string;
   sortOrder: number;
   canAddMultiplePages: boolean;
   isTemplate: boolean;
   includedStates: string[];
-  excludedStates: string[];
-  pageSizeStr: string;
   pageWidth: number;
   pageHeight: number;
   hMargin: number;
@@ -273,8 +273,7 @@ type TransformedTemplateData = {
   watermarkWidthPercent: number;
   watermarkAlpha: number;
   documentDataJson: DocumentDataJson;
-  imagesJson: ImagesJson | undefined;
-  iconBackgroundColor: number[] | undefined;
+  // Note: images are not imported by the seed script (would require storage setup)
   hasUserInput: boolean;
   signatureFieldCount: number;
   initialsFieldCount: number;
@@ -294,20 +293,19 @@ function transformToTemplate(raw: RawDocumentObject): TransformedTemplateData {
 
   return {
     // Category info (will be resolved to entity later)
-    categoryName: raw.category,
+    categoryName: raw.category || 'Uncategorized',
     // Office IDs (will be resolved to entities later)
     includedOfficeIds,
+    // Document type name (will be resolved to entity later)
+    documentTypeName: raw.type || 'contract',
     // Template data
     sourceTemplateId: raw.objectId,
-    type: raw.type,
     pageId: raw.pageId,
     displayName: raw.displayName,
     sortOrder: raw.order,
     canAddMultiplePages: raw.canAddMultiplePages,
     isTemplate: raw.isTemplate ?? false,
-    includedStates: raw.includedStates ?? ['ALL'],
-    excludedStates: raw.excludedStates ?? [],
-    pageSizeStr: raw.pageSize,
+    includedStates: raw.includedStates ?? [],
     pageWidth: pageSize.width,
     pageHeight: pageSize.height,
     hMargin: raw.hMargin,
@@ -317,8 +315,7 @@ function transformToTemplate(raw: RawDocumentObject): TransformedTemplateData {
     watermarkWidthPercent: raw.watermarkWidthPercent ?? 100,
     watermarkAlpha: raw.watermarkAlpha ?? 0.05,
     documentDataJson: raw.documentData,
-    imagesJson: raw.images,
-    iconBackgroundColor: raw.iconBackgroundColor,
+    // Note: images are not imported by the seed script (would require storage setup)
     hasUserInput: hasUserInputRequired(raw.documentData),
     signatureFieldCount: signatures,
     initialsFieldCount: initials,
@@ -336,7 +333,13 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
   return {
     clientUrl: databaseUrl,
     driver: PostgreSqlDriver,
-    entities: [Company, DocumentTemplate, DocumentTemplateCategory, Office],
+    entities: [
+      Company,
+      DocumentTemplate,
+      DocumentTemplateCategory,
+      DocumentType,
+      Office,
+    ],
     debug: false,
     allowGlobalContext: true,
   };
@@ -516,6 +519,42 @@ async function seed(): Promise<void> {
       return newCategory;
     }
 
+    // Cache for document types (name -> entity)
+    const documentTypeCache = new Map<string, DocumentType>();
+
+    /**
+     * Find or create a document type by name.
+     */
+    async function getOrCreateDocumentType(
+      typeName: string,
+    ): Promise<DocumentType> {
+      const cached = documentTypeCache.get(typeName);
+      if (cached) return cached;
+
+      // Try to find existing
+      const existing = await em.findOne(DocumentType, {
+        company: companyId,
+        name: typeName,
+        deletedAt: null,
+      });
+
+      if (existing) {
+        documentTypeCache.set(typeName, existing);
+        return existing;
+      }
+
+      // Create new document type
+      const newDocType = new DocumentType();
+      newDocType.company = em.getReference(Company, companyId);
+      newDocType.name = typeName;
+      newDocType.isDefault = typeName === 'contract' || typeName === 'proposal';
+      em.persist(newDocType);
+      log(`Created document type: "${typeName}"`, 'info');
+
+      documentTypeCache.set(typeName, newDocType);
+      return newDocType;
+    }
+
     // Insert templates
     let inserted = 0;
     let skipped = 0;
@@ -536,6 +575,9 @@ async function seed(): Promise<void> {
       // Get or create category
       const category = await getOrCreateCategory(data.categoryName);
 
+      // Get or create document type
+      const documentType = await getOrCreateDocumentType(data.documentTypeName);
+
       // Get offices (skip if none specified or offices don't exist)
       const offices: Office[] = [];
       if (data.includedOfficeIds.length > 0) {
@@ -549,16 +591,14 @@ async function seed(): Promise<void> {
       const template = new DocumentTemplate();
       template.company = em.getReference(Company, companyId);
       template.category = category;
+      template.documentType = documentType;
       template.sourceTemplateId = data.sourceTemplateId;
-      template.type = data.type;
       template.pageId = data.pageId;
       template.displayName = data.displayName;
       template.sortOrder = data.sortOrder;
       template.canAddMultiplePages = data.canAddMultiplePages;
       template.isTemplate = data.isTemplate;
       template.includedStates = data.includedStates;
-      template.excludedStates = data.excludedStates;
-      template.pageSizeStr = data.pageSizeStr;
       template.pageWidth = data.pageWidth;
       template.pageHeight = data.pageHeight;
       template.hMargin = data.hMargin;
@@ -568,8 +608,7 @@ async function seed(): Promise<void> {
       template.watermarkWidthPercent = data.watermarkWidthPercent;
       template.watermarkAlpha = data.watermarkAlpha;
       template.documentDataJson = data.documentDataJson;
-      template.imagesJson = data.imagesJson;
-      template.iconBackgroundColor = data.iconBackgroundColor;
+      // Note: templateImages not populated by seed (would require storage setup)
       template.hasUserInput = data.hasUserInput;
       template.signatureFieldCount = data.signatureFieldCount;
       template.initialsFieldCount = data.initialsFieldCount;
@@ -600,6 +639,9 @@ async function seed(): Promise<void> {
     console.log(`  ${colors.cyan}Company:${colors.reset} ${company.name}`);
     console.log(
       `  ${colors.cyan}Categories:${colors.reset} ${categoryCache.size}`,
+    );
+    console.log(
+      `  ${colors.cyan}Document Types:${colors.reset} ${documentTypeCache.size}`,
     );
     console.log(`  ${colors.cyan}Inserted:${colors.reset} ${inserted}`);
     console.log(`  ${colors.cyan}Skipped:${colors.reset} ${skipped}`);

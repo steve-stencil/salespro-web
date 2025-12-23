@@ -21,7 +21,6 @@ export type RawDocumentObject = {
   canAddMultiplePages?: boolean;
   isTemplate?: boolean;
   includedStates?: string[];
-  excludedStates?: string[];
   includedOffices?: Array<{
     objectId: string;
     className: string;
@@ -71,8 +70,6 @@ export type TransformedTemplateData = {
   isTemplate: boolean;
   /** Included states */
   includedStates: string[];
-  /** Excluded states */
-  excludedStates: string[];
   /** Page width in points */
   pageWidth: number;
   /** Page height in points */

@@ -86,15 +86,10 @@ export class DocumentTemplate {
 
   // --- State/Office filtering ---
 
-  /** States where this template is available. ['ALL'] means all states. */
-  @Property({ type: 'array', default: ['ALL'] })
-  @Index({ type: 'GIN' })
-  includedStates: Opt<string[]> = ['ALL'];
-
-  /** States where this template is NOT available */
+  /** States where this template is available. Empty array means no states. */
   @Property({ type: 'array', default: [] })
   @Index({ type: 'GIN' })
-  excludedStates: Opt<string[]> = [];
+  includedStates: Opt<string[]> = [];
 
   /**
    * Offices where this template is available (many-to-many).

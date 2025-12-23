@@ -77,9 +77,8 @@ export class Migration20251219000001 extends Migration {
         "can_add_multiple_pages" boolean not null default false,
         "is_template" boolean not null default false,
 
-        -- State filtering (GIN indexed arrays)
-        "included_states" text[] not null default '{ALL}',
-        "excluded_states" text[] not null default '{}',
+        -- State filtering (GIN indexed array, empty = no states)
+        "included_states" text[] not null default '{}',
 
         -- Layout fields
         "page_size_str" varchar(255) not null,
@@ -180,9 +179,7 @@ export class Migration20251219000001 extends Migration {
     this.addSql(
       `create index "document_template_included_states_index" on "document_template" using gin ("included_states");`,
     );
-    this.addSql(
-      `create index "document_template_excluded_states_index" on "document_template" using gin ("excluded_states");`,
-    );
+    this.addSql();
 
     // Unique constraint for company + source_template_id (for upsert)
     this.addSql(`
@@ -246,9 +243,7 @@ export class Migration20251219000001 extends Migration {
     this.addSql(
       `drop index if exists "document_template_company_source_template_unique";`,
     );
-    this.addSql(
-      `drop index if exists "document_template_excluded_states_index";`,
-    );
+    this.addSql();
     this.addSql(
       `drop index if exists "document_template_included_states_index";`,
     );

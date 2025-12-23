@@ -218,7 +218,6 @@ router.post(
             existing.canAddMultiplePages = data.canAddMultiplePages;
             existing.isTemplate = data.isTemplate;
             existing.includedStates = data.includedStates;
-            existing.excludedStates = data.excludedStates;
             existing.pageWidth = data.pageWidth;
             existing.pageHeight = data.pageHeight;
             existing.hMargin = data.hMargin;
@@ -259,7 +258,6 @@ router.post(
             template.canAddMultiplePages = data.canAddMultiplePages;
             template.isTemplate = data.isTemplate;
             template.includedStates = data.includedStates;
-            template.excludedStates = data.excludedStates;
             template.pageWidth = data.pageWidth;
             template.pageHeight = data.pageHeight;
             template.hMargin = data.hMargin;
