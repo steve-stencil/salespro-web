@@ -58,6 +58,12 @@ export const PERMISSIONS = {
   TEMPLATE_READ: 'template:read',
   TEMPLATE_INGEST: 'template:ingest',
 
+  // Document Types
+  DOCUMENT_TYPE_READ: 'document-type:read',
+  DOCUMENT_TYPE_CREATE: 'document-type:create',
+  DOCUMENT_TYPE_UPDATE: 'document-type:update',
+  DOCUMENT_TYPE_DELETE: 'document-type:delete',
+
   // ==================================
   // App Access Permissions
   // ==================================
@@ -267,6 +273,28 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     label: 'Ingest Templates',
     category: 'Contract Templates',
     description: 'Upload and manage contract templates via ETL',
+  },
+
+  // Document Types
+  'document-type:read': {
+    label: 'View Document Types',
+    category: 'Document Types',
+    description: 'View available document types (contract, proposal, etc.)',
+  },
+  'document-type:create': {
+    label: 'Create Document Types',
+    category: 'Document Types',
+    description: 'Create new document types',
+  },
+  'document-type:update': {
+    label: 'Edit Document Types',
+    category: 'Document Types',
+    description: 'Modify document types and office assignments',
+  },
+  'document-type:delete': {
+    label: 'Delete Document Types',
+    category: 'Document Types',
+    description: 'Remove custom document types',
   },
 
   // App Access

@@ -4,6 +4,8 @@ import authRoutes from './auth';
 import companyRoutes from './companies';
 import companyLogoRoutes from './company-logos';
 import documentTemplateRoutes from './document-templates';
+import documentTypeRoutes from './document-types';
+import etlRoutes from './etl';
 import fileRoutes from './files';
 import internalUserRoutes from './internal-users';
 import inviteRoutes from './invites';
@@ -56,6 +58,12 @@ r.use('/files', fileRoutes);
 
 // Document template routes (ingest/ETL)
 r.use('/document-templates', documentTemplateRoutes);
+
+// Document type routes
+r.use('/document-types', documentTypeRoutes);
+
+// ETL routes for template import
+r.use('/etl', etlRoutes);
 
 // Mobile app routes
 r.use('/mobile', mobileRoutes);
