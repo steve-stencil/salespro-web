@@ -69,3 +69,25 @@ export type {
   IntegrationCredentials,
   IntegrationConfig,
 } from './office-integration';
+
+// ETL service
+export {
+  DocumentTemplateEtlService,
+  EtlServiceError,
+  EtlErrorCode,
+  createParseClient,
+  ParseClient,
+} from './etl';
+export {
+  parsePageSize,
+  hasUserInputRequired,
+  countSignatureFields,
+  transformToTemplate,
+} from './etl';
+export type {
+  RawDocumentObject,
+  TransformedTemplateData,
+  ParseSourceOffice,
+  BatchImportOptions,
+  BatchImportResult,
+} from './etl';

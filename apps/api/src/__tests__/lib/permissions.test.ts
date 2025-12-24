@@ -12,6 +12,8 @@ import {
   getPlatformPermissions,
   getCompanyPermissions,
   getReadOnlyPermissions,
+  isAppPermission,
+  getAppPermissions,
 } from '../../lib/permissions';
 
 describe('permissions', () => {
@@ -352,6 +354,70 @@ describe('permissions', () => {
     it('should not include platform permissions', () => {
       const readOnlyPerms = getReadOnlyPermissions();
       expect(readOnlyPerms.every(p => !p.startsWith('platform:'))).toBe(true);
+    });
+  });
+
+  describe('App Permissions', () => {
+    describe('PERMISSIONS constant - app permissions', () => {
+      it('should define app access permissions', () => {
+        expect(PERMISSIONS.APP_WEB).toBe('app:web');
+        expect(PERMISSIONS.APP_MOBILE).toBe('app:mobile');
+      });
+    });
+
+    describe('isAppPermission', () => {
+      it('should return true for app permissions', () => {
+        expect(isAppPermission('app:web')).toBe(true);
+        expect(isAppPermission('app:mobile')).toBe(true);
+      });
+
+      it('should return false for non-app permissions', () => {
+        expect(isAppPermission('customer:read')).toBe(false);
+        expect(isAppPermission('user:create')).toBe(false);
+        expect(isAppPermission('platform:admin')).toBe(false);
+      });
+
+      it('should return false for wildcards', () => {
+        expect(isAppPermission('*')).toBe(false);
+        expect(isAppPermission('customer:*')).toBe(false);
+      });
+    });
+
+    describe('getAppPermissions', () => {
+      it('should return only app permissions', () => {
+        const appPerms = getAppPermissions();
+        expect(appPerms.length).toBeGreaterThan(0);
+        expect(appPerms.every(p => p.startsWith('app:'))).toBe(true);
+      });
+
+      it('should include all defined app permissions', () => {
+        const appPerms = getAppPermissions();
+        expect(appPerms).toContain('app:web');
+        expect(appPerms).toContain('app:mobile');
+      });
+
+      it('should not include platform or company permissions', () => {
+        const appPerms = getAppPermissions();
+        expect(appPerms).not.toContain('customer:read');
+        expect(appPerms).not.toContain('platform:admin');
+      });
+    });
+
+    describe('getCompanyPermissions with app exclusion', () => {
+      it('should not include app permissions', () => {
+        const companyPerms = getCompanyPermissions();
+        expect(companyPerms).not.toContain('app:web');
+        expect(companyPerms).not.toContain('app:mobile');
+      });
+    });
+
+    describe('getPermissionsByCategory - App Access', () => {
+      it('should have App Access category', () => {
+        const byCategory = getPermissionsByCategory();
+        expect(byCategory['App Access']).toBeDefined();
+        expect(byCategory['App Access']).toContain('app:web');
+        expect(byCategory['App Access']).toContain('app:mobile');
+      });
     });
   });
 });

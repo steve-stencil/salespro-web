@@ -82,6 +82,22 @@ vi.mock('../../lib/storage', async importOriginal => {
   };
 });
 
+// Mock Parse client for ETL import tests without actual Parse server
+vi.mock('../../services/etl/parse-client', () => ({
+  createParseClient: vi.fn(() => ({
+    queryDocuments: vi.fn().mockResolvedValue([]),
+    queryOffices: vi.fn().mockResolvedValue([
+      { objectId: 'office-1', name: 'Test Office 1' },
+      { objectId: 'office-2', name: 'Test Office 2' },
+    ]),
+    queryDocumentTypes: vi
+      .fn()
+      .mockResolvedValue([{ name: 'Contract' }, { name: 'Proposal' }]),
+    countDocuments: vi.fn().mockResolvedValue(0),
+    downloadFile: vi.fn().mockResolvedValue(Buffer.from('test-file-content')),
+  })),
+}));
+
 import { initORM, closeORM, getORM } from '../../lib/db';
 import { createServer } from '../../server';
 

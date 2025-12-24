@@ -85,9 +85,9 @@ export function LoginPage(): React.ReactElement {
   const [isHandlingLogin, setIsHandlingLogin] = useState(false);
 
   // Get the intended destination from navigation state
+  // Default to '/' which will use SmartRedirect to determine the best destination
   const from =
-    (location.state as { from?: Location } | null)?.from?.pathname ??
-    '/dashboard';
+    (location.state as { from?: Location } | null)?.from?.pathname ?? '/';
 
   // Redirect if already authenticated (but not if we're in the middle of login)
   useEffect(() => {

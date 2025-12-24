@@ -178,3 +178,227 @@ export type TestLoginParams = {
   rememberMe?: boolean;
   deviceId?: string;
 };
+
+// ============================================================================
+// Document Type Factories
+// ============================================================================
+
+/**
+ * Create a test document type fixture
+ */
+export function createDocumentTypeData(
+  overrides: Partial<TestDocumentTypeData> = {},
+): TestDocumentTypeData {
+  return {
+    id: uuid(),
+    name: `Type ${Date.now()}`,
+    isDefault: false,
+    sortOrder: 0,
+    officeIds: [],
+    ...overrides,
+  };
+}
+
+export type TestDocumentTypeData = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  sortOrder: number;
+  companyId?: string;
+  officeIds: string[];
+};
+
+// ============================================================================
+// Import Session Factories
+// ============================================================================
+
+/**
+ * Create a test import session fixture
+ */
+export function createImportSessionData(
+  overrides: Partial<TestImportSessionData> = {},
+): TestImportSessionData {
+  return {
+    id: uuid(),
+    status: 'pending',
+    officeMapping: {},
+    typeMapping: {},
+    totalCount: 0,
+    importedCount: 0,
+    skippedCount: 0,
+    errorCount: 0,
+    errors: [],
+    ...overrides,
+  };
+}
+
+export type TestImportSessionData = {
+  id: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  officeMapping: Record<string, string>;
+  typeMapping: Record<string, string>;
+  totalCount: number;
+  importedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  errors: Array<{ templateId: string; error: string }>;
+  companyId?: string;
+  createdById?: string;
+};
+
+// ============================================================================
+// Document Template Factories
+// ============================================================================
+
+/**
+ * Create a test document template fixture
+ */
+export function createDocumentTemplateData(
+  overrides: Partial<TestDocumentTemplateData> = {},
+): TestDocumentTemplateData {
+  return {
+    id: uuid(),
+    displayName: `Template ${Date.now()}`,
+    pageId: 'singlePage',
+    pageWidth: 612,
+    pageHeight: 792,
+    hMargin: 35,
+    wMargin: 20,
+    sortOrder: 0,
+    canAddMultiplePages: false,
+    isTemplate: true,
+    includedStates: [],
+    useWatermark: false,
+    watermarkWidthPercent: 100,
+    watermarkAlpha: 0.05,
+    photosPerPage: 1,
+    documentDataJson: [{ groupType: 'body', data: [] }],
+    hasUserInput: false,
+    signatureFieldCount: 0,
+    initialsFieldCount: 0,
+    includedOfficeIds: [],
+    ...overrides,
+  };
+}
+
+export type TestDocumentTemplateData = {
+  id: string;
+  displayName: string;
+  pageId: string;
+  pageWidth: number;
+  pageHeight: number;
+  hMargin: number;
+  wMargin: number;
+  sortOrder: number;
+  canAddMultiplePages: boolean;
+  isTemplate: boolean;
+  includedStates: string[];
+  useWatermark: boolean;
+  watermarkWidthPercent: number;
+  watermarkAlpha: number;
+  photosPerPage: number;
+  documentDataJson: unknown[];
+  hasUserInput: boolean;
+  signatureFieldCount: number;
+  initialsFieldCount: number;
+  companyId?: string;
+  categoryId?: string;
+  documentTypeId?: string;
+  sourceTemplateId?: string;
+  includedOfficeIds: string[];
+};
+
+// ============================================================================
+// Document Template Category Factories
+// ============================================================================
+
+/**
+ * Create a test document template category fixture
+ */
+export function createDocumentTemplateCategoryData(
+  overrides: Partial<TestDocumentTemplateCategoryData> = {},
+): TestDocumentTemplateCategoryData {
+  return {
+    id: uuid(),
+    name: `Category ${Date.now()}`,
+    sortOrder: 0,
+    isImported: false,
+    ...overrides,
+  };
+}
+
+export type TestDocumentTemplateCategoryData = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  isImported: boolean;
+  companyId?: string;
+  sourceCategoryId?: string;
+};
+
+// ============================================================================
+// Raw Parse Document Factories (for ETL testing)
+// ============================================================================
+
+/**
+ * Create a raw Parse document object for ETL testing
+ */
+export function createRawParseDocumentData(
+  overrides: Partial<TestRawParseDocumentData> = {},
+): TestRawParseDocumentData {
+  return {
+    objectId: uuid(),
+    type: 'contract',
+    pageId: 'singlePage',
+    category: 'Contracts',
+    displayName: `Test Document ${Date.now()}`,
+    order: 0,
+    canAddMultiplePages: false,
+    isTemplate: true,
+    includedStates: [],
+    includedOffices: [],
+    pageSize: '612,792',
+    hMargin: 35,
+    wMargin: 20,
+    photosPerPage: 1,
+    useWatermark: false,
+    watermarkWidthPercent: 100,
+    watermarkAlpha: 0.05,
+    contractData: [{ groupType: 'body', data: [] }],
+    images: [],
+    ...overrides,
+  };
+}
+
+export type TestRawParseDocumentData = {
+  objectId: string;
+  type?: string;
+  pageId?: string;
+  category?: string;
+  displayName?: string;
+  order?: number;
+  canAddMultiplePages?: boolean;
+  isTemplate?: boolean;
+  includedStates?: string[];
+  includedOffices?: Array<{
+    objectId: string;
+    className?: string;
+    __type?: string;
+  }>;
+  pageSize?: string;
+  hMargin?: number;
+  wMargin?: number;
+  photosPerPage?: number;
+  useWatermark?: boolean;
+  watermarkWidthPercent?: number;
+  watermarkAlpha?: number;
+  contractData?: unknown[];
+  images?: unknown[];
+  iconBackgroundColor?: number[];
+  iconImage?: { url: string; name: string; __type?: string };
+  pdf?: { url: string; name: string; __type?: string };
+  watermark?: { url: string; name: string; __type?: string };
+  company?: { objectId: string; className?: string; __type?: string };
+  createdAt?: string;
+  updatedAt?: string;
+};
