@@ -69,3 +69,23 @@ export type {
   IntegrationCredentials,
   IntegrationConfig,
 } from './office-integration';
+
+// ETL services
+export {
+  OfficeEtlService,
+  closeSourceConnection,
+  isSourceConfigured,
+  getSourceCompanyIdByEmail,
+  EtlServiceError,
+  EtlErrorCode,
+} from './etl';
+export type {
+  BaseEtlService,
+  FetchSourceResult,
+  SourceItem,
+  LegacySourceOffice,
+  RawSourceOffice,
+  TransformedOfficeData,
+  BatchImportOptions,
+  BatchImportResult,
+} from './etl';

@@ -1,0 +1,7 @@
+# Cursor ignore file
+# This file specifies patterns for files that Cursor should ignore
+
+# Allow .env.example files (override global ignore)
+!**/.env.example
+!.env.example
+

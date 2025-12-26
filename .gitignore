@@ -8,7 +8,11 @@ turbo
 .DS_Store
 coverage/
 *.tsbuildinfo
-apps/**/.env*
+# Ignore .env files but NOT .env.example
+apps/**/.env
+apps/**/.env.local
+apps/**/.env.*.local
+!apps/**/.env.example
 apps/**/dist
 packages/**/dist
 *.local
@@ -41,3 +45,4 @@ lerna-debug.log*
 uploads/
 
 credentials.mdc
+example-json/
