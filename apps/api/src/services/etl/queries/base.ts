@@ -14,7 +14,6 @@
 
 import { MongoClient, ReadPreference } from 'mongodb';
 
-import { env } from '../../../config/env';
 import { EtlErrorCode, EtlServiceError } from '../types';
 
 import type { Collection, Db, Document, Filter, WithId } from 'mongodb';
@@ -41,13 +40,22 @@ async function checkIsReplicaSet(client: MongoClient): Promise<boolean> {
 }
 
 /**
+ * Get the MongoDB URI from environment.
+ *
+ * Reads directly from process.env to support dynamic configuration in tests.
+ */
+function getMongoUri(): string | undefined {
+  return process.env['LEGACY_MONGODB_URI'];
+}
+
+/**
  * Get or create MongoDB client connection.
  * Configures read preference for secondary if replica set is detected.
  */
 async function getConnection(): Promise<Db> {
   if (db) return db;
 
-  const uri = env.LEGACY_MONGODB_URI;
+  const uri = getMongoUri();
   if (!uri) {
     throw new EtlServiceError(
       'Legacy MongoDB URI not configured. Set LEGACY_MONGODB_URI.',
@@ -108,7 +116,7 @@ export function isConnectedToReplicaSet(): boolean {
  * Check if source database is configured.
  */
 export function isSourceConfigured(): boolean {
-  return !!env.LEGACY_MONGODB_URI;
+  return !!getMongoUri();
 }
 
 // ============================================================================
