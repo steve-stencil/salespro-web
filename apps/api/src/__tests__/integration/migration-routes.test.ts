@@ -22,43 +22,44 @@ import {
 } from 'vitest';
 
 import {
-  makeRequest,
-  waitForDatabase,
-  createTestCompany,
-  createUserWithPermissions,
-  cleanupTestData,
-} from '../../../__tests__/integration/helpers';
-import {
   Office,
   MigrationSession,
   MigrationSessionStatus,
-} from '../../../entities';
-import { getORM } from '../../../lib/db';
-import { PERMISSIONS } from '../../../lib/permissions';
+} from '../../entities';
+import { getORM } from '../../lib/db';
+import { PERMISSIONS } from '../../lib/permissions';
 // Import mocked modules
 import {
   countOffices,
   queryOffices,
   queryAllOffices,
   queryOfficesByIds,
-} from '../../../services/etl/queries/office.queries';
-import { getSourceCompanyIdByEmail } from '../../../services/etl/queries/user.queries';
+} from '../../services/etl/queries/office.queries';
+import { getSourceCompanyIdByEmail } from '../../services/etl/queries/user.queries';
 
-import type { Company, User } from '../../../entities';
+import {
+  makeRequest,
+  waitForDatabase,
+  createTestCompany,
+  createUserWithPermissions,
+  cleanupTestData,
+} from './helpers';
+
+import type { Company, User } from '../../entities';
 
 // Mock the ETL queries
-vi.mock('../../../services/etl/queries/office.queries', () => ({
+vi.mock('../../services/etl/queries/office.queries', () => ({
   queryOffices: vi.fn(),
   countOffices: vi.fn(),
   queryAllOffices: vi.fn(),
   queryOfficesByIds: vi.fn(),
 }));
 
-vi.mock('../../../services/etl/queries/user.queries', () => ({
+vi.mock('../../services/etl/queries/user.queries', () => ({
   getSourceCompanyIdByEmail: vi.fn(),
 }));
 
-vi.mock('../../../services/etl/source-client', () => ({
+vi.mock('../../services/etl/source-client', () => ({
   isSourceConfigured: vi.fn().mockReturnValue(true),
   closeSourceConnection: vi.fn(),
   isConnectedToReplicaSet: vi.fn().mockReturnValue(false),
