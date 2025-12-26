@@ -470,13 +470,14 @@ describe('Migration Routes Integration Tests', () => {
     });
 
     it('should update session status to in_progress on first batch', async () => {
-      vi.mocked(queryAllOffices).mockResolvedValue([
-        {
-          objectId: 'office1',
-          name: 'Office 1',
-          sourceCompanyId: mockSourceCompanyId,
-        },
-      ]);
+      // Mock a full batch to indicate more items exist (hasMore will be true)
+      // This prevents the session from being marked as completed
+      const mockOffices = Array.from({ length: 50 }, (_, i) => ({
+        objectId: `office${i + 1}`,
+        name: `Office ${i + 1}`,
+        sourceCompanyId: mockSourceCompanyId,
+      }));
+      vi.mocked(queryAllOffices).mockResolvedValue(mockOffices);
 
       await makeRequest()
         .post(`/api/migration/offices/sessions/${session.id}/batch`)
