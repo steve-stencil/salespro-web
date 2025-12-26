@@ -47,27 +47,6 @@ import {
 
 import type { Company, User } from '../../entities';
 
-// Mock the ETL queries
-vi.mock('../../services/etl/queries/office.queries', () => ({
-  queryOffices: vi.fn(),
-  countOffices: vi.fn(),
-  queryAllOffices: vi.fn(),
-  queryOfficesByIds: vi.fn(),
-}));
-
-vi.mock('../../services/etl/queries/user.queries', () => ({
-  getSourceCompanyIdByEmail: vi.fn(),
-}));
-
-vi.mock('../../services/etl/source-client', () => ({
-  isSourceConfigured: vi.fn().mockReturnValue(true),
-  closeSourceConnection: vi.fn(),
-  isConnectedToReplicaSet: vi.fn().mockReturnValue(false),
-  parsePointer: vi.fn(),
-  createPointer: vi.fn(),
-  getCollection: vi.fn(),
-}));
-
 describe('Migration Routes Integration Tests', () => {
   let company: Company;
   let user: User;

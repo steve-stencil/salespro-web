@@ -82,6 +82,27 @@ vi.mock('../../lib/storage', async importOriginal => {
   };
 });
 
+// Mock ETL queries to avoid needing actual MongoDB connection for migration tests
+vi.mock('../../services/etl/queries/office.queries', () => ({
+  queryOffices: vi.fn().mockResolvedValue({ items: [], total: 0 }),
+  countOffices: vi.fn().mockResolvedValue(5),
+  queryAllOffices: vi.fn().mockResolvedValue([]),
+  queryOfficesByIds: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('../../services/etl/queries/user.queries', () => ({
+  getSourceCompanyIdByEmail: vi.fn().mockResolvedValue('source-company-123'),
+}));
+
+vi.mock('../../services/etl/source-client', () => ({
+  isSourceConfigured: vi.fn().mockReturnValue(true),
+  closeSourceConnection: vi.fn(),
+  isConnectedToReplicaSet: vi.fn().mockReturnValue(false),
+  parsePointer: vi.fn(),
+  createPointer: vi.fn(),
+  getCollection: vi.fn(),
+}));
+
 import { initORM, closeORM, getORM } from '../../lib/db';
 import { createServer } from '../../server';
 

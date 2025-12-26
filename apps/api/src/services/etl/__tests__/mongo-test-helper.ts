@@ -42,6 +42,7 @@ export type LegacyDocument = {
 };
 
 // Module-level state for the test MongoDB instance
+ 
 let mongoServer: MongoMemoryServer | null = null;
 let mongoClient: MongoClient | null = null;
 let testDb: Db | null = null;
@@ -61,6 +62,7 @@ export async function setupMongoTestDb(): Promise<string> {
   process.env['LEGACY_MONGODB_URI'] = uri;
 
   // Create our own client for test data setup
+   
   mongoClient = new MongoClient(uri);
   await mongoClient.connect();
   testDb = mongoClient.db();

@@ -10,15 +10,7 @@
  */
 
 import { v4 as uuid } from 'uuid';
-import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterEach,
-  beforeEach,
-  vi,
-} from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, beforeEach } from 'vitest';
 
 import { MigrationSession, MigrationSessionStatus } from '../../entities';
 import { getORM } from '../../lib/db';
@@ -33,27 +25,6 @@ import {
 } from './helpers';
 
 import type { Company, User } from '../../entities';
-
-// Mock the ETL queries to avoid needing actual MongoDB connection
-vi.mock('../../services/etl/queries/office.queries', () => ({
-  queryOffices: vi.fn().mockResolvedValue({ items: [], total: 0 }),
-  countOffices: vi.fn().mockResolvedValue(5),
-  queryAllOffices: vi.fn().mockResolvedValue([]),
-  queryOfficesByIds: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('../../services/etl/queries/user.queries', () => ({
-  getSourceCompanyIdByEmail: vi.fn().mockResolvedValue('source-company-123'),
-}));
-
-vi.mock('../../services/etl/source-client', () => ({
-  isSourceConfigured: vi.fn().mockReturnValue(true),
-  closeSourceConnection: vi.fn(),
-  isConnectedToReplicaSet: vi.fn().mockReturnValue(false),
-  parsePointer: vi.fn(),
-  createPointer: vi.fn(),
-  getCollection: vi.fn(),
-}));
 
 describe('Migration Routes Security Tests', () => {
   // Company A entities
