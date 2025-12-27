@@ -3,6 +3,8 @@ import {
   PrimaryKey,
   Property,
   ManyToOne,
+  OneToMany,
+  Collection,
   Index,
   Enum,
   Opt,
@@ -18,6 +20,8 @@ import type {
 } from './types';
 import type { Company } from '../Company.entity';
 import type { User } from '../User.entity';
+import type { MeasureSheetItemAdditionalDetailField } from './MeasureSheetItemAdditionalDetailField.entity';
+import type { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.entity';
 
 /**
  * AdditionalDetailField entity - shared custom input fields library.
@@ -140,7 +144,11 @@ export class AdditionalDetailField {
   @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Opt<Date> = new Date();
 
-  // Note: OneToMany collections to junction tables will be added in Week 2
-  // - msiLinks: MeasureSheetItemAdditionalDetailField[]
-  // - upChargeLinks: UpChargeAdditionalDetailField[]
+  /** MSI links via junction table */
+  @OneToMany('MeasureSheetItemAdditionalDetailField', 'additionalDetailField')
+  msiLinks = new Collection<MeasureSheetItemAdditionalDetailField>(this);
+
+  /** UpCharge links via junction table */
+  @OneToMany('UpChargeAdditionalDetailField', 'additionalDetailField')
+  upChargeLinks = new Collection<UpChargeAdditionalDetailField>(this);
 }

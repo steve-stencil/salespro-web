@@ -3,6 +3,8 @@ import {
   PrimaryKey,
   Property,
   ManyToOne,
+  OneToMany,
+  Collection,
   Index,
   Opt,
 } from '@mikro-orm/core';
@@ -10,6 +12,10 @@ import { v4 as uuid } from 'uuid';
 
 import type { Company } from '../Company.entity';
 import type { User } from '../User.entity';
+import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
+import type { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.entity';
+import type { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
+import type { UpChargePrice } from './UpChargePrice.entity';
 
 /**
  * UpCharge entity - shared add-ons/accessories library.
@@ -79,9 +85,19 @@ export class UpCharge {
   @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Opt<Date> = new Date();
 
-  // Note: OneToMany collections to junction tables and pricing will be added in Week 2
-  // - msiLinks: MeasureSheetItemUpCharge[] (MSI links via junction table)
-  // - additionalDetailFields: UpChargeAdditionalDetailField[] (linked additional detail fields)
-  // - disabledOptions: UpChargeDisabledOption[] (options this upcharge does NOT apply to)
-  // - prices: UpChargePrice[] (price breakdowns - default and option-specific overrides)
+  /** MSI links via junction table */
+  @OneToMany('MeasureSheetItemUpCharge', 'upCharge')
+  msiLinks = new Collection<MeasureSheetItemUpCharge>(this);
+
+  /** Additional detail fields linked to this upcharge */
+  @OneToMany('UpChargeAdditionalDetailField', 'upCharge')
+  additionalDetailFields = new Collection<UpChargeAdditionalDetailField>(this);
+
+  /** Options this upcharge does NOT apply to */
+  @OneToMany('UpChargeDisabledOption', 'upCharge')
+  disabledOptions = new Collection<UpChargeDisabledOption>(this);
+
+  /** Price breakdowns (default and option-specific overrides) */
+  @OneToMany('UpChargePrice', 'upCharge')
+  prices = new Collection<UpChargePrice>(this);
 }

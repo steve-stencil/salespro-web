@@ -3,6 +3,8 @@ import {
   PrimaryKey,
   Property,
   ManyToOne,
+  OneToMany,
+  Collection,
   Index,
   Opt,
 } from '@mikro-orm/core';
@@ -10,6 +12,10 @@ import { v4 as uuid } from 'uuid';
 
 import type { Company } from '../Company.entity';
 import type { User } from '../User.entity';
+import type { MeasureSheetItemOption } from './MeasureSheetItemOption.entity';
+import type { OptionPrice } from './OptionPrice.entity';
+import type { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
+import type { UpChargePrice } from './UpChargePrice.entity';
 
 /**
  * PriceGuideOption entity - shared product variants library.
@@ -84,9 +90,19 @@ export class PriceGuideOption {
   @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Opt<Date> = new Date();
 
-  // Note: OneToMany collections to junction tables and pricing will be added in Week 2
-  // - msiLinks: MeasureSheetItemOption[] (MSI links via junction table)
-  // - prices: OptionPrice[] (price breakdowns by office and type)
-  // - upChargePriceOverrides: UpChargePrice[] (override prices for this option)
-  // - disabledUpCharges: UpChargeDisabledOption[] (upcharges disabled for this option)
+  /** MSI links via junction table */
+  @OneToMany('MeasureSheetItemOption', 'option')
+  msiLinks = new Collection<MeasureSheetItemOption>(this);
+
+  /** Price breakdowns by office and type */
+  @OneToMany('OptionPrice', 'option')
+  prices = new Collection<OptionPrice>(this);
+
+  /** UpCharge override prices for this specific option */
+  @OneToMany('UpChargePrice', 'option')
+  upChargePriceOverrides = new Collection<UpChargePrice>(this);
+
+  /** UpCharges that are disabled for this option */
+  @OneToMany('UpChargeDisabledOption', 'option')
+  disabledUpCharges = new Collection<UpChargeDisabledOption>(this);
 }

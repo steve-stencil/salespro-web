@@ -3,6 +3,8 @@ import {
   PrimaryKey,
   Property,
   ManyToOne,
+  OneToMany,
+  Collection,
   Index,
   Opt,
 } from '@mikro-orm/core';
@@ -10,6 +12,10 @@ import { v4 as uuid } from 'uuid';
 
 import type { Company } from '../Company.entity';
 import type { User } from '../User.entity';
+import type { MeasureSheetItemAdditionalDetailField } from './MeasureSheetItemAdditionalDetailField.entity';
+import type { MeasureSheetItemOffice } from './MeasureSheetItemOffice.entity';
+import type { MeasureSheetItemOption } from './MeasureSheetItemOption.entity';
+import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
 import type { PriceGuideCategory } from './PriceGuideCategory.entity';
 
 /**
@@ -121,9 +127,20 @@ export class MeasureSheetItem {
   @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Opt<Date> = new Date();
 
-  // Note: OneToMany collections to junction tables will be added in Week 2
-  // - offices: MeasureSheetItemOffice[] (office visibility)
-  // - options: MeasureSheetItemOption[] (linked options from shared library)
-  // - upCharges: MeasureSheetItemUpCharge[] (linked upcharges from shared library)
-  // - additionalDetailFields: MeasureSheetItemAdditionalDetailField[] (linked fields)
+  /** Office visibility - which offices can see this item */
+  @OneToMany('MeasureSheetItemOffice', 'measureSheetItem')
+  offices = new Collection<MeasureSheetItemOffice>(this);
+
+  /** Linked options from shared library */
+  @OneToMany('MeasureSheetItemOption', 'measureSheetItem')
+  options = new Collection<MeasureSheetItemOption>(this);
+
+  /** Linked upcharges from shared library */
+  @OneToMany('MeasureSheetItemUpCharge', 'measureSheetItem')
+  upCharges = new Collection<MeasureSheetItemUpCharge>(this);
+
+  /** Linked additional detail fields from shared library */
+  @OneToMany('MeasureSheetItemAdditionalDetailField', 'measureSheetItem')
+  additionalDetailFields =
+    new Collection<MeasureSheetItemAdditionalDetailField>(this);
 }

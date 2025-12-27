@@ -3,6 +3,8 @@ import {
   PrimaryKey,
   Property,
   ManyToOne,
+  OneToMany,
+  Collection,
   Index,
   Unique,
   Opt,
@@ -10,6 +12,9 @@ import {
 import { v4 as uuid } from 'uuid';
 
 import type { Company } from '../Company.entity';
+import type { OptionPrice } from './OptionPrice.entity';
+import type { UpChargePrice } from './UpChargePrice.entity';
+import type { UpChargePricePercentageBase } from './UpChargePricePercentageBase.entity';
 
 /**
  * PriceObjectType entity - TypeCodes for pricing breakdown.
@@ -64,10 +69,17 @@ export class PriceObjectType {
   @Property({ type: 'Date', onUpdate: () => new Date() })
   updatedAt: Opt<Date> = new Date();
 
-  // Note: OneToMany collections to pricing entities will be added in Week 2
-  // - optionPrices: OptionPrice[] (option prices using this type)
-  // - upChargePrices: UpChargePrice[] (upcharge prices using this type)
-  // - percentageBaseReferences: UpChargePricePercentageBase[] (percentage base references)
+  /** Option prices using this type */
+  @OneToMany('OptionPrice', 'priceType')
+  optionPrices = new Collection<OptionPrice>(this);
+
+  /** UpCharge prices using this type */
+  @OneToMany('UpChargePrice', 'priceType')
+  upChargePrices = new Collection<UpChargePrice>(this);
+
+  /** Percentage base references using this type */
+  @OneToMany('UpChargePricePercentageBase', 'priceType')
+  percentageBaseReferences = new Collection<UpChargePricePercentageBase>(this);
 }
 
 /**
