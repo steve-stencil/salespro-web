@@ -29,6 +29,8 @@ import { AdditionalDetailsStep } from '../../components/price-guide/wizard/Addit
 import { BasicInfoStep } from '../../components/price-guide/wizard/BasicInfoStep';
 import { LinkOptionsStep } from '../../components/price-guide/wizard/LinkOptionsStep';
 import { LinkUpChargesStep } from '../../components/price-guide/wizard/LinkUpChargesStep';
+import { PricingStep } from '../../components/price-guide/wizard/PricingStep';
+import { ReviewStep } from '../../components/price-guide/wizard/ReviewStep';
 import { useCreateMsi } from '../../hooks/usePriceGuide';
 
 import type { CreateMsiRequest } from '@shared/types';
@@ -55,6 +57,9 @@ type LinkedAdditionalDetail = {
   inputType: string;
 };
 
+/** Pricing data: officeId -> priceTypeId -> amount */
+export type MsiPricingData = Record<string, Record<string, number>>;
+
 export type WizardState = {
   // Step 1: Basic Info
   name: string;
@@ -77,6 +82,9 @@ export type WizardState = {
 
   // Step 4: Additional Details
   additionalDetails: LinkedAdditionalDetail[];
+
+  // Step 5: Pricing
+  msiPricing: MsiPricingData;
 };
 
 type WizardAction =
@@ -95,6 +103,10 @@ type WizardAction =
     }
   | { type: 'ADD_ADDITIONAL_DETAIL'; payload: LinkedAdditionalDetail }
   | { type: 'REMOVE_ADDITIONAL_DETAIL'; payload: string }
+  | {
+      type: 'SET_MSI_PRICE';
+      payload: { officeId: string; priceTypeId: string; amount: number };
+    }
   | { type: 'RESET' };
 
 const initialState: WizardState = {
@@ -112,6 +124,7 @@ const initialState: WizardState = {
   options: [],
   upcharges: [],
   additionalDetails: [],
+  msiPricing: {},
 };
 
 function wizardReducer(state: WizardState, action: WizardAction): WizardState {
@@ -175,6 +188,19 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           d => d.id !== action.payload,
         ),
       };
+    case 'SET_MSI_PRICE': {
+      const { officeId, priceTypeId, amount } = action.payload;
+      return {
+        ...state,
+        msiPricing: {
+          ...state.msiPricing,
+          [officeId]: {
+            ...state.msiPricing[officeId],
+            [priceTypeId]: amount,
+          },
+        },
+      };
+    }
     case 'RESET':
       return initialState;
     default:
@@ -201,6 +227,7 @@ type WizardContextType = {
   ) => void;
   addAdditionalDetail: (detail: LinkedAdditionalDetail) => void;
   removeAdditionalDetail: (detailId: string) => void;
+  setMsiPrice: (officeId: string, priceTypeId: string, amount: number) => void;
 };
 
 const WizardContext = createContext<WizardContextType | null>(null);
@@ -222,6 +249,8 @@ const STEPS = [
   { label: 'Options', description: 'Link product options' },
   { label: 'UpCharges', description: 'Link upcharge items' },
   { label: 'Additional Details', description: 'Add custom fields' },
+  { label: 'Pricing', description: 'Set base prices' },
+  { label: 'Review', description: 'Review and create' },
 ];
 
 // ============================================================================
@@ -262,6 +291,11 @@ export function CreateWizard(): React.ReactElement {
         dispatch({ type: 'ADD_ADDITIONAL_DETAIL', payload: detail }),
       removeAdditionalDetail: detailId =>
         dispatch({ type: 'REMOVE_ADDITIONAL_DETAIL', payload: detailId }),
+      setMsiPrice: (officeId, priceTypeId, amount) =>
+        dispatch({
+          type: 'SET_MSI_PRICE',
+          payload: { officeId, priceTypeId, amount },
+        }),
     }),
     [state],
   );
@@ -283,7 +317,10 @@ export function CreateWizard(): React.ReactElement {
       case 1:
       case 2:
       case 3:
+      case 4:
         return true; // Optional steps
+      case 5:
+        return isStep1Valid; // Review step - can create if basic info is valid
       default:
         return false;
     }
@@ -373,6 +410,8 @@ export function CreateWizard(): React.ReactElement {
             {activeStep === 1 && <LinkOptionsStep />}
             {activeStep === 2 && <LinkUpChargesStep />}
             {activeStep === 3 && <AdditionalDetailsStep />}
+            {activeStep === 4 && <PricingStep />}
+            {activeStep === 5 && <ReviewStep />}
           </CardContent>
         </Card>
 
