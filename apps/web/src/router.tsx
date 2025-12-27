@@ -19,6 +19,11 @@ import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { OfficesPage } from './pages/OfficesPage';
 import { PlatformCompaniesPage } from './pages/PlatformCompaniesPage';
 import { PlatformRolesPage } from './pages/PlatformRolesPage';
+import {
+  CatalogPage,
+  CategoryManagementPage,
+  LibraryPage,
+} from './pages/price-guide';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
 import { SelectCompanyPage } from './pages/SelectCompanyPage';
@@ -122,6 +127,31 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.DATA_MIGRATION}>
             <DataMigrationPage />
+          </PermissionGuard>
+        ),
+      },
+      // Price Guide routes
+      {
+        path: '/price-guide',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <CatalogPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/library',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <LibraryPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/categories',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <CategoryManagementPage />
           </PermissionGuard>
         ),
       },
