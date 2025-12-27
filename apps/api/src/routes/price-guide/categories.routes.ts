@@ -1,3 +1,4 @@
+import { raw } from '@mikro-orm/postgresql';
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -165,7 +166,7 @@ router.get(
       // Get MSI counts per category
       const msiCounts = await em
         .createQueryBuilder(MeasureSheetItem, 'msi')
-        .select(['msi.category_id', 'count(*) as count'])
+        .select(['msi.category_id', raw('count(*)::text as count')])
         .where({ company: company.id, isActive: true })
         .groupBy('msi.category_id')
         .execute<{ category_id: string; count: string }[]>();
@@ -330,7 +331,8 @@ router.post(
       const depth = await calculateDepth(em, parentId);
       const maxSortOrder = await em
         .createQueryBuilder(PriceGuideCategory, 'c')
-        .select('max(c.sort_order) as max')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
+        .select(raw('max(c.sort_order) as max'))
         .where({ company: company.id, parent: parentId ?? null })
         .execute<{ max: number | null }[]>();
       const sortOrder = (maxSortOrder[0]?.max ?? -1) + 1;

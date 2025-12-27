@@ -1,3 +1,4 @@
+import { raw } from '@mikro-orm/postgresql';
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -239,19 +240,19 @@ router.get(
       const [officeCounts, optionCounts, upchargeCounts] = await Promise.all([
         em
           .createQueryBuilder(MeasureSheetItemOffice, 'o')
-          .select(['o.measure_sheet_item_id', 'count(*) as count'])
+          .select(['o.measure_sheet_item_id', raw('count(*)::text as count')])
           .where({ measureSheetItem: { $in: msiIds } })
           .groupBy('o.measure_sheet_item_id')
           .execute<{ measure_sheet_item_id: string; count: string }[]>(),
         em
           .createQueryBuilder(MeasureSheetItemOption, 'o')
-          .select(['o.measure_sheet_item_id', 'count(*) as count'])
+          .select(['o.measure_sheet_item_id', raw('count(*)::text as count')])
           .where({ measureSheetItem: { $in: msiIds } })
           .groupBy('o.measure_sheet_item_id')
           .execute<{ measure_sheet_item_id: string; count: string }[]>(),
         em
           .createQueryBuilder(MeasureSheetItemUpCharge, 'u')
-          .select(['u.measure_sheet_item_id', 'count(*) as count'])
+          .select(['u.measure_sheet_item_id', raw('count(*)::text as count')])
           .where({ measureSheetItem: { $in: msiIds } })
           .groupBy('u.measure_sheet_item_id')
           .execute<{ measure_sheet_item_id: string; count: string }[]>(),
@@ -514,7 +515,8 @@ router.post(
       // Get next sort order
       const maxSortOrder = await em
         .createQueryBuilder(MeasureSheetItem, 'm')
-        .select('max(m.sort_order) as max')
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
+        .select(raw('max(m.sort_order) as max'))
         .where({ company: company.id })
         .execute<{ max: number | null }[]>();
       const sortOrder = (maxSortOrder[0]?.max ?? -1) + 1;
