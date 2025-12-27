@@ -15,6 +15,7 @@ export { ConflictResolutionModal } from './ConflictResolutionModal';
 // Dialogs
 export { DeleteMsiDialog } from './DeleteMsiDialog';
 export { DuplicateMsiDialog } from './DuplicateMsiDialog';
+export { JobProgressModal } from './JobProgressModal';
 export { WhereUsedModal } from './WhereUsedModal';
 
 // Error Handling
@@ -45,3 +46,4 @@ export type { BulkDeleteResult } from './BulkDeleteDialog';
 export type { BulkEditOptions, BulkEditResult } from './BulkEditDialog';
 export type { ConflictChange } from './ConflictResolutionModal';
 export type { PricingData, Office } from './PricingGrid';
+export type { Job, JobStatus, JobStep } from './JobProgressModal';
