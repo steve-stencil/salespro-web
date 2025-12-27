@@ -21,6 +21,10 @@
  * - OptionPrice: Price breakdowns per option × office × priceType
  * - UpChargePrice: Default + option-specific override pricing
  * - UpChargePricePercentageBase: Percentage base configuration
+ *
+ * Week 3 Operational Entities:
+ * - PriceChangeLog: Append-only audit log for price changes
+ * - PriceChangeJob: Mass price change job tracking with progress
  */
 
 // Core entities
@@ -43,6 +47,10 @@ export { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
 export { OptionPrice } from './OptionPrice.entity';
 export { UpChargePrice } from './UpChargePrice.entity';
 export { UpChargePricePercentageBase } from './UpChargePricePercentageBase.entity';
+
+// Operational entities
+export { PriceChangeLog } from './PriceChangeLog.entity';
+export { PriceChangeJob } from './PriceChangeJob.entity';
 
 // Types and enums
 export {

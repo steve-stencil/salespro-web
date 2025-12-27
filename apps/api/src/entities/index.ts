@@ -59,3 +59,6 @@ export type { MigrationError } from './MigrationSession.entity';
 
 // Types and enums
 export * from './types';
+
+// Price Guide entities
+export * from './price-guide';
