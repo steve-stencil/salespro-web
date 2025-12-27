@@ -2,7 +2,6 @@
  * Application router configuration.
  * Defines all routes and their components.
  */
-import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { PermissionGuard } from './components/PermissionGuard';
@@ -12,6 +11,7 @@ import { AppLayout } from './layouts/AppLayout';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { CompanySettingsPage } from './pages/CompanySettingsPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { DataMigrationPage } from './pages/DataMigrationPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { InternalUsersPage } from './pages/InternalUsersPage';
 import { LoginPage } from './pages/LoginPage';
@@ -23,9 +23,6 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
 import { SelectCompanyPage } from './pages/SelectCompanyPage';
 import { UsersPage } from './pages/UsersPage';
-
-// Lazy-loaded pages
-const DataMigrationPage = lazy(() => import('./pages/DataMigrationPage'));
 
 /**
  * Application routes configuration.
@@ -124,9 +121,7 @@ export const router = createBrowserRouter([
         path: '/admin/data-migration',
         element: (
           <PermissionGuard permission={PERMISSIONS.DATA_MIGRATION}>
-            <Suspense fallback={<div>Loading...</div>}>
-              <DataMigrationPage />
-            </Suspense>
+            <DataMigrationPage />
           </PermissionGuard>
         ),
       },
