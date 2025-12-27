@@ -26,6 +26,7 @@ import {
   File,
   OfficeSettings,
   OfficeIntegration,
+  MigrationSession,
 } from './src/entities';
 
 /**
@@ -62,6 +63,7 @@ export default defineConfig({
     File,
     OfficeSettings,
     OfficeIntegration,
+    MigrationSession,
   ],
   migrations: {
     path: './src/migrations',

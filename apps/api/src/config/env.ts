@@ -42,6 +42,10 @@ const EnvSchema = z.object({
    * Required in production for integration credentials.
    */
   KMS_KEY_ID: z.string().optional(),
+
+  // Legacy MongoDB Configuration (for ETL migration from Parse/legacy system)
+  /** MongoDB connection string for legacy/source database */
+  LEGACY_MONGODB_URI: z.string().optional(),
 });
 
 export const env = EnvSchema.parse(process.env);

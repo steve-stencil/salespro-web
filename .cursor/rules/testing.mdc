@@ -68,6 +68,60 @@ pnpm --filter @shared/core test
 - Mock file system operations and external services
 - Use proper async/await patterns in tests
 
+# MongoDB Integration Tests
+
+For ETL query modules that interact with MongoDB, use `mongodb-memory-server` for integration tests:
+
+**When to use in-memory MongoDB:**
+
+- Testing MongoDB query syntax and operations
+- Testing aggregation pipelines
+- Testing pointer parsing and data transformations
+- Verifying actual database behavior vs mocks
+
+**Setup pattern:**
+
+```typescript
+import {
+  setupMongoTestDb,
+  teardownMongoTestDb,
+  clearTestDb,
+  getTestCollection,
+} from './mongo-test-helper';
+
+describe('Query Integration', () => {
+  // Increase timeout for MongoDB binary download (first run only)
+  beforeAll(async () => {
+    await setupMongoTestDb();
+  }, 60_000);
+
+  afterAll(async () => {
+    await teardownMongoTestDb();
+  });
+
+  beforeEach(async () => {
+    await clearTestDb();
+    await closeSourceConnection(); // Reset query module connection
+  });
+
+  it('should query documents', async () => {
+    // Arrange: Insert test data
+    const collection = getTestCollection('MyCollection');
+    await collection.insertOne({ _id: 'test1', name: 'Test' });
+
+    // Act: Use actual query function
+    const result = await myQueryFunction();
+
+    // Assert
+    expect(result).toEqual(expected);
+  });
+});
+```
+
+**Test file naming:** Use `*.integration.test.ts` suffix for integration tests
+
+**Location:** `apps/api/src/services/etl/__tests__/` for MongoDB integration tests
+
 # Test Quality Standards
 
 - Write descriptive test names that explain the behavior being tested

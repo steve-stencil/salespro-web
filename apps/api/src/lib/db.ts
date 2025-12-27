@@ -28,6 +28,7 @@ import {
   File,
   OfficeSettings,
   OfficeIntegration,
+  MigrationSession,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -61,6 +62,7 @@ const entities = [
   File,
   OfficeSettings,
   OfficeIntegration,
+  MigrationSession,
 ];
 
 /**

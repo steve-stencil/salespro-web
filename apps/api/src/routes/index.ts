@@ -6,6 +6,7 @@ import companyLogoRoutes from './company-logos';
 import fileRoutes from './files';
 import internalUserRoutes from './internal-users';
 import inviteRoutes from './invites';
+import migrationRoutes from './migration';
 import oauthRoutes from './oauth';
 import officeRoutes from './offices';
 import platformRoutes from './platform';
@@ -57,5 +58,8 @@ r.use('/platform', platformRoutes);
 
 // Internal user management routes
 r.use('/internal-users', internalUserRoutes);
+
+// Data migration routes
+r.use('/migration', migrationRoutes);
 
 export default r;

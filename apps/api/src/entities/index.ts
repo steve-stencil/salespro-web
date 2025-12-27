@@ -50,5 +50,12 @@ export { File } from './File.entity';
 export { OfficeSettings } from './OfficeSettings.entity';
 export { OfficeIntegration } from './OfficeIntegration.entity';
 
+// Migration entities
+export {
+  MigrationSession,
+  MigrationSessionStatus,
+} from './MigrationSession.entity';
+export type { MigrationError } from './MigrationSession.entity';
+
 // Types and enums
 export * from './types';

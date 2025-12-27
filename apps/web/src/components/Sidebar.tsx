@@ -10,6 +10,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
 import SecurityIcon from '@mui/icons-material/Security';
 import SettingsIcon from '@mui/icons-material/Settings';
+import SyncIcon from '@mui/icons-material/Sync';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
@@ -75,6 +76,12 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
     path: '/admin/settings',
     icon: <SettingsIcon />,
     permission: PERMISSIONS.COMPANY_UPDATE,
+  },
+  {
+    label: 'Data Migration',
+    path: '/admin/data-migration',
+    icon: <SyncIcon />,
+    permission: PERMISSIONS.DATA_MIGRATION,
   },
 ];
 

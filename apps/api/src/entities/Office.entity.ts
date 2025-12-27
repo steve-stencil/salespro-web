@@ -36,6 +36,15 @@ export class Office {
   @Index()
   company!: Company;
 
+  /**
+   * Source ID from Parse/legacy system.
+   * Used for ETL migration to track which Parse objectId this office came from.
+   * Null for offices created natively in salespro-web.
+   */
+  @Property({ type: 'string', nullable: true })
+  @Index()
+  sourceId?: string;
+
   /** Whether this office is active */
   @Property({ type: 'boolean' })
   isActive: Opt<boolean> = true;

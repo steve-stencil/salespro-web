@@ -54,6 +54,9 @@ export const PERMISSIONS = {
   FILE_UPDATE: 'file:update',
   FILE_DELETE: 'file:delete',
 
+  // Data Migration
+  DATA_MIGRATION: 'data:migration',
+
   // ==================================
   // Platform Permissions (Internal Users Only)
   // ==================================
@@ -243,6 +246,13 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     label: 'Delete Files',
     category: 'Files',
     description: 'Delete files from the system',
+  },
+
+  // Data Migration
+  'data:migration': {
+    label: 'Data Migration',
+    category: 'Data Migration',
+    description: 'Import data from legacy systems (Parse)',
   },
 
   // Platform (Internal Users Only)
