@@ -140,7 +140,7 @@ export function JobProgressModal({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [job?.status]);
+  }, [job]);
 
   const handleCancel = useCallback(async () => {
     if (!onCancel) return;

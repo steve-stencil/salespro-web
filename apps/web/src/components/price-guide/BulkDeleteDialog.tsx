@@ -47,6 +47,13 @@ export function BulkDeleteDialog({
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<BulkDeleteResult | null>(null);
 
+  const handleClose = useCallback(() => {
+    if (isDeleting) return;
+    setProgress(0);
+    setResult(null);
+    onClose();
+  }, [isDeleting, onClose]);
+
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);
     setProgress(0);
@@ -80,14 +87,7 @@ export function BulkDeleteDialog({
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedIds, onDelete]);
-
-  const handleClose = useCallback(() => {
-    if (isDeleting) return;
-    setProgress(0);
-    setResult(null);
-    onClose();
-  }, [isDeleting, onClose]);
+  }, [selectedIds, onDelete, handleClose]);
 
   const count = selectedIds.length;
 

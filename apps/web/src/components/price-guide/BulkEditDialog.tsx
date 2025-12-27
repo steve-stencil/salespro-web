@@ -94,6 +94,17 @@ export function BulkEditDialog({
     return flatCategories.find(c => c.id === categoryId) ?? null;
   }, [flatCategories, categoryId]);
 
+  const handleClose = useCallback(() => {
+    if (isUpdating) return;
+    setAction('category');
+    setCategoryId(null);
+    setOfficeAction('add');
+    setSelectedOfficeIds([]);
+    setProgress(0);
+    setResult(null);
+    onClose();
+  }, [isUpdating, onClose]);
+
   const handleUpdate = useCallback(async () => {
     setIsUpdating(true);
     setProgress(0);
@@ -141,22 +152,12 @@ export function BulkEditDialog({
   }, [
     action,
     categoryId,
+    handleClose,
     officeAction,
     selectedOfficeIds,
     selectedIds.length,
     onUpdate,
   ]);
-
-  const handleClose = useCallback(() => {
-    if (isUpdating) return;
-    setAction('category');
-    setCategoryId(null);
-    setOfficeAction('add');
-    setSelectedOfficeIds([]);
-    setProgress(0);
-    setResult(null);
-    onClose();
-  }, [isUpdating, onClose]);
 
   const isValid = useMemo(() => {
     if (action === 'category') {
