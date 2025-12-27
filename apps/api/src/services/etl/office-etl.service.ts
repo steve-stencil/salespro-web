@@ -305,9 +305,10 @@ export class OfficeEtlService implements BaseEtlService {
     }
 
     // Check if import is complete
+    // Only mark as completed when we've processed all expected items AND there are no more items to fetch
     const totalProcessed =
       session.importedCount + session.skippedCount + session.errorCount;
-    if (totalProcessed >= session.totalCount || !result.hasMore) {
+    if (totalProcessed >= session.totalCount && !result.hasMore) {
       session.status = MigrationSessionStatus.COMPLETED;
       session.completedAt = new Date();
     }

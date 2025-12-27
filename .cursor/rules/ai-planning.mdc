@@ -1,0 +1,302 @@
+---
+description: Guidelines for AI-assisted development planning and human-in-the-loop workflows
+globs:
+  - '**/*.plan.md'
+  - '.cursor/plans/**/*'
+---
+
+# AI-Assisted Development Planning
+
+## When Creating Large Plans (>5 todos or >2 weeks work)
+
+### Milestone-Based Review Checkpoints
+
+**ALWAYS** structure large plans with explicit review checkpoints where AI stops and waits for human approval:
+
+```yaml
+todos:
+  # Work batch 1
+  - id: feature-part-1
+    content: Build first component
+  - id: feature-part-2
+    content: Add related functionality
+
+  # REVIEW CHECKPOINT
+  - id: review-milestone-1
+    content: '🛑 REVIEW: Component implementation - verify approach'
+    status: pending
+
+  # Work batch 2 (AI won't start until review is complete)
+  - id: feature-part-3
+    content: Add next layer
+```
+
+### Review Checkpoint Guidelines
+
+**When to add review checkpoints:**
+
+- After completing a logical unit of work (entity layer, API routes, UI components)
+- Before starting work that depends on previous decisions
+- At natural phase boundaries (database → API → UI)
+- Every 3-5 regular todos (or 1-2 days of work)
+
+**What AI should do at review checkpoints:**
+
+1. **Stop work** - Don't proceed to next todos
+2. **Summarize deliverables** - List what was created/changed
+3. **Highlight key decisions** - Document trade-offs made
+4. **Flag uncertainties** - Note areas needing human input
+5. **Suggest review focus** - Tell human what to look at closely
+6. **Wait for approval** - Human marks review todo as complete to proceed
+
+**Review checkpoint content format:**
+
+```
+🛑 REVIEW: [What was completed] - [What to verify]
+
+Examples:
+- "🛑 REVIEW: Entity definitions complete - verify schema design"
+- "🛑 REVIEW: API routes implemented - test endpoints and validate contracts"
+- "🛑 REVIEW: Pricing page UI - verify UX matches requirements"
+```
+
+### Review Documentation Template
+
+When reaching a review checkpoint, AI should generate:
+
+```markdown
+# [Milestone Name] Review
+
+## Deliverables
+
+- ✅ File 1 (brief description)
+- ✅ File 2 (brief description)
+- ✅ Test coverage added
+
+## Key Decisions Made
+
+1. Decision 1 and rationale
+2. Decision 2 and trade-offs
+
+## Open Questions
+
+1. Question needing human input
+2. Alternative approaches considered
+
+## Recommended Review Focus
+
+1. Critical area to examine
+2. Integration points to verify
+
+## What's Next
+
+- Next milestone starts with: [description]
+```
+
+## Plan Structure for Large Projects
+
+### Recommended Todo Organization
+
+```yaml
+todos:
+  # === PHASE 1: Foundation ===
+
+  # Sprint 1.1: Core Setup (Days 1-3)
+  - id: sprint-1-1-task-1
+    content: Task description
+  - id: sprint-1-1-task-2
+    content: Task description
+  - id: review-sprint-1-1
+    content: '🛑 REVIEW: Core setup complete'
+
+  # Sprint 1.2: Next Layer (Days 4-6)
+  - id: sprint-1-2-task-1
+    content: Task description
+  - id: review-sprint-1-2
+    content: '🛑 REVIEW: Layer complete'
+
+  # === PHASE 2: Implementation ===
+  # (Continue pattern)
+```
+
+### Sprint Sizing
+
+- **Small sprint**: 1-3 regular todos, 1-2 days work, ends with review
+- **Medium sprint**: 4-6 regular todos, 3-5 days work, ends with review
+- **Large sprint**: 7-10 regular todos, 5-10 days work, may have mid-sprint reviews
+
+**Never exceed 10 regular todos between review checkpoints.**
+
+## Atomic vs Batched Work
+
+### When to Use Atomic Todos (One File/Feature)
+
+- Critical infrastructure (auth, security)
+- Complex algorithms requiring careful review
+- Areas where mistakes are costly
+- When learning new patterns/libraries
+
+### When to Use Batched Todos (Multiple Files)
+
+- Repetitive CRUD operations
+- Similar components following established patterns
+- Boilerplate code generation
+- Updates across multiple similar files
+
+**Default**: Use batched work with review checkpoints unless there's a reason for atomic todos.
+
+## Acceptance Criteria in Todos
+
+For complex todos, include acceptance criteria:
+
+```yaml
+- id: implement-pricing-api
+  content: Build pricing management API endpoints
+  acceptance: |
+    - All CRUD endpoints implemented
+    - Request/response validation with Zod
+    - Integration tests with >80% coverage
+    - API documented in README
+    - No TypeScript errors
+    - All linting checks pass
+```
+
+## Cross-Phase Dependencies
+
+When work in one phase might affect earlier decisions:
+
+```yaml
+- id: review-phase-1-complete
+  content: '🛑 REVIEW: Phase 1 complete - verify before starting Phase 2'
+  notes: |
+    Phase 2 builds on Phase 1 foundations.
+    Changes to Phase 1 after this point will be costly.
+    Focus review on:
+    - API contracts (hard to change later)
+    - Database schema (migrations required)
+    - Shared type definitions (breaking changes)
+```
+
+## Plan Metadata
+
+Include in plan frontmatter:
+
+```yaml
+---
+name: Descriptive Plan Name
+overview: One-paragraph summary of what this plan accomplishes
+estimated_duration: "X weeks" or "X sprints"
+dependencies:
+  - "Other plan that must complete first"
+tags:
+  - backend
+  - frontend
+  - database
+todos:
+  # ... structured with review checkpoints
+---
+```
+
+## When to Split Plans
+
+**Split into separate plans when:**
+
+- Different teams/people will work on different parts
+- Parts can be done in parallel without dependencies
+- One part is optional/might be deferred
+- Plan exceeds 30 todos total
+
+**Keep as one plan when:**
+
+- Strong coupling between phases
+- Context from earlier decisions matters for later work
+- Working through phases sequentially
+- Total scope is <30 todos
+
+## AI Behavior at Review Checkpoints
+
+**AI MUST:**
+
+1. Complete all todos before the review checkpoint
+2. Generate review documentation
+3. Mark review todo as `in_progress`
+4. **STOP and wait** - don't proceed to next todos
+5. Present summary to human
+
+**AI MUST NOT:**
+
+- Skip review checkpoints
+- Proceed past review without human approval
+- Mark review todos as complete (only human can)
+- Batch multiple review checkpoints together
+
+## Human Responsibilities
+
+When AI reaches a review checkpoint:
+
+**Review Process:**
+
+1. Read the AI-generated review documentation
+2. Examine the code/files created
+3. Run tests and verify functionality
+4. Provide feedback if changes needed
+5. Mark review todo as `completed` when satisfied
+
+**Feedback Types:**
+
+- ✅ **Approve** - Mark complete, AI continues
+- 🔄 **Request changes** - Give specific feedback, AI addresses before marking complete
+- ⚠️ **Discuss** - Ask questions, clarify requirements, adjust plan if needed
+
+## Examples
+
+### Good Review Checkpoint Structure
+
+```yaml
+# Sprint 1.1: Database Entities (Days 1-3)
+- id: create-core-entities
+  content: Create Category, Item, Office junction entities
+- id: create-pricing-entities
+  content: Create PriceType, Price breakdown entities
+- id: add-entity-tests
+  content: Unit tests for all entity relationships
+- id: review-entities
+  content: '🛑 REVIEW: Entity layer complete - verify schema design'
+# Sprint 1.2: Migrations (Days 4-5)
+# Won't start until review-entities is completed by human
+```
+
+### Bad Review Checkpoint Structure
+
+```yaml
+# Missing review checkpoints
+- id: create-all-entities
+  content: Create all 11 entities
+- id: create-migration
+  content: Create migration file
+- id: create-all-routes
+  content: Create all API routes
+- id: create-all-pages
+  content: Create all UI pages
+# 4 weeks of work with no review opportunities!
+```
+
+## Plan Maintenance
+
+### Updating Plans During Execution
+
+When human provides feedback during review:
+
+- Update relevant todos if scope changes
+- Add new todos for feedback items
+- Adjust acceptance criteria based on learnings
+- Document decision changes in plan
+
+### Completing Plans
+
+When final review checkpoint is approved:
+
+- Mark plan as complete
+- Archive to `.cursor/plans/completed/`
+- Update any related tracking documents
+- Create retrospective notes if applicable
