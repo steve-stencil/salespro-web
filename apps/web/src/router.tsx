@@ -22,6 +22,7 @@ import { PlatformRolesPage } from './pages/PlatformRolesPage';
 import {
   CatalogPage,
   CategoryManagementPage,
+  CreateWizard,
   LibraryPage,
 } from './pages/price-guide';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -152,6 +153,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
             <CategoryManagementPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/create',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_CREATE}>
+            <CreateWizard />
           </PermissionGuard>
         ),
       },
