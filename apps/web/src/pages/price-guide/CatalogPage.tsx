@@ -6,16 +6,19 @@
 import AddIcon from '@mui/icons-material/Add';
 import CategoryIcon from '@mui/icons-material/Category';
 import ClearIcon from '@mui/icons-material/Clear';
+import DownloadIcon from '@mui/icons-material/Download';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import SearchIcon from '@mui/icons-material/Search';
+import UploadIcon from '@mui/icons-material/Upload';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Collapse from '@mui/material/Collapse';
@@ -31,11 +34,26 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { flattenCategoryTree } from '@shared/utils';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
+import {
+  BulkActionsToolbar,
+  BulkDeleteDialog,
+  BulkEditDialog,
+  ExportDialog,
+  ImportDialog,
+} from '../../components/price-guide';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useOfficesList } from '../../hooks/useOffices';
 import { useMsiList, useCategoryTree } from '../../hooks/usePriceGuide';
 
+import type {
+  ExportOptions,
+  ImportResult,
+  BulkDeleteResult,
+  BulkEditOptions,
+  BulkEditResult,
+} from '../../components/price-guide';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { MeasureSheetItemSummary } from '@shared/types';
 
@@ -46,21 +64,30 @@ import type { MeasureSheetItemSummary } from '@shared/types';
 type MsiCardProps = {
   msi: MeasureSheetItemSummary;
   isExpanded: boolean;
+  isSelected: boolean;
   onToggleExpand: () => void;
-  onEdit?: (msiId: string) => void;
+  onToggleSelect: () => void;
+  onView: (msiId: string) => void;
+  onEdit: (msiId: string) => void;
+  onPricing: (msiId: string) => void;
 };
 
 function MsiCard({
   msi,
   isExpanded,
+  isSelected,
   onToggleExpand,
+  onToggleSelect,
+  onView,
   onEdit,
+  onPricing,
 }: MsiCardProps): React.ReactElement {
   return (
     <Card
       sx={{
         mb: 1,
-        '&:hover': { bgcolor: 'action.hover' },
+        bgcolor: isSelected ? 'action.selected' : undefined,
+        '&:hover': { bgcolor: isSelected ? 'action.selected' : 'action.hover' },
         transition: 'background-color 0.2s',
       }}
     >
@@ -71,17 +98,26 @@ function MsiCard({
             display: 'flex',
             alignItems: 'center',
             gap: 2,
-            cursor: 'pointer',
           }}
-          onClick={onToggleExpand}
         >
+          {/* Checkbox */}
+          <Checkbox
+            checked={isSelected}
+            onChange={onToggleSelect}
+            onClick={e => e.stopPropagation()}
+            size="small"
+          />
+
           {/* Expand Icon */}
           <IconButton size="small" onClick={onToggleExpand}>
             {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           </IconButton>
 
-          {/* Name & Category */}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          {/* Name & Category - Clickable */}
+          <Box
+            sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+            onClick={() => onView(msi.id)}
+          >
             <Typography variant="subtitle1" noWrap fontWeight={500}>
               {msi.name}
             </Typography>
@@ -130,12 +166,23 @@ function MsiCard({
               <Button
                 size="small"
                 variant="outlined"
-                onClick={() => onEdit?.(msi.id)}
+                onClick={() => onView(msi.id)}
+              >
+                View Details
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => onEdit(msi.id)}
               >
                 Edit
               </Button>
-              <Button size="small" variant="text">
-                View Pricing
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => onPricing(msi.id)}
+              >
+                Pricing
               </Button>
               <Typography
                 variant="caption"
@@ -181,11 +228,20 @@ function MsiCardSkeleton(): React.ReactElement {
 // ============================================================================
 
 export function CatalogPage(): React.ReactElement {
+  const navigate = useNavigate();
+
   // State
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [officeId, setOfficeId] = useState<string>('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Dialog states
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
 
   // Debounced search
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -285,10 +341,109 @@ export function CatalogPage(): React.ReactElement {
     setOfficeId(e.target.value);
   };
 
-  const handleEdit = (msiId: string) => {
-    // TODO: Navigate to edit page or open modal
-    console.log('Edit MSI:', msiId);
-  };
+  const handleView = useCallback(
+    (msiId: string) => {
+      void navigate(`/price-guide/${msiId}`);
+    },
+    [navigate],
+  );
+
+  const handleEdit = useCallback(
+    (msiId: string) => {
+      void navigate(`/price-guide/${msiId}/edit`);
+    },
+    [navigate],
+  );
+
+  const handlePricing = useCallback(
+    (msiId: string) => {
+      void navigate(`/price-guide/${msiId}/pricing`);
+    },
+    [navigate],
+  );
+
+  // Selection handlers
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(allMsis.map(msi => msi.id)));
+  }, [allMsis]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  // Bulk operation handlers
+  const handleBulkExport = useCallback(
+    async (options: ExportOptions): Promise<void> => {
+      // TODO: Implement actual export logic
+      console.log('Export options:', options);
+      console.log('Selected IDs:', Array.from(selectedIds));
+      // Simulate export delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    },
+    [selectedIds],
+  );
+
+  const handleBulkImport = useCallback(
+    async (file: File): Promise<ImportResult> => {
+      // TODO: Implement actual import logic
+      console.log('Importing file:', file.name);
+      // Simulate import delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return {
+        success: true,
+        imported: 10,
+        skipped: 2,
+        errors: [],
+        warnings: [],
+      };
+    },
+    [],
+  );
+
+  const handleBulkDelete = useCallback(
+    async (ids: string[]): Promise<BulkDeleteResult> => {
+      // TODO: Implement actual bulk delete logic
+      console.log('Deleting IDs:', ids);
+      // Simulate delete delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      deselectAll();
+      return {
+        deleted: ids.length,
+        failed: 0,
+        errors: [],
+      };
+    },
+    [deselectAll],
+  );
+
+  const handleBulkEdit = useCallback(
+    async (options: BulkEditOptions): Promise<BulkEditResult> => {
+      // TODO: Implement actual bulk edit logic
+      console.log('Bulk edit options:', options);
+      console.log('Selected IDs:', Array.from(selectedIds));
+      // Simulate edit delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      deselectAll();
+      return {
+        updated: selectedIds.size,
+        failed: 0,
+        errors: [],
+      };
+    },
+    [selectedIds, deselectAll],
+  );
 
   return (
     <Box>
@@ -312,9 +467,25 @@ export function CatalogPage(): React.ReactElement {
             </Typography>
           </Box>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />}>
-          New Item
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            onClick={() => setImportDialogOpen(true)}
+          >
+            Import
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={() => setExportDialogOpen(true)}
+          >
+            Export
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />}>
+            New Item
+          </Button>
+        </Stack>
       </Box>
 
       {/* Filters */}
@@ -468,8 +639,12 @@ export function CatalogPage(): React.ReactElement {
               key={msi.id}
               msi={msi}
               isExpanded={expandedIds.has(msi.id)}
+              isSelected={selectedIds.has(msi.id)}
               onToggleExpand={() => toggleExpanded(msi.id)}
+              onToggleSelect={() => toggleSelect(msi.id)}
+              onView={handleView}
               onEdit={handleEdit}
+              onPricing={handlePricing}
             />
           ))}
 
@@ -492,6 +667,52 @@ export function CatalogPage(): React.ReactElement {
           </Box>
         </Box>
       )}
+
+      {/* Bulk Actions Toolbar */}
+      <BulkActionsToolbar
+        selectedCount={selectedIds.size}
+        totalCount={allMsis.length}
+        allSelected={
+          selectedIds.size > 0 && selectedIds.size === allMsis.length
+        }
+        onSelectAll={selectAll}
+        onDeselectAll={deselectAll}
+        onBulkEdit={() => setBulkEditDialogOpen(true)}
+        onExport={() => setExportDialogOpen(true)}
+        onBulkDelete={() => setBulkDeleteDialogOpen(true)}
+      />
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        selectedIds={Array.from(selectedIds)}
+        totalCount={totalCount}
+        onClose={() => setExportDialogOpen(false)}
+        onExport={handleBulkExport}
+      />
+
+      {/* Import Dialog */}
+      <ImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImport={handleBulkImport}
+      />
+
+      {/* Bulk Delete Dialog */}
+      <BulkDeleteDialog
+        open={bulkDeleteDialogOpen}
+        selectedIds={Array.from(selectedIds)}
+        onClose={() => setBulkDeleteDialogOpen(false)}
+        onDelete={handleBulkDelete}
+      />
+
+      {/* Bulk Edit Dialog */}
+      <BulkEditDialog
+        open={bulkEditDialogOpen}
+        selectedIds={Array.from(selectedIds)}
+        onClose={() => setBulkEditDialogOpen(false)}
+        onUpdate={handleBulkEdit}
+      />
     </Box>
   );
 }

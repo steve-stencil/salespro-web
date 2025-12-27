@@ -23,7 +23,9 @@ import {
   CatalogPage,
   CategoryManagementPage,
   CreateWizard,
+  EditWizard,
   LibraryPage,
+  MsiDetailPage,
   PricingPage,
 } from './pages/price-guide';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -170,6 +172,22 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
             <PricingPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/:msiId/edit',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <EditWizard />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/:msiId',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <MsiDetailPage />
           </PermissionGuard>
         ),
       },
