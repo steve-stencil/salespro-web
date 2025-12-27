@@ -29,6 +29,24 @@ import {
   OfficeSettings,
   OfficeIntegration,
   MigrationSession,
+  // Price Guide entities
+  PriceGuideCategory,
+  MeasureSheetItem,
+  PriceGuideOption,
+  UpCharge,
+  AdditionalDetailField,
+  PriceObjectType,
+  MeasureSheetItemOffice,
+  MeasureSheetItemOption,
+  MeasureSheetItemUpCharge,
+  MeasureSheetItemAdditionalDetailField,
+  UpChargeAdditionalDetailField,
+  UpChargeDisabledOption,
+  OptionPrice,
+  UpChargePrice,
+  UpChargePricePercentageBase,
+  PriceChangeLog,
+  PriceChangeJob,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -63,6 +81,24 @@ const entities = [
   OfficeSettings,
   OfficeIntegration,
   MigrationSession,
+  // Price Guide entities
+  PriceGuideCategory,
+  MeasureSheetItem,
+  PriceGuideOption,
+  UpCharge,
+  AdditionalDetailField,
+  PriceObjectType,
+  MeasureSheetItemOffice,
+  MeasureSheetItemOption,
+  MeasureSheetItemUpCharge,
+  MeasureSheetItemAdditionalDetailField,
+  UpChargeAdditionalDetailField,
+  UpChargeDisabledOption,
+  OptionPrice,
+  UpChargePrice,
+  UpChargePricePercentageBase,
+  PriceChangeLog,
+  PriceChangeJob,
 ];
 
 /**

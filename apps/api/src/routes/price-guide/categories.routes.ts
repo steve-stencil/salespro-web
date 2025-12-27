@@ -1,0 +1,732 @@
+import { Router } from 'express';
+import { z } from 'zod';
+
+import {
+  PriceGuideCategory,
+  MeasureSheetItem,
+  Company,
+  User,
+} from '../../entities';
+import { getORM } from '../../lib/db';
+import { PERMISSIONS } from '../../lib/permissions';
+import { requireAuth, requirePermission } from '../../middleware';
+
+import type { AuthenticatedRequest } from '../../middleware/requireAuth';
+import type { EntityManager } from '@mikro-orm/postgresql';
+import type { Request, Response, Router as RouterType } from 'express';
+
+const router: RouterType = Router();
+
+// ============================================================================
+// Validation Schemas
+// ============================================================================
+
+const createCategorySchema = z.object({
+  name: z
+    .string()
+    .min(1, 'Name is required')
+    .max(255, 'Name must be 255 characters or less'),
+  parentId: z.string().uuid().optional().nullable(),
+});
+
+const updateCategorySchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  version: z.number().int().min(1, 'Version is required'),
+});
+
+const moveCategorySchema = z.object({
+  newParentId: z.string().uuid().optional().nullable(),
+  sortOrder: z.number().int().min(0),
+});
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Get company context from authenticated request.
+ */
+function getCompanyContext(
+  req: Request,
+): { user: User; company: Company } | null {
+  const authReq = req as AuthenticatedRequest;
+  const user = authReq.user;
+  const company = authReq.companyContext;
+  return user && company ? { user, company } : null;
+}
+
+/**
+ * Build category tree from flat list.
+ */
+type CategoryNode = {
+  id: string;
+  name: string;
+  depth: number;
+  sortOrder: number;
+  children: CategoryNode[];
+  msiCount: number;
+};
+
+function buildCategoryTree(
+  categories: PriceGuideCategory[],
+  msiCountMap: Map<string, number>,
+): CategoryNode[] {
+  const nodeMap = new Map<string, CategoryNode>();
+  const roots: CategoryNode[] = [];
+
+  // Create nodes
+  for (const cat of categories) {
+    nodeMap.set(cat.id, {
+      id: cat.id,
+      name: cat.name,
+      depth: cat.depth,
+      sortOrder: cat.sortOrder,
+      children: [],
+      msiCount: msiCountMap.get(cat.id) ?? 0,
+    });
+  }
+
+  // Build tree
+  for (const cat of categories) {
+    const node = nodeMap.get(cat.id)!;
+    if (cat.parent) {
+      const parentNode = nodeMap.get(cat.parent.id);
+      if (parentNode) {
+        parentNode.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    } else {
+      roots.push(node);
+    }
+  }
+
+  // Sort children by sortOrder
+  const sortChildren = (nodes: CategoryNode[]): void => {
+    nodes.sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const node of nodes) {
+      sortChildren(node.children);
+    }
+  };
+  sortChildren(roots);
+
+  return roots;
+}
+
+/**
+ * Calculate depth for a category based on parent.
+ */
+async function calculateDepth(
+  em: EntityManager,
+  parentId: string | null | undefined,
+): Promise<number> {
+  if (!parentId) return 0;
+
+  const parent = await em.findOne(PriceGuideCategory, { id: parentId });
+  if (!parent) return 0;
+
+  return parent.depth + 1;
+}
+
+// ============================================================================
+// Routes
+// ============================================================================
+
+/**
+ * GET /price-guide/categories
+ * Get category tree for the company
+ */
+router.get(
+  '/',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_READ),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { company } = context;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      // Get all categories for company
+      const categories = await em.find(
+        PriceGuideCategory,
+        { company: company.id, isActive: true },
+        {
+          orderBy: { depth: 'ASC', sortOrder: 'ASC' },
+          populate: ['parent'],
+        },
+      );
+
+      // Get MSI counts per category
+      const msiCounts = await em
+        .createQueryBuilder(MeasureSheetItem, 'msi')
+        .select(['msi.category_id', 'count(*) as count'])
+        .where({ company: company.id, isActive: true })
+        .groupBy('msi.category_id')
+        .execute<{ category_id: string; count: string }[]>();
+
+      const msiCountMap = new Map<string, number>(
+        msiCounts.map(r => [r.category_id, parseInt(r.count, 10)]),
+      );
+
+      const tree = buildCategoryTree(categories, msiCountMap);
+
+      res.status(200).json({ categories: tree });
+    } catch (err) {
+      req.log.error({ err }, 'List categories error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * GET /price-guide/categories/:id
+ * Get a single category by ID
+ */
+router.get(
+  '/:id',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_READ),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const category = await em.findOne(
+        PriceGuideCategory,
+        { id, company: company.id },
+        { populate: ['parent', 'lastModifiedBy'] },
+      );
+
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      // Get MSI count
+      const msiCount = await em.count(MeasureSheetItem, {
+        category: category.id,
+        isActive: true,
+      });
+
+      // Build full path
+      const pathParts: string[] = [category.name];
+      let current = category;
+      while (current.parent) {
+        await em.populate(current, ['parent']);
+        pathParts.unshift(current.parent.name);
+        current = current.parent;
+      }
+
+      res.status(200).json({
+        category: {
+          id: category.id,
+          name: category.name,
+          depth: category.depth,
+          sortOrder: category.sortOrder,
+          parentId: category.parent?.id ?? null,
+          fullPath: pathParts.join(' > '),
+          msiCount,
+          isActive: category.isActive,
+          version: category.version,
+          updatedAt: category.updatedAt,
+          lastModifiedBy: category.lastModifiedBy
+            ? {
+                id: category.lastModifiedBy.id,
+                email: category.lastModifiedBy.email,
+                nameFirst: category.lastModifiedBy.nameFirst,
+                nameLast: category.lastModifiedBy.nameLast,
+              }
+            : null,
+        },
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Get category error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * POST /price-guide/categories
+ * Create a new category
+ */
+router.post(
+  '/',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const parseResult = createCategorySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const { name, parentId } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      // Validate parent exists if provided
+      let parentRef: PriceGuideCategory | undefined;
+      if (parentId) {
+        const parent = await em.findOne(PriceGuideCategory, {
+          id: parentId,
+          company: company.id,
+        });
+        if (!parent) {
+          res.status(400).json({ error: 'Parent category not found' });
+          return;
+        }
+        parentRef = em.getReference(PriceGuideCategory, parentId);
+      }
+
+      // Check for duplicate name at same level
+      const existing = await em.findOne(PriceGuideCategory, {
+        name,
+        company: company.id,
+        parent: parentId ?? null,
+      });
+      if (existing) {
+        res.status(409).json({
+          error: 'Category name already exists',
+          message: `A category with the name "${name}" already exists at this level.`,
+        });
+        return;
+      }
+
+      // Calculate depth and get next sort order
+      const depth = await calculateDepth(em, parentId);
+      const maxSortOrder = await em
+        .createQueryBuilder(PriceGuideCategory, 'c')
+        .select('max(c.sort_order) as max')
+        .where({ company: company.id, parent: parentId ?? null })
+        .execute<{ max: number | null }[]>();
+      const sortOrder = (maxSortOrder[0]?.max ?? -1) + 1;
+
+      const category = new PriceGuideCategory();
+      category.name = name;
+      category.company = em.getReference(Company, company.id);
+      category.parent = parentRef;
+      category.depth = depth;
+      category.sortOrder = sortOrder;
+      category.lastModifiedBy = em.getReference(User, user.id);
+
+      await em.persistAndFlush(category);
+
+      req.log.info(
+        { categoryId: category.id, categoryName: name, userId: user.id },
+        'Category created',
+      );
+
+      res.status(201).json({
+        message: 'Category created successfully',
+        category: {
+          id: category.id,
+          name: category.name,
+          depth: category.depth,
+          sortOrder: category.sortOrder,
+          parentId: parentId ?? null,
+          msiCount: 0,
+          version: category.version,
+        },
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Create category error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PUT /price-guide/categories/:id
+ * Update a category
+ */
+router.put(
+  '/:id',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const parseResult = updateCategorySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const { name, version } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const category = await em.findOne(
+        PriceGuideCategory,
+        { id, company: company.id },
+        { populate: ['parent', 'lastModifiedBy'] },
+      );
+
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      // Check optimistic locking
+      if (category.version !== version) {
+        res.status(409).json({
+          error: 'CONCURRENT_MODIFICATION',
+          message: 'This category was modified by another user.',
+          lastModifiedBy: category.lastModifiedBy
+            ? {
+                id: category.lastModifiedBy.id,
+                email: category.lastModifiedBy.email,
+                nameFirst: category.lastModifiedBy.nameFirst,
+                nameLast: category.lastModifiedBy.nameLast,
+              }
+            : null,
+          lastModifiedAt: category.updatedAt,
+          currentVersion: category.version,
+        });
+        return;
+      }
+
+      // Check for duplicate name at same level
+      if (name && name !== category.name) {
+        const existing = await em.findOne(PriceGuideCategory, {
+          name,
+          company: company.id,
+          parent: category.parent?.id ?? null,
+          id: { $ne: id },
+        });
+        if (existing) {
+          res.status(409).json({
+            error: 'Category name already exists',
+            message: `A category with the name "${name}" already exists at this level.`,
+          });
+          return;
+        }
+        category.name = name;
+      }
+
+      category.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        { categoryId: category.id, userId: user.id },
+        'Category updated',
+      );
+
+      res.status(200).json({
+        message: 'Category updated successfully',
+        category: {
+          id: category.id,
+          name: category.name,
+          depth: category.depth,
+          sortOrder: category.sortOrder,
+          parentId: category.parent?.id ?? null,
+          version: category.version,
+        },
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Update category error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * DELETE /price-guide/categories/:id
+ * Soft delete a category (sets isActive = false)
+ */
+router.delete(
+  '/:id',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const category = await em.findOne(PriceGuideCategory, {
+        id,
+        company: company.id,
+      });
+
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      // Check for MSIs assigned to this category
+      const msiCount = await em.count(MeasureSheetItem, {
+        category: category.id,
+        isActive: true,
+      });
+      if (msiCount > 0) {
+        res.status(409).json({
+          error: 'Category has items',
+          message: `Cannot delete category with ${msiCount} measure sheet item(s). Move or delete them first.`,
+          msiCount,
+        });
+        return;
+      }
+
+      // Check for child categories
+      const childCount = await em.count(PriceGuideCategory, {
+        parent: category.id,
+        isActive: true,
+      });
+      if (childCount > 0) {
+        res.status(409).json({
+          error: 'Category has children',
+          message: `Cannot delete category with ${childCount} child category(ies). Delete them first.`,
+          childCount,
+        });
+        return;
+      }
+
+      // Soft delete
+      category.isActive = false;
+      category.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        {
+          categoryId: category.id,
+          categoryName: category.name,
+          userId: user.id,
+        },
+        'Category deleted',
+      );
+
+      res.status(200).json({
+        message: 'Category deleted successfully',
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Delete category error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PUT /price-guide/categories/:id/move
+ * Move a category to a new parent and/or reorder
+ */
+router.put(
+  '/:id/move',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Category ID is required' });
+        return;
+      }
+
+      const parseResult = moveCategorySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const { newParentId, sortOrder } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const category = await em.findOne(
+        PriceGuideCategory,
+        { id, company: company.id },
+        { populate: ['parent'] },
+      );
+
+      if (!category) {
+        res.status(404).json({ error: 'Category not found' });
+        return;
+      }
+
+      // Prevent moving to itself
+      if (newParentId === id) {
+        res.status(400).json({
+          error: 'Invalid move',
+          message: 'Cannot move a category to itself.',
+        });
+        return;
+      }
+
+      // Validate new parent if provided
+      let newParentRef: PriceGuideCategory | null = null;
+      if (newParentId) {
+        const newParent = await em.findOne(PriceGuideCategory, {
+          id: newParentId,
+          company: company.id,
+        });
+        if (!newParent) {
+          res.status(400).json({ error: 'New parent category not found' });
+          return;
+        }
+
+        // Prevent circular reference (moving to a descendant)
+        let checkParent: PriceGuideCategory | null = newParent;
+        while (checkParent) {
+          if (checkParent.id === id) {
+            res.status(400).json({
+              error: 'Invalid move',
+              message: 'Cannot move a category to its own descendant.',
+            });
+            return;
+          }
+          await em.populate(checkParent, ['parent']);
+          checkParent = checkParent.parent ?? null;
+        }
+
+        newParentRef = em.getReference(PriceGuideCategory, newParentId);
+      }
+
+      // Check for duplicate name at new level
+      const existingAtLevel = await em.findOne(PriceGuideCategory, {
+        name: category.name,
+        company: company.id,
+        parent: newParentId ?? null,
+        id: { $ne: id },
+      });
+      if (existingAtLevel) {
+        res.status(409).json({
+          error: 'Category name already exists',
+          message: `A category with the name "${category.name}" already exists at the target level.`,
+        });
+        return;
+      }
+
+      // Update category
+      const oldParentId = category.parent?.id ?? null;
+      category.parent = newParentRef ?? undefined;
+      category.depth = await calculateDepth(em, newParentId);
+      category.sortOrder = sortOrder;
+      category.lastModifiedBy = em.getReference(User, user.id);
+
+      // Update depth of all descendants if parent changed
+      if (oldParentId !== newParentId) {
+        const updateDescendantDepths = async (
+          parentCat: PriceGuideCategory,
+          parentDepth: number,
+        ): Promise<void> => {
+          const children = await em.find(PriceGuideCategory, {
+            parent: parentCat.id,
+            company: company.id,
+          });
+          for (const child of children) {
+            child.depth = parentDepth + 1;
+            await updateDescendantDepths(child, child.depth);
+          }
+        };
+        await updateDescendantDepths(category, category.depth);
+      }
+
+      await em.flush();
+
+      req.log.info(
+        {
+          categoryId: category.id,
+          oldParentId,
+          newParentId,
+          sortOrder,
+          userId: user.id,
+        },
+        'Category moved',
+      );
+
+      res.status(200).json({
+        message: 'Category moved successfully',
+        category: {
+          id: category.id,
+          name: category.name,
+          depth: category.depth,
+          sortOrder: category.sortOrder,
+          parentId: newParentId ?? null,
+          version: category.version,
+        },
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Move category error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+export default router;

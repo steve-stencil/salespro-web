@@ -10,6 +10,7 @@ import migrationRoutes from './migration';
 import oauthRoutes from './oauth';
 import officeRoutes from './offices';
 import platformRoutes from './platform';
+import priceGuideRoutes from './price-guide';
 import roleRoutes from './roles';
 import userRoutes from './users';
 
@@ -61,5 +62,8 @@ r.use('/internal-users', internalUserRoutes);
 
 // Data migration routes
 r.use('/migration', migrationRoutes);
+
+// Price Guide routes
+r.use('/price-guide', priceGuideRoutes);
 
 export default r;
