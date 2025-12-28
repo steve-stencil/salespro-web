@@ -30,7 +30,8 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useOptionList, useCreateOption } from '../../../hooks/usePriceGuide';
-import { useWizard } from '../../../pages/price-guide/CreateWizard';
+
+import { useWizard } from './WizardContext';
 
 import type { OptionSummary } from '@shared/types';
 

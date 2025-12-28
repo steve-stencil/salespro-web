@@ -29,7 +29,8 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useUpchargeList } from '../../../hooks/usePriceGuide';
-import { useWizard } from '../../../pages/price-guide/CreateWizard';
+
+import { useWizard } from './WizardContext';
 
 import type { UpChargeSummary } from '@shared/types';
 

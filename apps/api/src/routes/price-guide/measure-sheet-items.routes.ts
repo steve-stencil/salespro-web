@@ -240,35 +240,44 @@ router.get(
       const [officeCounts, optionCounts, upchargeCounts] = await Promise.all([
         em
           .createQueryBuilder(MeasureSheetItemOffice, 'o')
-          .select(['o.measure_sheet_item_id', raw('count(*)::text as count')])
+          .select([
+            raw('o.measure_sheet_item_id as msi_id'),
+            raw('count(*)::int as count'),
+          ])
           .where({ measureSheetItem: { $in: msiIds } })
-          .groupBy('o.measure_sheet_item_id')
-          .execute<{ measure_sheet_item_id: string; count: string }[]>(),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
+          .groupBy(raw('o.measure_sheet_item_id'))
+          .execute<{ msi_id: string; count: number }[]>(),
         em
           .createQueryBuilder(MeasureSheetItemOption, 'o')
-          .select(['o.measure_sheet_item_id', raw('count(*)::text as count')])
+          .select([
+            raw('o.measure_sheet_item_id as msi_id'),
+            raw('count(*)::int as count'),
+          ])
           .where({ measureSheetItem: { $in: msiIds } })
-          .groupBy('o.measure_sheet_item_id')
-          .execute<{ measure_sheet_item_id: string; count: string }[]>(),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
+          .groupBy(raw('o.measure_sheet_item_id'))
+          .execute<{ msi_id: string; count: number }[]>(),
         em
           .createQueryBuilder(MeasureSheetItemUpCharge, 'u')
-          .select(['u.measure_sheet_item_id', raw('count(*)::text as count')])
+          .select([
+            raw('u.measure_sheet_item_id as msi_id'),
+            raw('count(*)::int as count'),
+          ])
           .where({ measureSheetItem: { $in: msiIds } })
-          .groupBy('u.measure_sheet_item_id')
-          .execute<{ measure_sheet_item_id: string; count: string }[]>(),
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
+          .groupBy(raw('u.measure_sheet_item_id'))
+          .execute<{ msi_id: string; count: number }[]>(),
       ]);
 
       const officeCountMap = new Map(
-        officeCounts.map(r => [r.measure_sheet_item_id, parseInt(r.count, 10)]),
+        officeCounts.map(r => [r.msi_id, r.count]),
       );
       const optionCountMap = new Map(
-        optionCounts.map(r => [r.measure_sheet_item_id, parseInt(r.count, 10)]),
+        optionCounts.map(r => [r.msi_id, r.count]),
       );
       const upchargeCountMap = new Map(
-        upchargeCounts.map(r => [
-          r.measure_sheet_item_id,
-          parseInt(r.count, 10),
-        ]),
+        upchargeCounts.map(r => [r.msi_id, r.count]),
       );
 
       // Build response
@@ -432,28 +441,31 @@ router.get(
             sortOrder: u.sortOrder,
             usageCount: u.upCharge.linkedMsiCount,
           })),
-          additionalDetailFields: additionalDetails.map(a => ({
+          additionalDetails: additionalDetails.map(a => ({
             junctionId: a.id,
             fieldId: a.additionalDetailField.id,
             title: a.additionalDetailField.title,
             inputType: a.additionalDetailField.inputType,
             cellType: a.additionalDetailField.cellType,
+            isRequired: a.additionalDetailField.isRequired,
             sortOrder: a.sortOrder,
           })),
+          isActive: msi.isActive,
           version: msi.version,
           updatedAt: msi.updatedAt,
+          lastModifiedAt: msi.updatedAt.toISOString(),
           lastModifiedBy: msi.lastModifiedBy
             ? {
                 id: msi.lastModifiedBy.id,
-                email: msi.lastModifiedBy.email,
-                nameFirst: msi.lastModifiedBy.nameFirst,
-                nameLast: msi.lastModifiedBy.nameLast,
+                name:
+                  `${msi.lastModifiedBy.nameFirst ?? ''} ${msi.lastModifiedBy.nameLast ?? ''}`.trim() ||
+                  msi.lastModifiedBy.email,
               }
             : null,
         },
       });
     } catch (err) {
-      req.log.error({ err }, 'Get MSI error');
+      req.log.error({ err }, 'Get MSI detail error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

@@ -155,11 +155,13 @@ router.get(
           name: o.name,
           brand: o.brand,
           itemCode: o.itemCode,
-          usageCount: o.linkedMsiCount,
-          hasAllOfficePricing: true, // TODO: Calculate based on actual pricing
+          measurementType: o.measurementType,
+          linkedMsiCount: o.linkedMsiCount,
+          isActive: o.isActive,
         })),
         nextCursor,
         hasMore,
+        total: items.length, // Note: This is the page count, not total - would need separate count query
       });
     } catch (err) {
       req.log.error({ err }, 'List options error');

@@ -15,14 +15,7 @@ import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
 import Stepper from '@mui/material/Stepper';
 import Typography from '@mui/material/Typography';
-import {
-  createContext,
-  useContext,
-  useReducer,
-  useCallback,
-  useMemo,
-  useState,
-} from 'react';
+import { useReducer, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { AdditionalDetailsStep } from '../../components/price-guide/wizard/AdditionalDetailsStep';
@@ -31,214 +24,15 @@ import { LinkOptionsStep } from '../../components/price-guide/wizard/LinkOptions
 import { LinkUpChargesStep } from '../../components/price-guide/wizard/LinkUpChargesStep';
 import { PricingStep } from '../../components/price-guide/wizard/PricingStep';
 import { ReviewStep } from '../../components/price-guide/wizard/ReviewStep';
+import {
+  WizardContext,
+  wizardReducer,
+  initialWizardState,
+} from '../../components/price-guide/wizard/WizardContext';
 import { useCreateMsi } from '../../hooks/usePriceGuide';
 
+import type { WizardContextType } from '../../components/price-guide/wizard/WizardContext';
 import type { CreateMsiRequest } from '@shared/types';
-
-// ============================================================================
-// Wizard State Types
-// ============================================================================
-
-type LinkedOption = {
-  id: string;
-  name: string;
-  brand: string | null;
-};
-
-type LinkedUpCharge = {
-  id: string;
-  name: string;
-  disabledOptionIds: string[];
-};
-
-type LinkedAdditionalDetail = {
-  id: string;
-  title: string;
-  inputType: string;
-};
-
-/** Pricing data: officeId -> priceTypeId -> amount */
-export type MsiPricingData = Record<string, Record<string, number>>;
-
-export type WizardState = {
-  // Step 1: Basic Info
-  name: string;
-  categoryId: string;
-  categoryName: string;
-  measurementType: string;
-  note: string;
-  defaultQty: number;
-  showSwitch: boolean;
-  tagTitle: string;
-  tagRequired: boolean;
-  tagPickerOptions: string[];
-  officeIds: string[];
-
-  // Step 2: Options
-  options: LinkedOption[];
-
-  // Step 3: UpCharges
-  upcharges: LinkedUpCharge[];
-
-  // Step 4: Additional Details
-  additionalDetails: LinkedAdditionalDetail[];
-
-  // Step 5: Pricing
-  msiPricing: MsiPricingData;
-};
-
-type WizardAction =
-  | { type: 'SET_BASIC_INFO'; payload: Partial<WizardState> }
-  | {
-      type: 'SET_CATEGORY';
-      payload: { categoryId: string; categoryName: string };
-    }
-  | { type: 'ADD_OPTION'; payload: LinkedOption }
-  | { type: 'REMOVE_OPTION'; payload: string }
-  | { type: 'ADD_UPCHARGE'; payload: LinkedUpCharge }
-  | { type: 'REMOVE_UPCHARGE'; payload: string }
-  | {
-      type: 'UPDATE_UPCHARGE_DISABLED_OPTIONS';
-      payload: { upchargeId: string; disabledOptionIds: string[] };
-    }
-  | { type: 'ADD_ADDITIONAL_DETAIL'; payload: LinkedAdditionalDetail }
-  | { type: 'REMOVE_ADDITIONAL_DETAIL'; payload: string }
-  | {
-      type: 'SET_MSI_PRICE';
-      payload: { officeId: string; priceTypeId: string; amount: number };
-    }
-  | { type: 'RESET' };
-
-const initialState: WizardState = {
-  name: '',
-  categoryId: '',
-  categoryName: '',
-  measurementType: 'each',
-  note: '',
-  defaultQty: 1,
-  showSwitch: false,
-  tagTitle: '',
-  tagRequired: false,
-  tagPickerOptions: [],
-  officeIds: [],
-  options: [],
-  upcharges: [],
-  additionalDetails: [],
-  msiPricing: {},
-};
-
-function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  switch (action.type) {
-    case 'SET_BASIC_INFO':
-      return { ...state, ...action.payload };
-    case 'SET_CATEGORY':
-      return {
-        ...state,
-        categoryId: action.payload.categoryId,
-        categoryName: action.payload.categoryName,
-      };
-    case 'ADD_OPTION':
-      if (state.options.some(o => o.id === action.payload.id)) {
-        return state;
-      }
-      return { ...state, options: [...state.options, action.payload] };
-    case 'REMOVE_OPTION':
-      return {
-        ...state,
-        options: state.options.filter(o => o.id !== action.payload),
-        // Also remove from disabled options in upcharges
-        upcharges: state.upcharges.map(uc => ({
-          ...uc,
-          disabledOptionIds: uc.disabledOptionIds.filter(
-            id => id !== action.payload,
-          ),
-        })),
-      };
-    case 'ADD_UPCHARGE':
-      if (state.upcharges.some(u => u.id === action.payload.id)) {
-        return state;
-      }
-      return { ...state, upcharges: [...state.upcharges, action.payload] };
-    case 'REMOVE_UPCHARGE':
-      return {
-        ...state,
-        upcharges: state.upcharges.filter(u => u.id !== action.payload),
-      };
-    case 'UPDATE_UPCHARGE_DISABLED_OPTIONS':
-      return {
-        ...state,
-        upcharges: state.upcharges.map(uc =>
-          uc.id === action.payload.upchargeId
-            ? { ...uc, disabledOptionIds: action.payload.disabledOptionIds }
-            : uc,
-        ),
-      };
-    case 'ADD_ADDITIONAL_DETAIL':
-      if (state.additionalDetails.some(d => d.id === action.payload.id)) {
-        return state;
-      }
-      return {
-        ...state,
-        additionalDetails: [...state.additionalDetails, action.payload],
-      };
-    case 'REMOVE_ADDITIONAL_DETAIL':
-      return {
-        ...state,
-        additionalDetails: state.additionalDetails.filter(
-          d => d.id !== action.payload,
-        ),
-      };
-    case 'SET_MSI_PRICE': {
-      const { officeId, priceTypeId, amount } = action.payload;
-      return {
-        ...state,
-        msiPricing: {
-          ...state.msiPricing,
-          [officeId]: {
-            ...state.msiPricing[officeId],
-            [priceTypeId]: amount,
-          },
-        },
-      };
-    }
-    case 'RESET':
-      return initialState;
-    default:
-      return state;
-  }
-}
-
-// ============================================================================
-// Wizard Context
-// ============================================================================
-
-type WizardContextType = {
-  state: WizardState;
-  dispatch: React.Dispatch<WizardAction>;
-  setBasicInfo: (info: Partial<WizardState>) => void;
-  setCategory: (categoryId: string, categoryName: string) => void;
-  addOption: (option: LinkedOption) => void;
-  removeOption: (optionId: string) => void;
-  addUpcharge: (upcharge: LinkedUpCharge) => void;
-  removeUpcharge: (upchargeId: string) => void;
-  updateUpchargeDisabledOptions: (
-    upchargeId: string,
-    disabledOptionIds: string[],
-  ) => void;
-  addAdditionalDetail: (detail: LinkedAdditionalDetail) => void;
-  removeAdditionalDetail: (detailId: string) => void;
-  setMsiPrice: (officeId: string, priceTypeId: string, amount: number) => void;
-};
-
-const WizardContext = createContext<WizardContextType | null>(null);
-
-export function useWizard(): WizardContextType {
-  const context = useContext(WizardContext);
-  if (!context) {
-    throw new Error('useWizard must be used within CreateWizard');
-  }
-  return context;
-}
 
 // ============================================================================
 // Step Configuration
@@ -260,7 +54,7 @@ const STEPS = [
 export function CreateWizard(): React.ReactElement {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
-  const [state, dispatch] = useReducer(wizardReducer, initialState);
+  const [state, dispatch] = useReducer(wizardReducer, initialWizardState);
 
   const createMutation = useCreateMsi();
 

@@ -196,13 +196,13 @@ router.get(
           id: f.id,
           title: f.title,
           inputType: f.inputType,
-          cellType: f.cellType,
           isRequired: f.isRequired,
-          msiUsageCount: f.linkedMsiCount,
-          upchargeUsageCount: f.linkedUpChargeCount,
+          linkedMsiCount: f.linkedMsiCount,
+          isActive: f.isActive,
         })),
         nextCursor,
         hasMore,
+        total: items.length,
       });
     } catch (err) {
       req.log.error({ err }, 'List additional details error');

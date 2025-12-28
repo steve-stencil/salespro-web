@@ -3,6 +3,7 @@
  * Provides mass operations and management tools for the price guide.
  */
 
+import AddIcon from '@mui/icons-material/Add';
 import BuildIcon from '@mui/icons-material/Build';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -30,12 +31,15 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState, useCallback } from 'react';
+
+import { usePriceTypes } from '../../hooks/usePriceGuide';
 
 // ============================================================================
 // Types
@@ -55,14 +59,6 @@ type ValidationIssue = {
   type: 'error' | 'warning';
   message: string;
   affectedCount: number;
-};
-
-type PriceType = {
-  id: string;
-  code: string;
-  name: string;
-  isGlobal: boolean;
-  usageCount: number;
 };
 
 // ============================================================================
@@ -285,45 +281,18 @@ function MassPriceChange(): React.ReactElement {
 // ============================================================================
 
 function CustomPriceTypes(): React.ReactElement {
-  const [priceTypes] = useState<PriceType[]>([
-    {
-      id: '1',
-      code: 'RETAIL',
-      name: 'Retail Price',
-      isGlobal: true,
-      usageCount: 450,
-    },
-    {
-      id: '2',
-      code: 'WHOLESALE',
-      name: 'Wholesale Price',
-      isGlobal: true,
-      usageCount: 320,
-    },
-    {
-      id: '3',
-      code: 'CONTRACTOR',
-      name: 'Contractor Price',
-      isGlobal: false,
-      usageCount: 180,
-    },
-    {
-      id: '4',
-      code: 'PREMIUM',
-      name: 'Premium Price',
-      isGlobal: false,
-      usageCount: 95,
-    },
-  ]);
+  const { data: priceTypesData, isLoading, error } = usePriceTypes();
   const [newTypeCode, setNewTypeCode] = useState('');
   const [newTypeName, setNewTypeName] = useState('');
 
   const handleAdd = useCallback(() => {
-    // TODO: Implement add price type
+    // TODO: Implement add price type API call
     console.log('Add price type:', newTypeCode, newTypeName);
     setNewTypeCode('');
     setNewTypeName('');
   }, [newTypeCode, newTypeName]);
+
+  const priceTypes = priceTypesData?.priceTypes ?? [];
 
   return (
     <Card>
@@ -360,6 +329,7 @@ function CustomPriceTypes(): React.ReactElement {
             />
             <Button
               variant="contained"
+              startIcon={<AddIcon />}
               onClick={handleAdd}
               disabled={!newTypeCode || !newTypeName}
             >
@@ -367,43 +337,83 @@ function CustomPriceTypes(): React.ReactElement {
             </Button>
           </Box>
 
+          {/* Error State */}
+          {error && (
+            <Alert severity="error">
+              Failed to load price types. Please try again.
+            </Alert>
+          )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <List>
+              {[...Array(4)].map((_, i) => (
+                <ListItem key={i}>
+                  <ListItemIcon>
+                    <Skeleton variant="circular" width={24} height={24} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={<Skeleton width="40%" />}
+                    secondary={<Skeleton width="60%" />}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && priceTypes.length === 0 && (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <LocalOfferIcon
+                sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }}
+              />
+              <Typography variant="body1" color="text.secondary">
+                No price types configured yet.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Add a price type above to get started.
+              </Typography>
+            </Box>
+          )}
+
           {/* Existing Price Types */}
-          <List>
-            {priceTypes.map(pt => (
-              <ListItem
-                key={pt.id}
-                secondaryAction={
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Chip
-                      label={`${pt.usageCount} uses`}
-                      size="small"
-                      variant="outlined"
-                    />
-                    {!pt.isGlobal && (
-                      <Button size="small" color="error">
-                        Delete
-                      </Button>
-                    )}
-                  </Stack>
-                }
-              >
-                <ListItemIcon>
-                  <LocalOfferIcon color={pt.isGlobal ? 'primary' : 'action'} />
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="subtitle2">{pt.code}</Typography>
-                      {pt.isGlobal && (
-                        <Chip label="Global" size="small" color="primary" />
+          {!isLoading && priceTypes.length > 0 && (
+            <List>
+              {priceTypes.map(pt => (
+                <ListItem
+                  key={pt.id}
+                  secondaryAction={
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {pt.isEditable && (
+                        <Button size="small" color="error">
+                          Delete
+                        </Button>
                       )}
-                    </Box>
+                    </Stack>
                   }
-                  secondary={pt.name}
-                />
-              </ListItem>
-            ))}
-          </List>
+                >
+                  <ListItemIcon>
+                    <LocalOfferIcon
+                      color={pt.isGlobal ? 'primary' : 'action'}
+                    />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Box
+                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                      >
+                        <Typography variant="subtitle2">{pt.code}</Typography>
+                        {pt.isGlobal && (
+                          <Chip label="Global" size="small" color="primary" />
+                        )}
+                      </Box>
+                    }
+                    secondary={pt.name}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </Stack>
       </CardContent>
     </Card>

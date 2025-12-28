@@ -22,7 +22,8 @@ import { useMemo, useCallback } from 'react';
 
 import { useOfficesList } from '../../../hooks/useOffices';
 import { useCategoryTree } from '../../../hooks/usePriceGuide';
-import { useWizard } from '../../../pages/price-guide/CreateWizard';
+
+import { useWizard } from './WizardContext';
 
 import type { SelectChangeEvent } from '@mui/material/Select';
 

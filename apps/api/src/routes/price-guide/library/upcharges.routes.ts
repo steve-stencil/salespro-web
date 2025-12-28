@@ -161,12 +161,14 @@ router.get(
           id: u.id,
           name: u.name,
           note: u.note,
+          measurementType: u.measurementType,
           identifier: u.identifier,
-          usageCount: u.linkedMsiCount,
-          hasAllOfficePricing: true, // TODO: Calculate
+          linkedMsiCount: u.linkedMsiCount,
+          isActive: u.isActive,
         })),
         nextCursor,
         hasMore,
+        total: items.length,
       });
     } catch (err) {
       req.log.error({ err }, 'List upcharges error');

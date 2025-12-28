@@ -22,7 +22,8 @@ import { useMemo } from 'react';
 
 import { useOfficesList } from '../../../hooks/useOffices';
 import { usePriceTypes } from '../../../hooks/usePriceGuide';
-import { useWizard } from '../../../pages/price-guide/CreateWizard';
+
+import { useWizard } from './WizardContext';
 
 // ============================================================================
 // Helper Components
