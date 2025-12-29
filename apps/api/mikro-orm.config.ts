@@ -93,7 +93,6 @@ export default defineConfig({
     MeasureSheetItemOption,
     MeasureSheetItemUpCharge,
     MeasureSheetItemAdditionalDetailField,
-    MeasureSheetItemPrice,
     UpChargeAdditionalDetailField,
     UpChargeDisabledOption,
     OptionPrice,

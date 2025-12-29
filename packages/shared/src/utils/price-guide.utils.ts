@@ -250,20 +250,22 @@ export function createSearchDebouncer(
 // ============================================================================
 
 /**
- * Encode cursor for pagination
+ * Encode cursor for pagination.
+ * Uses btoa for browser/Node compatibility.
  */
 export function encodeCursor(sortOrder: number, id: string): string {
-  return Buffer.from(`${sortOrder}:${id}`).toString('base64');
+  return btoa(`${sortOrder}:${id}`);
 }
 
 /**
- * Decode cursor from pagination
+ * Decode cursor from pagination.
+ * Uses atob for browser/Node compatibility.
  */
 export function decodeCursor(
   cursor: string,
 ): { sortOrder: number; id: string } | null {
   try {
-    const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
+    const decoded = atob(cursor);
     const parts = decoded.split(':');
     if (parts.length < 2) return null;
     const sortOrderStr = parts[0];

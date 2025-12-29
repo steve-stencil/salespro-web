@@ -395,6 +395,8 @@ describe('Price Guide Core Routes', () => {
     describe('POST /api/price-guide/measure-sheet-items', () => {
       it('should create an MSI', async () => {
         const category = await createTestCategory(em, setup.company);
+        // At least one option is required. See ADR-003.
+        const option = await createTestOption(em, setup.company);
 
         const response = await makeRequest()
           .post('/api/price-guide/measure-sheet-items')
@@ -405,6 +407,7 @@ describe('Price Guide Core Routes', () => {
             note: 'A new measure sheet item',
             measurementType: 'sqft',
             officeIds: [setup.office!.id],
+            optionIds: [option.id],
           });
 
         expect(response.status).toBe(201);
@@ -412,6 +415,9 @@ describe('Price Guide Core Routes', () => {
       });
 
       it('should validate category exists', async () => {
+        // At least one option is required. See ADR-003.
+        const option = await createTestOption(em, setup.company);
+
         const response = await makeRequest()
           .post('/api/price-guide/measure-sheet-items')
           .set('Cookie', setup.adminCookie)
@@ -420,6 +426,7 @@ describe('Price Guide Core Routes', () => {
             name: 'New MSI',
             measurementType: 'sqft',
             officeIds: [setup.office!.id],
+            optionIds: [option.id],
           });
 
         expect(response.status).toBe(400);
@@ -490,6 +497,29 @@ describe('Price Guide Core Routes', () => {
           setup.company,
           category,
         );
+        // Need at least 2 options to unlink one (ADR-003 requires >= 1 option)
+        const option1 = await createTestOption(em, setup.company);
+        const option2 = await createTestOption(em, setup.company);
+        await linkOptionToMeasureSheetItem(em, msi, option1, 0);
+        await linkOptionToMeasureSheetItem(em, msi, option2, 1);
+
+        const response = await makeRequest()
+          .delete(
+            `/api/price-guide/measure-sheet-items/${msi.id}/options/${option1.id}`,
+          )
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+      });
+
+      it('should not allow unlinking the last option from MSI', async () => {
+        const category = await createTestCategory(em, setup.company);
+        const msi = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          category,
+        );
+        // Only one option - cannot unlink (ADR-003 requires >= 1 option)
         const option = await createTestOption(em, setup.company);
         await linkOptionToMeasureSheetItem(em, msi, option, 0);
 
@@ -499,7 +529,8 @@ describe('Price Guide Core Routes', () => {
           )
           .set('Cookie', setup.adminCookie);
 
-        expect(response.status).toBe(200);
+        expect(response.status).toBe(400);
+        expect(response.body.error).toBe('CANNOT_REMOVE_LAST_OPTION');
       });
 
       it('should skip already-linked options', async () => {

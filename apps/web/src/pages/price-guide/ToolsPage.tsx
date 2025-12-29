@@ -384,7 +384,7 @@ function CustomPriceTypes(): React.ReactElement {
                   key={pt.id}
                   secondaryAction={
                     <Stack direction="row" spacing={1} alignItems="center">
-                      {pt.isEditable && (
+                      {!pt.isGlobal && (
                         <Button size="small" color="error">
                           Delete
                         </Button>

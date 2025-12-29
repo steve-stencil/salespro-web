@@ -92,7 +92,6 @@ const entities = [
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
   MeasureSheetItemAdditionalDetailField,
-  MeasureSheetItemPrice,
   UpChargeAdditionalDetailField,
   UpChargeDisabledOption,
   OptionPrice,
