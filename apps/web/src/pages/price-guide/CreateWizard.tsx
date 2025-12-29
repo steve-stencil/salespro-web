@@ -139,7 +139,7 @@ export function CreateWizard(): React.ReactElement {
       categoryId: state.categoryId,
       measurementType: state.measurementType,
       note: state.note || undefined,
-      defaultQty: state.defaultQty,
+      defaultQty: Number(state.defaultQty),
       showSwitch: state.showSwitch,
       tagTitle: state.tagTitle || undefined,
       tagRequired: state.tagRequired,
