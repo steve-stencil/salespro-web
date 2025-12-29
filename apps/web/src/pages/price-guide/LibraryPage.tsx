@@ -20,10 +20,13 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import MenuItem from '@mui/material/MenuItem';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
+import Switch from '@mui/material/Switch';
 import Tab from '@mui/material/Tab';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -44,6 +47,7 @@ import {
   useAdditionalDetailList,
   useCreateOption,
   useCreateUpcharge,
+  useCreateAdditionalDetail,
 } from '../../hooks/usePriceGuide';
 
 import type {
@@ -209,6 +213,113 @@ function QuickAddUpChargeDialog({
           startIcon={isLoading ? <CircularProgress size={16} /> : <AddIcon />}
         >
           Add UpCharge
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Quick Add Additional Detail Dialog
+// ============================================================================
+
+/** Input type options for additional details */
+const INPUT_TYPE_OPTIONS = [
+  { value: 'text', label: 'Text' },
+  { value: 'textarea', label: 'Text Area' },
+  { value: 'number', label: 'Number' },
+  { value: 'currency', label: 'Currency' },
+  { value: 'picker', label: 'Picker (Dropdown)' },
+  { value: 'date', label: 'Date' },
+  { value: 'time', label: 'Time' },
+  { value: 'datetime', label: 'Date & Time' },
+];
+
+type QuickAddAdditionalDetailDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (
+    title: string,
+    inputType: string,
+    isRequired: boolean,
+  ) => Promise<void>;
+  isLoading: boolean;
+};
+
+function QuickAddAdditionalDetailDialog({
+  open,
+  onClose,
+  onAdd,
+  isLoading,
+}: QuickAddAdditionalDetailDialogProps): React.ReactElement {
+  const [title, setTitle] = useState('');
+  const [inputType, setInputType] = useState('text');
+  const [isRequired, setIsRequired] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!title.trim()) return;
+    await onAdd(title.trim(), inputType, isRequired);
+    setTitle('');
+    setInputType('text');
+    setIsRequired(false);
+  };
+
+  const handleClose = () => {
+    setTitle('');
+    setInputType('text');
+    setIsRequired(false);
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Create New Additional Detail</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label="Title"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            fullWidth
+            required
+            autoFocus
+          />
+          <TextField
+            select
+            label="Input Type"
+            value={inputType}
+            onChange={e => setInputType(e.target.value)}
+            fullWidth
+            required
+          >
+            {INPUT_TYPE_OPTIONS.map(option => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isRequired}
+                onChange={e => setIsRequired(e.target.checked)}
+              />
+            }
+            label="Required field"
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => void handleSubmit()}
+          disabled={!title.trim() || isLoading}
+          startIcon={isLoading ? <CircularProgress size={16} /> : <AddIcon />}
+        >
+          Add Detail
         </Button>
       </DialogActions>
     </Dialog>
@@ -828,10 +939,13 @@ export function LibraryPage(): React.ReactElement {
   const [search, setSearch] = useState('');
   const [showAddOptionDialog, setShowAddOptionDialog] = useState(false);
   const [showAddUpChargeDialog, setShowAddUpChargeDialog] = useState(false);
+  const [showAddAdditionalDetailDialog, setShowAddAdditionalDetailDialog] =
+    useState(false);
 
   // Mutations for creating items
   const createOptionMutation = useCreateOption();
   const createUpchargeMutation = useCreateUpcharge();
+  const createAdditionalDetailMutation = useCreateAdditionalDetail();
 
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, newValue: number) => {
@@ -873,8 +987,8 @@ export function LibraryPage(): React.ReactElement {
         setShowAddUpChargeDialog(true);
         break;
       case 2:
-        // Additional Details - not yet implemented
-        alert('Create Additional Detail is not yet implemented');
+        // Additional Details - open create dialog
+        setShowAddAdditionalDetailDialog(true);
         break;
     }
   }, [activeTab]);
@@ -893,6 +1007,18 @@ export function LibraryPage(): React.ReactElement {
       setShowAddUpChargeDialog(false);
     },
     [createUpchargeMutation],
+  );
+
+  const handleCreateAdditionalDetail = useCallback(
+    async (title: string, inputType: string, isRequired: boolean) => {
+      await createAdditionalDetailMutation.mutateAsync({
+        title,
+        inputType,
+        isRequired,
+      });
+      setShowAddAdditionalDetailDialog(false);
+    },
+    [createAdditionalDetailMutation],
   );
 
   const getAddButtonLabel = () => {
@@ -1015,6 +1141,14 @@ export function LibraryPage(): React.ReactElement {
         onClose={() => setShowAddUpChargeDialog(false)}
         onAdd={handleCreateUpCharge}
         isLoading={createUpchargeMutation.isPending}
+      />
+
+      {/* Quick Add Additional Detail Dialog */}
+      <QuickAddAdditionalDetailDialog
+        open={showAddAdditionalDetailDialog}
+        onClose={() => setShowAddAdditionalDetailDialog(false)}
+        onAdd={handleCreateAdditionalDetail}
+        isLoading={createAdditionalDetailMutation.isPending}
       />
     </Box>
   );

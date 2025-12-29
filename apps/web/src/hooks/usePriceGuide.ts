@@ -519,6 +519,78 @@ export function useAdditionalDetailList(
   });
 }
 
+/**
+ * Hook to create an additional detail field.
+ */
+export function useCreateAdditionalDetail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      title: string;
+      inputType: string;
+      isRequired?: boolean;
+      placeholder?: string;
+      note?: string;
+      defaultValue?: string;
+      pickerValues?: string[];
+    }) => priceGuideApi.createAdditionalDetail(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update an additional detail field.
+ */
+export function useUpdateAdditionalDetail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      fieldId,
+      data,
+    }: {
+      fieldId: string;
+      data: {
+        title?: string;
+        inputType?: string;
+        isRequired?: boolean;
+        placeholder?: string | null;
+        note?: string | null;
+        defaultValue?: string | null;
+        pickerValues?: string[] | null;
+        version: number;
+      };
+    }) => priceGuideApi.updateAdditionalDetail(fieldId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete an additional detail field.
+ */
+export function useDeleteAdditionalDetail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ fieldId, force }: { fieldId: string; force?: boolean }) =>
+      priceGuideApi.deleteAdditionalDetail(fieldId, force),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
 // ============================================================================
 // Price Types Hook
 // ============================================================================

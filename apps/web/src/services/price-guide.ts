@@ -358,6 +358,66 @@ export const priceGuideApi = {
   },
 
   // ==========================================================================
+  // Library - Additional Details
+  // ==========================================================================
+
+  /**
+   * Create a new additional detail field.
+   */
+  createAdditionalDetail: async (data: {
+    title: string;
+    inputType: string;
+    isRequired?: boolean;
+    placeholder?: string;
+    note?: string;
+    defaultValue?: string;
+    pickerValues?: string[];
+  }): Promise<{
+    message: string;
+    field: { id: string; title: string; version: number };
+  }> => {
+    return apiClient.post('/price-guide/library/additional-details', data);
+  },
+
+  /**
+   * Update an additional detail field.
+   */
+  updateAdditionalDetail: async (
+    fieldId: string,
+    data: {
+      title?: string;
+      inputType?: string;
+      isRequired?: boolean;
+      placeholder?: string | null;
+      note?: string | null;
+      defaultValue?: string | null;
+      pickerValues?: string[] | null;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    field: { id: string; title: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/library/additional-details/${fieldId}`,
+      data,
+    );
+  },
+
+  /**
+   * Delete an additional detail field.
+   */
+  deleteAdditionalDetail: async (
+    fieldId: string,
+    force = false,
+  ): Promise<SuccessResponse> => {
+    const url = force
+      ? `/price-guide/library/additional-details/${fieldId}?force=true`
+      : `/price-guide/library/additional-details/${fieldId}`;
+    return apiClient.delete(url);
+  },
+
+  // ==========================================================================
   // Pricing
   // ==========================================================================
 
