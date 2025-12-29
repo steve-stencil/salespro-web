@@ -189,6 +189,13 @@ export function EditWizard(): React.ReactElement {
   const handleSave = useCallback(async () => {
     if (!msiId) return;
 
+    // Ensure version is available (required for optimistic locking)
+    const version = state.version ?? msiData?.item.version;
+    if (version === undefined) {
+      console.error('Cannot save: version number is missing');
+      return;
+    }
+
     const request: UpdateMsiRequest = {
       name: state.name,
       categoryId: state.categoryId,
@@ -200,7 +207,7 @@ export function EditWizard(): React.ReactElement {
       tagRequired: state.tagRequired,
       tagPickerOptions:
         state.tagPickerOptions.length > 0 ? state.tagPickerOptions : null,
-      version: state.version,
+      version,
     };
 
     try {
@@ -209,7 +216,7 @@ export function EditWizard(): React.ReactElement {
     } catch (error) {
       console.error('Failed to update MSI:', error);
     }
-  }, [msiId, state, updateMutation, navigate]);
+  }, [msiId, state, msiData, updateMutation, navigate]);
 
   const handleCancel = useCallback(() => {
     void navigate(`/price-guide/${msiId}`);
@@ -316,11 +323,19 @@ export function EditWizard(): React.ReactElement {
           </CardContent>
         </Card>
 
-        {/* Concurrent modification error */}
+        {/* Save error */}
         {updateMutation.isError && (
           <Alert severity="error" sx={{ mb: 3 }}>
-            Failed to save changes. The item may have been modified by another
-            user. Please refresh and try again.
+            {(() => {
+              const error = updateMutation.error as
+                | { response?: { data?: { error?: string } } }
+                | undefined;
+              const errorCode = error?.response?.data?.error;
+              if (errorCode === 'CONCURRENT_MODIFICATION') {
+                return 'This item was modified by another user while you were editing. Please refresh the page and try again.';
+              }
+              return 'Failed to save changes. Please try again.';
+            })()}
           </Alert>
         )}
 
