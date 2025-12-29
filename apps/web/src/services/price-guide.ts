@@ -472,58 +472,6 @@ export const priceGuideApi = {
     );
   },
 
-  /**
-   * Get MSI base pricing.
-   */
-  getMsiPricing: async (
-    msiId: string,
-  ): Promise<{
-    msi: { id: string; name: string; version: number };
-    priceTypes: Array<{
-      id: string;
-      code: string;
-      name: string;
-      sortOrder: number;
-    }>;
-    pricing: Array<{
-      office: { id: string; name: string };
-      prices: Record<string, number>;
-    }>;
-  }> => {
-    return apiClient.get(`/price-guide/pricing/msi/${msiId}`);
-  },
-
-  /**
-   * Update MSI pricing for a specific office.
-   */
-  updateMsiPricing: async (
-    msiId: string,
-    officeId: string,
-    prices: Array<{ priceTypeId: string; amount: number }>,
-  ): Promise<{
-    message: string;
-    msi: { id: string; name: string; version: number };
-  }> => {
-    return apiClient.put(`/price-guide/pricing/msi/${msiId}`, {
-      officeId,
-      prices,
-    });
-  },
-
-  /**
-   * Batch update MSI pricing for multiple offices at once.
-   * Used by the wizard to save all pricing in one call.
-   */
-  batchUpdateMsiPricing: async (
-    msiId: string,
-    pricing: Record<string, Record<string, number>>,
-  ): Promise<{
-    message: string;
-    updatedCount: number;
-    msi: { id: string; name: string; version: number };
-  }> => {
-    return apiClient.put(`/price-guide/pricing/msi/${msiId}/batch`, {
-      pricing,
-    });
-  },
+  // Note: All MSI pricing flows through OptionPrice entities.
+  // MSIs require at least one option; see ADR-003.
 };

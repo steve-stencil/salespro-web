@@ -15,14 +15,16 @@ import type { User } from '../User.entity';
 import type { MeasureSheetItemAdditionalDetailField } from './MeasureSheetItemAdditionalDetailField.entity';
 import type { MeasureSheetItemOffice } from './MeasureSheetItemOffice.entity';
 import type { MeasureSheetItemOption } from './MeasureSheetItemOption.entity';
-import type { MeasureSheetItemPrice } from './MeasureSheetItemPrice.entity';
 import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
 import type { PriceGuideCategory } from './PriceGuideCategory.entity';
 
 /**
  * MeasureSheetItem entity - the main line item that sales reps add to estimates.
- * Contains product configuration, pricing links, and custom tag fields.
+ * Contains product configuration and custom tag fields.
  * Uses optimistic locking via version field for concurrent edit protection.
+ *
+ * Note: All MSIs require at least one linked option. Pricing comes from
+ * OptionPrice entities, not from the MSI directly. See ADR-003.
  */
 @Entity()
 @Index({ properties: ['company', 'category'] })
@@ -144,8 +146,4 @@ export class MeasureSheetItem {
   @OneToMany('MeasureSheetItemAdditionalDetailField', 'measureSheetItem')
   additionalDetailFields =
     new Collection<MeasureSheetItemAdditionalDetailField>(this);
-
-  /** Base prices per office × priceType */
-  @OneToMany('MeasureSheetItemPrice', 'measureSheetItem')
-  prices = new Collection<MeasureSheetItemPrice>(this);
 }

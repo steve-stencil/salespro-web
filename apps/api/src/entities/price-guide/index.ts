@@ -1,31 +1,33 @@
 /**
  * Price Guide Entities - Barrel Export
  *
- * Week 1 Core Entities:
+ * Core Entities:
  * - PriceGuideCategory: Self-referential hierarchy for organizing MSIs
  * - MeasureSheetItem: Main line item that sales reps add to estimates
- * - PriceGuideOption: Shared product variants library
+ * - PriceGuideOption: Shared product variants library (MSIs require ≥1 option)
  * - UpCharge: Shared add-ons/accessories library
  * - AdditionalDetailField: Shared custom input fields library
  * - PriceObjectType: TypeCodes for pricing breakdown (Materials, Labor, etc.)
  *
- * Week 2 Junction Tables:
+ * Junction Tables:
  * - MeasureSheetItemOffice: Office visibility for MSIs
- * - MeasureSheetItemOption: Links MSIs to options
+ * - MeasureSheetItemOption: Links MSIs to options (required, ≥1 per MSI)
  * - MeasureSheetItemUpCharge: Links MSIs to upcharges
  * - MeasureSheetItemAdditionalDetailField: Links MSIs to additional detail fields
  * - UpChargeAdditionalDetailField: Links upcharges to additional detail fields
  * - UpChargeDisabledOption: Tracks disabled options per upcharge
  *
- * Week 2 Pricing Entities:
- * - MeasureSheetItemPrice: Base price breakdowns per MSI × office × priceType
+ * Pricing Entities:
  * - OptionPrice: Price breakdowns per option × office × priceType
  * - UpChargePrice: Default + option-specific override pricing
  * - UpChargePricePercentageBase: Percentage base configuration
  *
- * Week 3 Operational Entities:
+ * Operational Entities:
  * - PriceChangeLog: Append-only audit log for price changes
  * - PriceChangeJob: Mass price change job tracking with progress
+ *
+ * Note: All MSIs require at least one option. Pricing comes from OptionPrice.
+ * See ADR-003 for rationale on removing base pricing.
  */
 
 // Core entities
@@ -45,7 +47,6 @@ export { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.e
 export { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
 
 // Pricing entities
-export { MeasureSheetItemPrice } from './MeasureSheetItemPrice.entity';
 export { OptionPrice } from './OptionPrice.entity';
 export { UpChargePrice } from './UpChargePrice.entity';
 export { UpChargePricePercentageBase } from './UpChargePricePercentageBase.entity';

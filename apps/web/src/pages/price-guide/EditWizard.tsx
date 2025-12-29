@@ -42,7 +42,6 @@ import {
   useUnlinkUpcharge,
   useLinkAdditionalDetails,
   useUnlinkAdditionalDetail,
-  useBatchUpdateMsiPricing,
 } from '../../hooks/usePriceGuide';
 
 import type { WizardContextType } from '../../components/price-guide/wizard/WizardContext';
@@ -54,10 +53,10 @@ import type { UpdateMsiRequest } from '@shared/types';
 
 const STEPS = [
   { label: 'Basic Info', description: 'Name, category, and settings' },
-  { label: 'Options', description: 'Link product options' },
+  { label: 'Options', description: 'Link product options (required)' },
   { label: 'UpCharges', description: 'Link upcharge items' },
   { label: 'Additional Details', description: 'Add custom fields' },
-  { label: 'Pricing', description: 'Set base prices' },
+  { label: 'Pricing', description: 'Set option prices' },
   { label: 'Review', description: 'Review and save' },
 ];
 
@@ -85,7 +84,8 @@ export function EditWizard(): React.ReactElement {
   const unlinkUpchargeMutation = useUnlinkUpcharge();
   const linkAdditionalDetailsMutation = useLinkAdditionalDetails();
   const unlinkAdditionalDetailMutation = useUnlinkAdditionalDetail();
-  const batchUpdatePricingMutation = useBatchUpdateMsiPricing();
+  // Note: Option pricing is handled separately via the Pricing page.
+  // MSIs require at least one option; see ADR-003.
 
   // Load MSI data into state
   useEffect(() => {
@@ -324,18 +324,8 @@ export function EditWizard(): React.ReactElement {
         });
       }
 
-      // Step 6: Save pricing if any pricing data was entered
-      const hasPricingData = Object.keys(state.msiPricing).some(officeId =>
-        Object.values(state.msiPricing[officeId] ?? {}).some(
-          amount => amount > 0,
-        ),
-      );
-      if (hasPricingData) {
-        await batchUpdatePricingMutation.mutateAsync({
-          msiId,
-          pricing: state.msiPricing,
-        });
-      }
+      // Note: Option pricing is configured via the Pricing page after save.
+      // MSIs require at least one option for pricing; see ADR-003.
 
       void navigate(`/price-guide/${msiId}`);
     } catch (error) {
@@ -353,7 +343,6 @@ export function EditWizard(): React.ReactElement {
     unlinkUpchargeMutation,
     linkAdditionalDetailsMutation,
     unlinkAdditionalDetailMutation,
-    batchUpdatePricingMutation,
     navigate,
   ]);
 
@@ -514,8 +503,7 @@ export function EditWizard(): React.ReactElement {
                   linkUpchargesMutation.isPending ||
                   unlinkUpchargeMutation.isPending ||
                   linkAdditionalDetailsMutation.isPending ||
-                  unlinkAdditionalDetailMutation.isPending ||
-                  batchUpdatePricingMutation.isPending;
+                  unlinkAdditionalDetailMutation.isPending;
                 return (
                   <Button
                     variant="contained"

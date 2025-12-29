@@ -1,6 +1,8 @@
 /**
  * Link Options Step Component.
  * Step 2 of the Create MSI Wizard.
+ *
+ * Note: At least one option is required for all MSIs. See ADR-003.
  */
 
 import AddIcon from '@mui/icons-material/Add';
@@ -215,10 +217,20 @@ export function LinkOptionsStep(): React.ReactElement {
       <Typography variant="h3" gutterBottom>
         Link Options
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Search and select options to link to this item. Options are shared
         across all MSIs.
       </Typography>
+
+      {/* Required option notice */}
+      <Alert
+        severity={state.options.length === 0 ? 'warning' : 'info'}
+        sx={{ mb: 3 }}
+      >
+        {state.options.length === 0
+          ? 'At least one option is required. Add an option to continue.'
+          : `${state.options.length} option${state.options.length === 1 ? '' : 's'} selected. You can add more or continue to the next step.`}
+      </Alert>
 
       <Box sx={{ display: 'flex', gap: 3 }}>
         {/* Left: Search & Select */}

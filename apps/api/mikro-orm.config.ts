@@ -38,7 +38,6 @@ import {
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
   MeasureSheetItemAdditionalDetailField,
-  MeasureSheetItemPrice,
   UpChargeAdditionalDetailField,
   UpChargeDisabledOption,
   OptionPrice,

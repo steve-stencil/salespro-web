@@ -1,6 +1,8 @@
 /**
  * Price Guide Create Wizard Page.
  * Multi-step wizard for creating a new Measure Sheet Item.
+ *
+ * Note: All MSIs require at least one option for pricing. See ADR-003.
  */
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -40,10 +42,10 @@ import type { CreateMsiRequest } from '@shared/types';
 
 const STEPS = [
   { label: 'Basic Info', description: 'Name, category, and settings' },
-  { label: 'Options', description: 'Link product options' },
+  { label: 'Options', description: 'Link product options (required)' },
   { label: 'UpCharges', description: 'Link upcharge items' },
   { label: 'Additional Details', description: 'Add custom fields' },
-  { label: 'Pricing', description: 'Set base prices' },
+  { label: 'Pricing', description: 'Set option prices' },
   { label: 'Review', description: 'Review and create' },
 ];
 
@@ -104,21 +106,25 @@ export function CreateWizard(): React.ReactElement {
     );
   }, [state.name, state.categoryId, state.measurementType, state.officeIds]);
 
+  // At least one option is required. See ADR-003.
+  const hasOptions = state.options.length > 0;
+
   const canProceed = useMemo(() => {
     switch (activeStep) {
       case 0:
         return isStep1Valid;
       case 1:
+        return hasOptions; // At least one option is required
       case 2:
       case 3:
       case 4:
         return true; // Optional steps
       case 5:
-        return isStep1Valid; // Review step - can create if basic info is valid
+        return isStep1Valid && hasOptions; // Review step - needs valid info + options
       default:
         return false;
     }
-  }, [activeStep, isStep1Valid]);
+  }, [activeStep, isStep1Valid, hasOptions]);
 
   // Handlers
   const handleNext = useCallback(() => {

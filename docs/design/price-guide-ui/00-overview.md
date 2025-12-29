@@ -69,6 +69,9 @@ This document outlines a redesigned UI for the Price Guide management system. Th
 │                           PRICING LAYER                                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
+│  NOTE: All MSIs require at least one option. Pricing flows through     │
+│        OptionPrice entities. See ADR-003 for rationale.                │
+│                                                                         │
 │  OPTION PRICES:  Option × Office × PriceType → Amount                  │
 │                  (e.g., "Pella Premium" @ "Denver Office" @ "Labor")   │
 │                                                                         │

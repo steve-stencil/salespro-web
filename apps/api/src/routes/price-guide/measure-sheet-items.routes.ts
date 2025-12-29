@@ -38,6 +38,10 @@ const listQuerySchema = z.object({
   officeId: z.string().uuid().optional(),
 });
 
+/**
+ * Create MSI validation schema.
+ * Note: MSIs require at least one option for pricing. See ADR-003.
+ */
 const createMsiSchema = z.object({
   name: z.string().min(1).max(255),
   categoryId: z.string().uuid(),
@@ -54,7 +58,10 @@ const createMsiSchema = z.object({
   officeIds: z
     .array(z.string().uuid())
     .min(1, 'At least one office is required'),
-  optionIds: z.array(z.string().uuid()).optional(),
+  // At least one option is required for pricing. See ADR-003.
+  optionIds: z
+    .array(z.string().uuid())
+    .min(1, 'At least one option is required for pricing'),
   upchargeIds: z.array(z.string().uuid()).optional(),
   additionalDetailFieldIds: z.array(z.string().uuid()).optional(),
 });
@@ -573,8 +580,8 @@ router.post(
         em.persist(link);
       }
 
-      // Create option links
-      if (data.optionIds?.length) {
+      // Create option links (required - at least one option needed)
+      if (data.optionIds.length > 0) {
         const options = await em.find(PriceGuideOption, {
           id: { $in: data.optionIds },
           company: company.id,
@@ -924,6 +931,9 @@ router.post(
 /**
  * DELETE /price-guide/measure-sheet-items/:id/options/:optionId
  * Unlink an option from an MSI
+ *
+ * Note: MSIs require at least one option. Cannot remove the last option.
+ * See ADR-003.
  */
 router.delete(
   '/:id/options/:optionId',
@@ -962,6 +972,19 @@ router.delete(
       });
       if (!link) {
         res.status(404).json({ error: 'Option link not found' });
+        return;
+      }
+
+      // MSIs require at least one option. See ADR-003.
+      const optionCount = await em.count(MeasureSheetItemOption, {
+        measureSheetItem: msi.id,
+      });
+      if (optionCount <= 1) {
+        res.status(400).json({
+          error: 'CANNOT_REMOVE_LAST_OPTION',
+          message:
+            'Cannot remove the last option. Items require at least one option for pricing.',
+        });
         return;
       }
 

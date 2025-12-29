@@ -334,6 +334,11 @@ export type LibraryListParams = CursorPaginationParams & {
 };
 
 /** Create MSI request */
+/**
+ * Create MSI request.
+ * Note: optionIds is required - at least one option is needed for pricing.
+ * See ADR-003.
+ */
 export type CreateMsiRequest = {
   name: string;
   categoryId: string;
@@ -348,7 +353,8 @@ export type CreateMsiRequest = {
   tagPickerOptions?: unknown[];
   tagParams?: Record<string, unknown>;
   officeIds: string[];
-  optionIds?: string[];
+  /** Required: At least one option is required for pricing. */
+  optionIds: string[];
   upchargeIds?: string[];
   additionalDetailFieldIds?: string[];
 };

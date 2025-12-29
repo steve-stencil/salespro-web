@@ -1,6 +1,5 @@
 import { Router } from 'express';
 
-import msiPricingRoutes from './msi.routes';
 import optionPricingRoutes from './options.routes';
 import priceTypesRoutes from './price-types.routes';
 import upchargePricingRoutes from './upcharges.routes';
@@ -9,10 +8,8 @@ import type { Router as ExpressRouter } from 'express';
 
 const router: ExpressRouter = Router();
 
-// MSI base pricing management
-router.use('/msi', msiPricingRoutes);
-
 // Option pricing management
+// Note: All MSI pricing flows through options. See ADR-003.
 router.use('/options', optionPricingRoutes);
 
 // Upcharge pricing management (defaults and overrides)

@@ -1,11 +1,13 @@
 /**
  * Price Guide Pricing Page.
  * View and edit pricing for a specific Measure Sheet Item.
+ *
+ * Note: All MSIs require at least one option. Pricing flows through OptionPrice
+ * entities, not base MSI pricing. See ADR-003.
  */
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import SaveIcon from '@mui/icons-material/Save';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
@@ -18,16 +20,11 @@ import Link from '@mui/material/Link';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 
 import { PricingGrid } from '../../components/price-guide/PricingGrid';
-import {
-  useMsiDetail,
-  usePriceTypes,
-  useMsiPricing,
-  useBatchUpdateMsiPricing,
-} from '../../hooks/usePriceGuide';
+import { useMsiDetail, usePriceTypes } from '../../hooks/usePriceGuide';
 
 import type { PricingData } from '../../components/price-guide/PricingGrid';
 
@@ -77,31 +74,11 @@ export function PricingPage(): React.ReactElement {
   } = useMsiDetail(msiId ?? '');
   const { data: priceTypesData, isLoading: isLoadingPriceTypes } =
     usePriceTypes();
-  const {
-    data: pricingData,
-    isLoading: isLoadingPricing,
-    error: pricingError,
-  } = useMsiPricing(msiId ?? '');
 
-  // Mutations
-  const batchUpdatePricingMutation = useBatchUpdateMsiPricing();
-
-  // Local pricing state
-  const [basePricing, setBasePricing] = useState<PricingData>({});
+  // Local pricing state for options
   const [optionPricing, setOptionPricing] = useState<
     Record<string, PricingData>
   >({});
-
-  // Initialize base pricing from API data
-  useEffect(() => {
-    if (pricingData?.pricing) {
-      const initialPricing: PricingData = {};
-      for (const item of pricingData.pricing) {
-        initialPricing[item.office.id] = item.prices;
-      }
-      setBasePricing(initialPricing);
-    }
-  }, [pricingData]);
 
   // Get offices from MSI detail
   const offices = useMemo(() => {
@@ -119,20 +96,6 @@ export function PricingPage(): React.ReactElement {
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, newValue: number) => {
       setActiveTab(newValue);
-    },
-    [],
-  );
-
-  const handleBasePriceChange = useCallback(
-    (officeId: string, priceTypeId: string, amount: number) => {
-      setBasePricing(prev => ({
-        ...prev,
-        [officeId]: {
-          ...prev[officeId],
-          [priceTypeId]: amount,
-        },
-      }));
-      setHasUnsavedChanges(true);
     },
     [],
   );
@@ -163,22 +126,15 @@ export function PricingPage(): React.ReactElement {
     void navigate('/price-guide');
   }, [navigate]);
 
-  const handleSave = useCallback(async () => {
-    if (!msiId) return;
-
-    try {
-      await batchUpdatePricingMutation.mutateAsync({
-        msiId,
-        pricing: basePricing,
-      });
-      setHasUnsavedChanges(false);
-    } catch (error) {
-      console.error('Failed to save pricing:', error);
-    }
-  }, [msiId, basePricing, batchUpdatePricingMutation]);
+  const handleSave = useCallback(() => {
+    // TODO: Implement option pricing save via option pricing API
+    // This would call the option pricing endpoints for each option
+    console.log('Save option pricing:', optionPricing);
+    setHasUnsavedChanges(false);
+  }, [optionPricing]);
 
   // Loading state
-  const isLoading = isLoadingMsi || isLoadingPriceTypes || isLoadingPricing;
+  const isLoading = isLoadingMsi || isLoadingPriceTypes;
 
   if (isLoading) {
     return (
@@ -206,6 +162,25 @@ export function PricingPage(): React.ReactElement {
   }
 
   const msi = msiData.item;
+
+  // MSIs require at least one option (see ADR-003)
+  if (msi.options.length === 0) {
+    return (
+      <Box>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={handleBack}
+          sx={{ mb: 2 }}
+        >
+          Back to Price Guide
+        </Button>
+        <Alert severity="warning">
+          This item has no options. All items require at least one option for
+          pricing. Please add an option first.
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -271,102 +246,61 @@ export function PricingPage(): React.ReactElement {
         </Alert>
       )}
 
-      {/* Save Error */}
-      {batchUpdatePricingMutation.isError && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to save pricing. Please try again.
-        </Alert>
-      )}
-
-      {/* Pricing Load Error */}
-      {pricingError && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Could not load existing prices. You can still enter new prices.
-        </Alert>
-      )}
-
-      {/* Save Success */}
-      {batchUpdatePricingMutation.isSuccess && !hasUnsavedChanges && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Pricing saved successfully!
-        </Alert>
-      )}
-
       {/* Tabs */}
       <Card>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={activeTab} onChange={handleTabChange}>
-            <Tab label="Base Pricing" id="pricing-tab-0" />
-            {msi.options.length > 0 && (
-              <Tab label="Option Pricing" id="pricing-tab-1" />
-            )}
+            <Tab label="Option Pricing" id="pricing-tab-0" />
             {msi.upcharges.length > 0 && (
-              <Tab
-                label="UpCharge Pricing"
-                id={`pricing-tab-${msi.options.length > 0 ? 2 : 1}`}
-              />
+              <Tab label="UpCharge Pricing" id="pricing-tab-1" />
             )}
           </Tabs>
         </Box>
 
         <CardContent>
-          {/* Base Pricing Tab */}
-          <TabPanel value={activeTab} index={0}>
-            <PricingGrid
-              offices={offices}
-              priceTypes={priceTypes}
-              pricing={basePricing}
-              onPriceChange={handleBasePriceChange}
-              title="Base Item Pricing"
-              subtitle="Set the base prices for this item across all offices. These prices apply when no specific option is selected."
-            />
-          </TabPanel>
-
           {/* Option Pricing Tab */}
-          {msi.options.length > 0 && (
-            <TabPanel value={activeTab} index={1}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Configure pricing for each option. Option pricing overrides the
-                base price when that option is selected.
-              </Typography>
+          <TabPanel value={activeTab} index={0}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Configure pricing for each option. These prices are used when the
+              option is selected on an estimate.
+            </Typography>
 
-              {msi.options.map((option, index) => (
-                <Box key={option.optionId} sx={{ mb: 4 }}>
-                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                    {option.name}
-                    {option.brand && (
-                      <Typography
-                        component="span"
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ ml: 1 }}
-                      >
-                        ({option.brand})
-                      </Typography>
-                    )}
-                  </Typography>
-                  <PricingGrid
-                    offices={offices}
-                    priceTypes={priceTypes}
-                    pricing={optionPricing[option.optionId] ?? {}}
-                    onPriceChange={(officeId, priceTypeId, amount) =>
-                      handleOptionPriceChange(
-                        option.optionId,
-                        officeId,
-                        priceTypeId,
-                        amount,
-                      )
-                    }
-                  />
-                  {index < msi.options.length - 1 && <Divider sx={{ mt: 3 }} />}
-                </Box>
-              ))}
-            </TabPanel>
-          )}
+            {msi.options.map((option, index) => (
+              <Box key={option.optionId} sx={{ mb: 4 }}>
+                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                  {option.name}
+                  {option.brand && (
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ ml: 1 }}
+                    >
+                      ({option.brand})
+                    </Typography>
+                  )}
+                </Typography>
+                <PricingGrid
+                  offices={offices}
+                  priceTypes={priceTypes}
+                  pricing={optionPricing[option.optionId] ?? {}}
+                  onPriceChange={(officeId, priceTypeId, amount) =>
+                    handleOptionPriceChange(
+                      option.optionId,
+                      officeId,
+                      priceTypeId,
+                      amount,
+                    )
+                  }
+                />
+                {index < msi.options.length - 1 && <Divider sx={{ mt: 3 }} />}
+              </Box>
+            ))}
+          </TabPanel>
 
           {/* UpCharge Pricing Tab */}
           {msi.upcharges.length > 0 && (
-            <TabPanel value={activeTab} index={msi.options.length > 0 ? 2 : 1}>
+            <TabPanel value={activeTab} index={1}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                 Configure pricing for each upcharge. Upcharges can have fixed
                 prices or percentage-based pricing.
@@ -417,17 +351,10 @@ export function PricingPage(): React.ReactElement {
         <Button
           variant="contained"
           color="primary"
-          startIcon={
-            batchUpdatePricingMutation.isPending ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              <SaveIcon />
-            )
-          }
-          onClick={() => void handleSave()}
-          disabled={batchUpdatePricingMutation.isPending}
+          onClick={handleSave}
+          disabled={!hasUnsavedChanges}
         >
-          {batchUpdatePricingMutation.isPending ? 'Saving...' : 'Save Pricing'}
+          Save Pricing
         </Button>
       </Box>
     </Box>
