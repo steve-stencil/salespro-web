@@ -6,22 +6,22 @@
 import AddIcon from '@mui/icons-material/Add';
 import CategoryIcon from '@mui/icons-material/Category';
 import ClearIcon from '@mui/icons-material/Clear';
+import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import EditIcon from '@mui/icons-material/Edit';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import SearchIcon from '@mui/icons-material/Search';
 import UploadIcon from '@mui/icons-material/Upload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
-import Collapse from '@mui/material/Collapse';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -31,6 +31,7 @@ import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { flattenCategoryTree } from '@shared/utils';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -40,12 +41,28 @@ import {
   BulkActionsToolbar,
   BulkDeleteDialog,
   BulkEditDialog,
+  CountBadge,
+  EntityCard,
+  EntityCardSkeleton,
   ExportDialog,
   ImportDialog,
+  LinkPicker,
+  LinkedItemsList,
+  UnlinkConfirmation,
 } from '../../components/price-guide';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useOfficesList } from '../../hooks/useOffices';
-import { useMsiList, useCategoryTree } from '../../hooks/usePriceGuide';
+import {
+  useMsiList,
+  useMsiDetail,
+  useCategoryTree,
+  useOptionList,
+  useUpchargeList,
+  useLinkOptions,
+  useLinkUpcharges,
+  useUnlinkOption,
+  useUnlinkUpcharge,
+} from '../../hooks/usePriceGuide';
 
 import type {
   ExportOptions,
@@ -53,26 +70,155 @@ import type {
   BulkDeleteResult,
   BulkEditOptions,
   BulkEditResult,
+  LinkableItem,
+  MenuAction,
 } from '../../components/price-guide';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { MeasureSheetItemSummary } from '@shared/types';
 
 // ============================================================================
-// MSI Card Component
+// MSI Expanded Content Component
 // ============================================================================
 
-type MsiCardProps = {
+type MsiExpandedContentProps = {
+  msiId: string;
+  onView: () => void;
+  onEdit: () => void;
+  onPricing: () => void;
+  onLinkOptions: () => void;
+  onLinkUpcharges: () => void;
+  onUnlinkOption: (optionId: string, optionName: string) => void;
+  onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
+};
+
+function MsiExpandedContent({
+  msiId,
+  onView,
+  onEdit,
+  onPricing,
+  onLinkOptions,
+  onLinkUpcharges,
+  onUnlinkOption,
+  onUnlinkUpcharge,
+}: MsiExpandedContentProps): React.ReactElement {
+  const navigate = useNavigate();
+  const { data, isLoading } = useMsiDetail(msiId);
+
+  const options = data?.item.options ?? [];
+  const upcharges = data?.item.upcharges ?? [];
+  const additionalDetails = data?.item.additionalDetails ?? [];
+
+  return (
+    <Box>
+      {/* Linked Items */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+          gap: 2,
+          mb: 2,
+        }}
+      >
+        <LinkedItemsList
+          title="Options"
+          itemType="option"
+          items={options}
+          isLoading={isLoading}
+          onLinkClick={onLinkOptions}
+          onViewItem={optionId =>
+            void navigate(`/price-guide/library/options/${optionId}`)
+          }
+          onUnlinkItem={optionId => {
+            const option = options.find(o => o.optionId === optionId);
+            if (option) {
+              onUnlinkOption(optionId, option.name);
+            }
+          }}
+        />
+        <LinkedItemsList
+          title="UpCharges"
+          itemType="upcharge"
+          items={upcharges}
+          isLoading={isLoading}
+          onLinkClick={onLinkUpcharges}
+          onViewItem={upchargeId =>
+            void navigate(`/price-guide/library/upcharges/${upchargeId}`)
+          }
+          onUnlinkItem={upchargeId => {
+            const upcharge = upcharges.find(u => u.upchargeId === upchargeId);
+            if (upcharge) {
+              onUnlinkUpcharge(upchargeId, upcharge.name);
+            }
+          }}
+        />
+        <LinkedItemsList
+          title="Additional Details"
+          itemType="additionalDetail"
+          items={additionalDetails}
+          isLoading={isLoading}
+          canLink={false}
+        />
+      </Box>
+
+      {/* Action Buttons */}
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<VisibilityIcon />}
+          onClick={onView}
+        >
+          View Details
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<EditIcon />}
+          onClick={onEdit}
+        >
+          Edit
+        </Button>
+        <Button
+          size="small"
+          variant="text"
+          startIcon={<LocalOfferIcon />}
+          onClick={onPricing}
+        >
+          Pricing
+        </Button>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ ml: 'auto' }}
+        >
+          ID: {msiId}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+// ============================================================================
+// MSI Card Wrapper Component
+// ============================================================================
+
+type MsiCardWrapperProps = {
   msi: MeasureSheetItemSummary;
   isExpanded: boolean;
   isSelected: boolean;
   onToggleExpand: () => void;
   onToggleSelect: () => void;
-  onView: (msiId: string) => void;
-  onEdit: (msiId: string) => void;
-  onPricing: (msiId: string) => void;
+  onView: () => void;
+  onEdit: () => void;
+  onPricing: () => void;
+  onDelete: () => void;
+  onLinkOptions: () => void;
+  onLinkUpcharges: () => void;
+  onUnlinkOption: (optionId: string, optionName: string) => void;
+  onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
 };
 
-function MsiCard({
+function MsiCardWrapper({
   msi,
   isExpanded,
   isSelected,
@@ -81,145 +227,78 @@ function MsiCard({
   onView,
   onEdit,
   onPricing,
-}: MsiCardProps): React.ReactElement {
-  return (
-    <Card
-      sx={{
-        mb: 1,
-        bgcolor: isSelected ? 'action.selected' : undefined,
-        '&:hover': { bgcolor: isSelected ? 'action.selected' : 'action.hover' },
-        transition: 'background-color 0.2s',
-      }}
-    >
-      <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-        {/* Main Row */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-          }}
-        >
-          {/* Checkbox */}
-          <Checkbox
-            checked={isSelected}
-            onChange={onToggleSelect}
-            onClick={e => e.stopPropagation()}
-            size="small"
-          />
+  onDelete,
+  onLinkOptions,
+  onLinkUpcharges,
+  onUnlinkOption,
+  onUnlinkUpcharge,
+}: MsiCardWrapperProps): React.ReactElement {
+  const menuActions: MenuAction[] = [
+    {
+      label: 'View Details',
+      onClick: onView,
+      icon: <VisibilityIcon fontSize="small" />,
+    },
+    {
+      label: 'Edit',
+      onClick: onEdit,
+      icon: <EditIcon fontSize="small" />,
+    },
+    {
+      label: 'Pricing',
+      onClick: onPricing,
+      icon: <LocalOfferIcon fontSize="small" />,
+    },
+    {
+      label: 'Delete',
+      onClick: onDelete,
+      icon: <DeleteIcon fontSize="small" />,
+      dividerBefore: true,
+      color: 'error',
+    },
+  ];
 
-          {/* Expand Icon */}
-          <IconButton size="small" onClick={onToggleExpand}>
-            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </IconButton>
-
-          {/* Name & Category - Clickable */}
-          <Box
-            sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
-            onClick={() => onView(msi.id)}
-          >
-            <Typography variant="subtitle1" noWrap fontWeight={500}>
-              {msi.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {msi.category.fullPath}
-            </Typography>
-          </Box>
-
-          {/* Measurement Type */}
-          <Chip
-            label={msi.measurementType}
-            size="small"
-            variant="outlined"
-            sx={{ minWidth: 80 }}
-          />
-
-          {/* Counts */}
-          <Stack direction="row" spacing={1} sx={{ minWidth: 150 }}>
-            <Chip
-              label={`${msi.optionCount} opt`}
-              size="small"
-              color={msi.optionCount > 0 ? 'primary' : 'default'}
-              variant={msi.optionCount > 0 ? 'filled' : 'outlined'}
-            />
-            <Chip
-              label={`${msi.upchargeCount} uc`}
-              size="small"
-              color={msi.upchargeCount > 0 ? 'secondary' : 'default'}
-              variant={msi.upchargeCount > 0 ? 'filled' : 'outlined'}
-            />
-          </Stack>
-
-          {/* Office Count */}
-          <Chip
-            label={`${msi.officeCount} office${msi.officeCount !== 1 ? 's' : ''}`}
-            size="small"
-            variant="outlined"
-            sx={{ minWidth: 80 }}
-          />
-        </Box>
-
-        {/* Expanded Content */}
-        <Collapse in={isExpanded}>
-          <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => onView(msi.id)}
-              >
-                View Details
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => onEdit(msi.id)}
-              >
-                Edit
-              </Button>
-              <Button
-                size="small"
-                variant="text"
-                onClick={() => onPricing(msi.id)}
-              >
-                Pricing
-              </Button>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ ml: 'auto' }}
-              >
-                ID: {msi.id}
-              </Typography>
-            </Stack>
-          </Box>
-        </Collapse>
-      </CardContent>
-    </Card>
+  const badges = (
+    <>
+      <Tooltip title={msi.measurementType}>
+        <Chip
+          label={msi.measurementType}
+          size="small"
+          variant="outlined"
+          sx={{ minWidth: 70 }}
+        />
+      </Tooltip>
+      <CountBadge count={msi.optionCount} variant="option" />
+      <CountBadge count={msi.upchargeCount} variant="upcharge" />
+      <CountBadge count={msi.officeCount} variant="office" />
+    </>
   );
-}
 
-// ============================================================================
-// Loading Skeleton
-// ============================================================================
-
-function MsiCardSkeleton(): React.ReactElement {
   return (
-    <Card sx={{ mb: 1 }}>
-      <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Skeleton variant="circular" width={32} height={32} />
-          <Box sx={{ flex: 1 }}>
-            <Skeleton variant="text" width="60%" height={24} />
-            <Skeleton variant="text" width="40%" height={20} />
-          </Box>
-          <Skeleton variant="rounded" width={80} height={24} />
-          <Skeleton variant="rounded" width={60} height={24} />
-          <Skeleton variant="rounded" width={60} height={24} />
-          <Skeleton variant="rounded" width={80} height={24} />
-        </Box>
-      </CardContent>
-    </Card>
+    <EntityCard
+      entityType="msi"
+      name={msi.name}
+      subtitle={msi.category.fullPath}
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
+      isSelected={isSelected}
+      onToggleSelect={onToggleSelect}
+      onClick={onView}
+      badges={badges}
+      menuActions={menuActions}
+      expandedContent={
+        <MsiExpandedContent
+          msiId={msi.id}
+          onView={onView}
+          onEdit={onEdit}
+          onPricing={onPricing}
+          onLinkOptions={onLinkOptions}
+          onLinkUpcharges={onLinkUpcharges}
+          onUnlinkOption={onUnlinkOption}
+          onUnlinkUpcharge={onUnlinkUpcharge}
+        />
+      }
+    />
   );
 }
 
@@ -243,8 +322,27 @@ export function CatalogPage(): React.ReactElement {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
 
+  // Link picker state
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+  const [linkPickerType, setLinkPickerType] = useState<'option' | 'upcharge'>(
+    'option',
+  );
+  const [linkPickerMsiId, setLinkPickerMsiId] = useState<string>('');
+  const [linkPickerSearch, setLinkPickerSearch] = useState('');
+
+  // Unlink confirmation state
+  const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
+  const [unlinkItem, setUnlinkItem] = useState<{
+    type: 'option' | 'upcharge';
+    msiId: string;
+    msiName: string;
+    itemId: string;
+    itemName: string;
+  } | null>(null);
+
   // Debounced search
   const debouncedSearch = useDebouncedValue(search, 300);
+  const debouncedLinkPickerSearch = useDebouncedValue(linkPickerSearch, 300);
 
   // Refs for infinite scroll
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -267,6 +365,36 @@ export function CatalogPage(): React.ReactElement {
     limit: 20,
   });
 
+  // Options list for link picker
+  const {
+    data: optionsData,
+    isLoading: isLoadingOptions,
+    hasNextPage: hasMoreOptions,
+    fetchNextPage: fetchMoreOptions,
+    isFetchingNextPage: isFetchingMoreOptions,
+  } = useOptionList({
+    search: debouncedLinkPickerSearch || undefined,
+    limit: 20,
+  });
+
+  // UpCharges list for link picker
+  const {
+    data: upchargesData,
+    isLoading: isLoadingUpcharges,
+    hasNextPage: hasMoreUpcharges,
+    fetchNextPage: fetchMoreUpcharges,
+    isFetchingNextPage: isFetchingMoreUpcharges,
+  } = useUpchargeList({
+    search: debouncedLinkPickerSearch || undefined,
+    limit: 20,
+  });
+
+  // Mutations
+  const linkOptionsMutation = useLinkOptions();
+  const linkUpchargesMutation = useLinkUpcharges();
+  const unlinkOptionMutation = useUnlinkOption();
+  const unlinkUpchargeMutation = useUnlinkUpcharge();
+
   // Flatten categories for dropdown
   const flatCategories = useMemo(() => {
     if (!categoryData?.categories) return [];
@@ -281,6 +409,41 @@ export function CatalogPage(): React.ReactElement {
 
   // Total count
   const totalCount = msiData?.pages[0]?.total ?? 0;
+
+  // Link picker items
+  const linkPickerItems: LinkableItem[] = useMemo(() => {
+    if (linkPickerType === 'option') {
+      if (!optionsData?.pages) return [];
+      return optionsData.pages.flatMap(page =>
+        page.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          subtitle: item.brand,
+          usageCount: item.linkedMsiCount,
+        })),
+      );
+    } else {
+      if (!upchargesData?.pages) return [];
+      return upchargesData.pages.flatMap(page =>
+        page.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          subtitle: item.note,
+          usageCount: item.linkedMsiCount,
+        })),
+      );
+    }
+  }, [linkPickerType, optionsData, upchargesData]);
+
+  // Get current MSI for determining already linked items
+  const { data: currentMsiData } = useMsiDetail(linkPickerMsiId);
+  const alreadyLinkedIds = useMemo(() => {
+    if (!currentMsiData?.item) return [];
+    if (linkPickerType === 'option') {
+      return currentMsiData.item.options.map(o => o.optionId);
+    }
+    return currentMsiData.item.upcharges.map(u => u.upchargeId);
+  }, [currentMsiData, linkPickerType]);
 
   // Toggle expanded
   const toggleExpanded = useCallback((id: string) => {
@@ -362,6 +525,85 @@ export function CatalogPage(): React.ReactElement {
     [navigate],
   );
 
+  const handleDelete = useCallback((msiId: string) => {
+    // TODO: Implement delete dialog
+    console.log('Delete MSI:', msiId);
+  }, []);
+
+  // Link picker handlers
+  const openLinkPicker = useCallback(
+    (type: 'option' | 'upcharge', msiId: string) => {
+      setLinkPickerType(type);
+      setLinkPickerMsiId(msiId);
+      setLinkPickerSearch('');
+      setLinkPickerOpen(true);
+    },
+    [],
+  );
+
+  const handleLink = useCallback(
+    async (itemIds: string[]) => {
+      try {
+        if (linkPickerType === 'option') {
+          await linkOptionsMutation.mutateAsync({
+            msiId: linkPickerMsiId,
+            optionIds: itemIds,
+          });
+        } else {
+          await linkUpchargesMutation.mutateAsync({
+            msiId: linkPickerMsiId,
+            upchargeIds: itemIds,
+          });
+        }
+        setLinkPickerOpen(false);
+      } catch (err) {
+        console.error('Failed to link items:', err);
+      }
+    },
+    [
+      linkPickerType,
+      linkPickerMsiId,
+      linkOptionsMutation,
+      linkUpchargesMutation,
+    ],
+  );
+
+  // Unlink handlers
+  const openUnlinkDialog = useCallback(
+    (
+      type: 'option' | 'upcharge',
+      msiId: string,
+      msiName: string,
+      itemId: string,
+      itemName: string,
+    ) => {
+      setUnlinkItem({ type, msiId, msiName, itemId, itemName });
+      setUnlinkDialogOpen(true);
+    },
+    [],
+  );
+
+  const handleUnlink = useCallback(async () => {
+    if (!unlinkItem) return;
+    try {
+      if (unlinkItem.type === 'option') {
+        await unlinkOptionMutation.mutateAsync({
+          msiId: unlinkItem.msiId,
+          optionId: unlinkItem.itemId,
+        });
+      } else {
+        await unlinkUpchargeMutation.mutateAsync({
+          msiId: unlinkItem.msiId,
+          upchargeId: unlinkItem.itemId,
+        });
+      }
+      setUnlinkDialogOpen(false);
+      setUnlinkItem(null);
+    } catch (err) {
+      console.error('Failed to unlink item:', err);
+    }
+  }, [unlinkItem, unlinkOptionMutation, unlinkUpchargeMutation]);
+
   // Selection handlers
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -389,7 +631,6 @@ export function CatalogPage(): React.ReactElement {
       // TODO: Implement actual export logic
       console.log('Export options:', options);
       console.log('Selected IDs:', Array.from(selectedIds));
-      // Simulate export delay
       await new Promise(resolve => setTimeout(resolve, 1000));
     },
     [selectedIds],
@@ -399,7 +640,6 @@ export function CatalogPage(): React.ReactElement {
     async (file: File): Promise<ImportResult> => {
       // TODO: Implement actual import logic
       console.log('Importing file:', file.name);
-      // Simulate import delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       return {
         success: true,
@@ -416,7 +656,6 @@ export function CatalogPage(): React.ReactElement {
     async (ids: string[]): Promise<BulkDeleteResult> => {
       // TODO: Implement actual bulk delete logic
       console.log('Deleting IDs:', ids);
-      // Simulate delete delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       deselectAll();
       return {
@@ -433,7 +672,6 @@ export function CatalogPage(): React.ReactElement {
       // TODO: Implement actual bulk edit logic
       console.log('Bulk edit options:', options);
       console.log('Selected IDs:', Array.from(selectedIds));
-      // Simulate edit delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       deselectAll();
       return {
@@ -602,7 +840,7 @@ export function CatalogPage(): React.ReactElement {
       {isLoading && (
         <Box>
           {[...Array(5)].map((_, i) => (
-            <MsiCardSkeleton key={i} />
+            <EntityCardSkeleton key={i} badgeCount={4} />
           ))}
         </Box>
       )}
@@ -640,16 +878,37 @@ export function CatalogPage(): React.ReactElement {
       {!isLoading && allMsis.length > 0 && (
         <Box>
           {allMsis.map(msi => (
-            <MsiCard
+            <MsiCardWrapper
               key={msi.id}
               msi={msi}
               isExpanded={expandedIds.has(msi.id)}
               isSelected={selectedIds.has(msi.id)}
               onToggleExpand={() => toggleExpanded(msi.id)}
               onToggleSelect={() => toggleSelect(msi.id)}
-              onView={handleView}
-              onEdit={handleEdit}
-              onPricing={handlePricing}
+              onView={() => handleView(msi.id)}
+              onEdit={() => handleEdit(msi.id)}
+              onPricing={() => handlePricing(msi.id)}
+              onDelete={() => handleDelete(msi.id)}
+              onLinkOptions={() => openLinkPicker('option', msi.id)}
+              onLinkUpcharges={() => openLinkPicker('upcharge', msi.id)}
+              onUnlinkOption={(optionId, optionName) =>
+                openUnlinkDialog(
+                  'option',
+                  msi.id,
+                  msi.name,
+                  optionId,
+                  optionName,
+                )
+              }
+              onUnlinkUpcharge={(upchargeId, upchargeName) =>
+                openUnlinkDialog(
+                  'upcharge',
+                  msi.id,
+                  msi.name,
+                  upchargeId,
+                  upchargeName,
+                )
+              }
             />
           ))}
 
@@ -685,6 +944,52 @@ export function CatalogPage(): React.ReactElement {
         onBulkEdit={() => setBulkEditDialogOpen(true)}
         onExport={() => setExportDialogOpen(true)}
         onBulkDelete={() => setBulkDeleteDialogOpen(true)}
+      />
+
+      {/* Link Picker Dialog */}
+      <LinkPicker
+        open={linkPickerOpen}
+        itemType={linkPickerType}
+        items={linkPickerItems}
+        alreadyLinkedIds={alreadyLinkedIds}
+        isLoading={
+          linkPickerType === 'option' ? isLoadingOptions : isLoadingUpcharges
+        }
+        hasMore={
+          linkPickerType === 'option' ? hasMoreOptions : hasMoreUpcharges
+        }
+        onLoadMore={() => {
+          void (linkPickerType === 'option'
+            ? fetchMoreOptions()
+            : fetchMoreUpcharges());
+        }}
+        isLoadingMore={
+          linkPickerType === 'option'
+            ? isFetchingMoreOptions
+            : isFetchingMoreUpcharges
+        }
+        onSearch={setLinkPickerSearch}
+        onClose={() => setLinkPickerOpen(false)}
+        onLink={itemIds => void handleLink(itemIds)}
+        isLinking={
+          linkOptionsMutation.isPending || linkUpchargesMutation.isPending
+        }
+      />
+
+      {/* Unlink Confirmation Dialog */}
+      <UnlinkConfirmation
+        open={unlinkDialogOpen}
+        itemName={unlinkItem?.itemName ?? ''}
+        itemType={unlinkItem?.type ?? 'option'}
+        msiName={unlinkItem?.msiName ?? ''}
+        onCancel={() => {
+          setUnlinkDialogOpen(false);
+          setUnlinkItem(null);
+        }}
+        onConfirm={() => void handleUnlink()}
+        isLoading={
+          unlinkOptionMutation.isPending || unlinkUpchargeMutation.isPending
+        }
       />
 
       {/* Export Dialog */}

@@ -18,8 +18,42 @@ export { DuplicateMsiDialog } from './DuplicateMsiDialog';
 export { JobProgressModal } from './JobProgressModal';
 export { WhereUsedModal } from './WhereUsedModal';
 
+// EntityCard
+export { EntityCard, EntityCardSkeleton } from './EntityCard';
+export type {
+  EntityCardProps,
+  EntityType,
+  MenuAction,
+  EntityCardSkeletonProps,
+} from './EntityCard';
+
 // Error Handling
 export { PriceGuideErrorBoundary } from './PriceGuideErrorBoundary';
+
+// ImpactWarning
+export {
+  EditImpactWarning,
+  DeleteConfirmation,
+  UnlinkConfirmation,
+} from './ImpactWarning';
+export type {
+  EditImpactWarningProps,
+  AffectedItem,
+  DeleteConfirmationProps,
+  UnlinkConfirmationProps,
+} from './ImpactWarning';
+
+// LinkPicker
+export { LinkPicker } from './LinkPicker';
+export type {
+  LinkPickerProps,
+  LinkableItem,
+  LinkableItemType,
+} from './LinkPicker';
+
+// LinkedItemsList
+export { LinkedItemsList } from './LinkedItemsList';
+export type { LinkedItemsListProps } from './LinkedItemsList';
 
 // Loading States
 export {
@@ -35,6 +69,22 @@ export {
 
 // Pricing
 export { PricingGrid } from './PricingGrid';
+
+// RelationshipBadges
+export {
+  UsageCountBadge,
+  PricingStatusBadge,
+  CompatibilityBadge,
+  CountBadge,
+} from './RelationshipBadges';
+export type {
+  UsageCountBadgeProps,
+  PricingStatusBadgeProps,
+  PricingStatus,
+  CompatibilityBadgeProps,
+  CountBadgeProps,
+  CountBadgeVariant,
+} from './RelationshipBadges';
 
 // Toast Notifications
 export { PriceGuideToastProvider, usePriceGuideToast } from './PriceGuideToast';
