@@ -42,6 +42,7 @@ import {
   useUnlinkUpcharge,
   useLinkAdditionalDetails,
   useUnlinkAdditionalDetail,
+  useBatchUpdateMsiPricing,
 } from '../../hooks/usePriceGuide';
 
 import type { WizardContextType } from '../../components/price-guide/wizard/WizardContext';
@@ -84,6 +85,7 @@ export function EditWizard(): React.ReactElement {
   const unlinkUpchargeMutation = useUnlinkUpcharge();
   const linkAdditionalDetailsMutation = useLinkAdditionalDetails();
   const unlinkAdditionalDetailMutation = useUnlinkAdditionalDetail();
+  const batchUpdatePricingMutation = useBatchUpdateMsiPricing();
 
   // Load MSI data into state
   useEffect(() => {
@@ -322,6 +324,19 @@ export function EditWizard(): React.ReactElement {
         });
       }
 
+      // Step 6: Save pricing if any pricing data was entered
+      const hasPricingData = Object.keys(state.msiPricing).some(officeId =>
+        Object.values(state.msiPricing[officeId] ?? {}).some(
+          amount => amount > 0,
+        ),
+      );
+      if (hasPricingData) {
+        await batchUpdatePricingMutation.mutateAsync({
+          msiId,
+          pricing: state.msiPricing,
+        });
+      }
+
       void navigate(`/price-guide/${msiId}`);
     } catch (error) {
       console.error('Failed to update MSI:', error);
@@ -338,6 +353,7 @@ export function EditWizard(): React.ReactElement {
     unlinkUpchargeMutation,
     linkAdditionalDetailsMutation,
     unlinkAdditionalDetailMutation,
+    batchUpdatePricingMutation,
     navigate,
   ]);
 
@@ -498,7 +514,8 @@ export function EditWizard(): React.ReactElement {
                   linkUpchargesMutation.isPending ||
                   unlinkUpchargeMutation.isPending ||
                   linkAdditionalDetailsMutation.isPending ||
-                  unlinkAdditionalDetailMutation.isPending;
+                  unlinkAdditionalDetailMutation.isPending ||
+                  batchUpdatePricingMutation.isPending;
                 return (
                   <Button
                     variant="contained"

@@ -15,6 +15,7 @@ import type { User } from '../User.entity';
 import type { MeasureSheetItemAdditionalDetailField } from './MeasureSheetItemAdditionalDetailField.entity';
 import type { MeasureSheetItemOffice } from './MeasureSheetItemOffice.entity';
 import type { MeasureSheetItemOption } from './MeasureSheetItemOption.entity';
+import type { MeasureSheetItemPrice } from './MeasureSheetItemPrice.entity';
 import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
 import type { PriceGuideCategory } from './PriceGuideCategory.entity';
 
@@ -143,4 +144,8 @@ export class MeasureSheetItem {
   @OneToMany('MeasureSheetItemAdditionalDetailField', 'measureSheetItem')
   additionalDetailFields =
     new Collection<MeasureSheetItemAdditionalDetailField>(this);
+
+  /** Base prices per office × priceType */
+  @OneToMany('MeasureSheetItemPrice', 'measureSheetItem')
+  prices = new Collection<MeasureSheetItemPrice>(this);
 }

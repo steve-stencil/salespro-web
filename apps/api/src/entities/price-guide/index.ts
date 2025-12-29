@@ -18,6 +18,7 @@
  * - UpChargeDisabledOption: Tracks disabled options per upcharge
  *
  * Week 2 Pricing Entities:
+ * - MeasureSheetItemPrice: Base price breakdowns per MSI × office × priceType
  * - OptionPrice: Price breakdowns per option × office × priceType
  * - UpChargePrice: Default + option-specific override pricing
  * - UpChargePricePercentageBase: Percentage base configuration
@@ -44,6 +45,7 @@ export { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.e
 export { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
 
 // Pricing entities
+export { MeasureSheetItemPrice } from './MeasureSheetItemPrice.entity';
 export { OptionPrice } from './OptionPrice.entity';
 export { UpChargePrice } from './UpChargePrice.entity';
 export { UpChargePricePercentageBase } from './UpChargePricePercentageBase.entity';

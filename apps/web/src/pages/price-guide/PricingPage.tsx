@@ -5,6 +5,8 @@
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import SaveIcon from '@mui/icons-material/Save';
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Button from '@mui/material/Button';
@@ -16,11 +18,16 @@ import Link from '@mui/material/Link';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 
 import { PricingGrid } from '../../components/price-guide/PricingGrid';
-import { useMsiDetail, usePriceTypes } from '../../hooks/usePriceGuide';
+import {
+  useMsiDetail,
+  usePriceTypes,
+  useMsiPricing,
+  useBatchUpdateMsiPricing,
+} from '../../hooks/usePriceGuide';
 
 import type { PricingData } from '../../components/price-guide/PricingGrid';
 
@@ -60,6 +67,7 @@ export function PricingPage(): React.ReactElement {
   const { msiId } = useParams<{ msiId: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Queries
   const {
@@ -69,12 +77,31 @@ export function PricingPage(): React.ReactElement {
   } = useMsiDetail(msiId ?? '');
   const { data: priceTypesData, isLoading: isLoadingPriceTypes } =
     usePriceTypes();
+  const {
+    data: pricingData,
+    isLoading: isLoadingPricing,
+    error: pricingError,
+  } = useMsiPricing(msiId ?? '');
 
-  // Local pricing state (for demo - actual implementation would use API)
+  // Mutations
+  const batchUpdatePricingMutation = useBatchUpdateMsiPricing();
+
+  // Local pricing state
   const [basePricing, setBasePricing] = useState<PricingData>({});
   const [optionPricing, setOptionPricing] = useState<
     Record<string, PricingData>
   >({});
+
+  // Initialize base pricing from API data
+  useEffect(() => {
+    if (pricingData?.pricing) {
+      const initialPricing: PricingData = {};
+      for (const item of pricingData.pricing) {
+        initialPricing[item.office.id] = item.prices;
+      }
+      setBasePricing(initialPricing);
+    }
+  }, [pricingData]);
 
   // Get offices from MSI detail
   const offices = useMemo(() => {
@@ -105,6 +132,7 @@ export function PricingPage(): React.ReactElement {
           [priceTypeId]: amount,
         },
       }));
+      setHasUnsavedChanges(true);
     },
     [],
   );
@@ -126,6 +154,7 @@ export function PricingPage(): React.ReactElement {
           },
         },
       }));
+      setHasUnsavedChanges(true);
     },
     [],
   );
@@ -134,8 +163,22 @@ export function PricingPage(): React.ReactElement {
     void navigate('/price-guide');
   }, [navigate]);
 
+  const handleSave = useCallback(async () => {
+    if (!msiId) return;
+
+    try {
+      await batchUpdatePricingMutation.mutateAsync({
+        msiId,
+        pricing: basePricing,
+      });
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Failed to save pricing:', error);
+    }
+  }, [msiId, basePricing, batchUpdatePricingMutation]);
+
   // Loading state
-  const isLoading = isLoadingMsi || isLoadingPriceTypes;
+  const isLoading = isLoadingMsi || isLoadingPriceTypes || isLoadingPricing;
 
   if (isLoading) {
     return (
@@ -220,6 +263,34 @@ export function PricingPage(): React.ReactElement {
           </Box>
         </CardContent>
       </Card>
+
+      {/* Unsaved Changes Warning */}
+      {hasUnsavedChanges && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          You have unsaved changes. Don&apos;t forget to save before leaving.
+        </Alert>
+      )}
+
+      {/* Save Error */}
+      {batchUpdatePricingMutation.isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Failed to save pricing. Please try again.
+        </Alert>
+      )}
+
+      {/* Pricing Load Error */}
+      {pricingError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Could not load existing prices. You can still enter new prices.
+        </Alert>
+      )}
+
+      {/* Save Success */}
+      {batchUpdatePricingMutation.isSuccess && !hasUnsavedChanges && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Pricing saved successfully!
+        </Alert>
+      )}
 
       {/* Tabs */}
       <Card>
@@ -343,8 +414,20 @@ export function PricingPage(): React.ReactElement {
         >
           Back to Price Guide
         </Button>
-        <Button variant="contained" color="primary">
-          Save Pricing
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={
+            batchUpdatePricingMutation.isPending ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              <SaveIcon />
+            )
+          }
+          onClick={() => void handleSave()}
+          disabled={batchUpdatePricingMutation.isPending}
+        >
+          {batchUpdatePricingMutation.isPending ? 'Saving...' : 'Save Pricing'}
         </Button>
       </Box>
     </Box>
