@@ -83,6 +83,17 @@ const linkUpchargesSchema = z.object({
   upchargeIds: z.array(z.string().uuid()).min(1),
 });
 
+const linkAdditionalDetailsSchema = z.object({
+  fieldIds: z.array(z.string().uuid()).min(1),
+});
+
+const syncOfficesSchema = z.object({
+  officeIds: z
+    .array(z.string().uuid())
+    .min(1, 'At least one office is required'),
+  version: z.number().int().min(1),
+});
+
 const reorderSchema = z.object({
   orderedIds: z.array(z.string().uuid()).min(1),
 });
@@ -1126,6 +1137,287 @@ router.delete(
       res.status(200).json({ message: 'Upcharge unlinked successfully' });
     } catch (err) {
       req.log.error({ err }, 'Unlink upcharge error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PUT /price-guide/measure-sheet-items/:id/offices
+ * Sync offices for an MSI (replace all office links)
+ */
+router.put(
+  '/:id/offices',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'MSI ID is required' });
+        return;
+      }
+
+      const parseResult = syncOfficesSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues.map(i => ({
+            field: i.path.join('.'),
+            message: i.message,
+          })),
+        });
+        return;
+      }
+
+      const { officeIds, version } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const msi = await em.findOne(
+        MeasureSheetItem,
+        { id, company: company.id },
+        { populate: ['lastModifiedBy'] },
+      );
+
+      if (!msi) {
+        res.status(404).json({ error: 'Measure sheet item not found' });
+        return;
+      }
+
+      // Check optimistic locking
+      if (msi.version !== version) {
+        res.status(409).json({
+          error: 'CONCURRENT_MODIFICATION',
+          message: 'This item was modified by another user.',
+          currentVersion: msi.version,
+        });
+        return;
+      }
+
+      // Validate all offices exist and belong to company
+      const offices = await em.find(Office, {
+        id: { $in: officeIds },
+        company: company.id,
+      });
+      if (offices.length !== officeIds.length) {
+        res.status(400).json({ error: 'One or more offices not found' });
+        return;
+      }
+
+      // Get existing office links
+      const existingLinks = await em.find(MeasureSheetItemOffice, {
+        measureSheetItem: msi.id,
+      });
+      const existingOfficeIds = new Set(existingLinks.map(l => l.office.id));
+      const newOfficeIds = new Set(officeIds);
+
+      // Remove offices that are no longer in the list
+      for (const link of existingLinks) {
+        if (!newOfficeIds.has(link.office.id)) {
+          em.remove(link);
+        }
+      }
+
+      // Add new offices
+      for (const officeId of officeIds) {
+        if (!existingOfficeIds.has(officeId)) {
+          const link = new MeasureSheetItemOffice();
+          link.measureSheetItem = msi;
+          link.office = em.getReference(Office, officeId);
+          em.persist(link);
+        }
+      }
+
+      msi.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        { msiId: msi.id, officeIds, userId: user.id },
+        'MSI offices synced',
+      );
+
+      res.status(200).json({
+        message: 'Offices updated successfully',
+        item: { id: msi.id, name: msi.name, version: msi.version },
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Sync MSI offices error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * POST /price-guide/measure-sheet-items/:id/additional-details
+ * Link additional detail fields to an MSI
+ */
+router.post(
+  '/:id/additional-details',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'MSI ID is required' });
+        return;
+      }
+
+      const parseResult = linkAdditionalDetailsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues,
+        });
+        return;
+      }
+
+      const { fieldIds } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const msi = await em.findOne(MeasureSheetItem, {
+        id,
+        company: company.id,
+      });
+      if (!msi) {
+        res.status(404).json({ error: 'Measure sheet item not found' });
+        return;
+      }
+
+      // Get existing links
+      const existingLinks = await em.find(
+        MeasureSheetItemAdditionalDetailField,
+        {
+          measureSheetItem: msi.id,
+        },
+      );
+      const existingFieldIds = new Set(
+        existingLinks.map(l => l.additionalDetailField.id),
+      );
+
+      // Get max sort order
+      const maxSortOrder = Math.max(0, ...existingLinks.map(l => l.sortOrder));
+
+      // Validate and create new links
+      const fields = await em.find(AdditionalDetailField, {
+        id: { $in: fieldIds },
+        company: company.id,
+      });
+
+      let linked = 0;
+      let sortOrder = maxSortOrder + 1;
+
+      for (const fieldId of fieldIds) {
+        if (existingFieldIds.has(fieldId)) continue;
+
+        const field = fields.find(f => f.id === fieldId);
+        if (!field) continue;
+
+        const link = new MeasureSheetItemAdditionalDetailField();
+        link.measureSheetItem = msi;
+        link.additionalDetailField = em.getReference(
+          AdditionalDetailField,
+          fieldId,
+        );
+        link.sortOrder = sortOrder++;
+        em.persist(link);
+        linked++;
+      }
+
+      msi.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        { msiId: msi.id, linkedFields: linked, userId: user.id },
+        'Additional details linked to MSI',
+      );
+
+      res.status(200).json({
+        success: true,
+        linked,
+        warnings: [],
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Link additional details error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * DELETE /price-guide/measure-sheet-items/:id/additional-details/:fieldId
+ * Unlink an additional detail field from an MSI
+ */
+router.delete(
+  '/:id/additional-details/:fieldId',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id, fieldId } = req.params;
+      if (!id || !fieldId) {
+        res.status(400).json({ error: 'MSI ID and field ID are required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const msi = await em.findOne(MeasureSheetItem, {
+        id,
+        company: company.id,
+      });
+      if (!msi) {
+        res.status(404).json({ error: 'Measure sheet item not found' });
+        return;
+      }
+
+      const link = await em.findOne(MeasureSheetItemAdditionalDetailField, {
+        measureSheetItem: msi.id,
+        additionalDetailField: fieldId,
+      });
+      if (!link) {
+        res.status(404).json({ error: 'Additional detail link not found' });
+        return;
+      }
+
+      em.remove(link);
+      msi.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        { msiId: msi.id, fieldId, userId: user.id },
+        'Additional detail unlinked from MSI',
+      );
+
+      res
+        .status(200)
+        .json({ message: 'Additional detail unlinked successfully' });
+    } catch (err) {
+      req.log.error({ err }, 'Unlink additional detail error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

@@ -179,6 +179,48 @@ export const priceGuideApi = {
     );
   },
 
+  /**
+   * Sync offices for an MSI (replaces all office links).
+   */
+  syncOffices: async (
+    msiId: string,
+    officeIds: string[],
+    version: number,
+  ): Promise<{
+    message: string;
+    item: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/measure-sheet-items/${msiId}/offices`, {
+      officeIds,
+      version,
+    });
+  },
+
+  /**
+   * Link additional detail fields to an MSI.
+   */
+  linkAdditionalDetails: async (
+    msiId: string,
+    fieldIds: string[],
+  ): Promise<{ success: boolean; linked: number; warnings: string[] }> => {
+    return apiClient.post(
+      `/price-guide/measure-sheet-items/${msiId}/additional-details`,
+      { fieldIds },
+    );
+  },
+
+  /**
+   * Unlink an additional detail field from an MSI.
+   */
+  unlinkAdditionalDetail: async (
+    msiId: string,
+    fieldId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/measure-sheet-items/${msiId}/additional-details/${fieldId}`,
+    );
+  },
+
   // ==========================================================================
   // Library - Options
   // ==========================================================================

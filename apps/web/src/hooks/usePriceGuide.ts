@@ -306,6 +306,67 @@ export function useUnlinkUpcharge() {
   });
 }
 
+/**
+ * Hook to sync offices for an MSI.
+ */
+export function useSyncOffices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      msiId,
+      officeIds,
+      version,
+    }: {
+      msiId: string;
+      officeIds: string[];
+      version: number;
+    }) => priceGuideApi.syncOffices(msiId, officeIds, version),
+    onSuccess: (_, { msiId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiDetail(msiId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to link additional detail fields to an MSI.
+ */
+export function useLinkAdditionalDetails() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ msiId, fieldIds }: { msiId: string; fieldIds: string[] }) =>
+      priceGuideApi.linkAdditionalDetails(msiId, fieldIds),
+    onSuccess: (_, { msiId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiDetail(msiId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to unlink an additional detail field from an MSI.
+ */
+export function useUnlinkAdditionalDetail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ msiId, fieldId }: { msiId: string; fieldId: string }) =>
+      priceGuideApi.unlinkAdditionalDetail(msiId, fieldId),
+    onSuccess: (_, { msiId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiDetail(msiId),
+      });
+    },
+  });
+}
+
 // ============================================================================
 // Library Hooks
 // ============================================================================

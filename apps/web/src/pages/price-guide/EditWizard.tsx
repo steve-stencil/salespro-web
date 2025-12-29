@@ -32,7 +32,17 @@ import {
   wizardReducer,
   initialWizardState,
 } from '../../components/price-guide/wizard/WizardContext';
-import { useMsiDetail, useUpdateMsi } from '../../hooks/usePriceGuide';
+import {
+  useMsiDetail,
+  useUpdateMsi,
+  useSyncOffices,
+  useLinkOptions,
+  useUnlinkOption,
+  useLinkUpcharges,
+  useUnlinkUpcharge,
+  useLinkAdditionalDetails,
+  useUnlinkAdditionalDetail,
+} from '../../hooks/usePriceGuide';
 
 import type { WizardContextType } from '../../components/price-guide/wizard/WizardContext';
 import type { UpdateMsiRequest } from '@shared/types';
@@ -60,13 +70,20 @@ export function EditWizard(): React.ReactElement {
   const [activeStep, setActiveStep] = useState(0);
   const [state, dispatch] = useReducer(wizardReducer, initialWizardState);
 
-  // Queries
+  // Queries and mutations
   const {
     data: msiData,
     isLoading: isLoadingMsi,
     error: loadError,
   } = useMsiDetail(msiId ?? '');
   const updateMutation = useUpdateMsi();
+  const syncOfficesMutation = useSyncOffices();
+  const linkOptionsMutation = useLinkOptions();
+  const unlinkOptionMutation = useUnlinkOption();
+  const linkUpchargesMutation = useLinkUpcharges();
+  const unlinkUpchargeMutation = useUnlinkUpcharge();
+  const linkAdditionalDetailsMutation = useLinkAdditionalDetails();
+  const unlinkAdditionalDetailMutation = useUnlinkAdditionalDetail();
 
   // Load MSI data into state
   useEffect(() => {
@@ -187,36 +204,142 @@ export function EditWizard(): React.ReactElement {
   }, [activeStep]);
 
   const handleSave = useCallback(async () => {
-    if (!msiId) return;
+    if (!msiId || !msiData) return;
 
-    // Ensure version is available (required for optimistic locking)
-    const version = state.version ?? msiData?.item.version;
-    if (version === undefined) {
-      console.error('Cannot save: version number is missing');
-      return;
-    }
-
-    const request: UpdateMsiRequest = {
-      name: state.name,
-      categoryId: state.categoryId,
-      measurementType: state.measurementType,
-      note: state.note || null,
-      defaultQty: Number(state.defaultQty),
-      showSwitch: state.showSwitch,
-      tagTitle: state.tagTitle || null,
-      tagRequired: state.tagRequired,
-      tagPickerOptions:
-        state.tagPickerOptions.length > 0 ? state.tagPickerOptions : null,
-      version,
-    };
+    // Version for optimistic locking (state.version if available, otherwise from loaded data)
+    let version = state.version ?? msiData.item.version;
 
     try {
-      await updateMutation.mutateAsync({ msiId, data: request });
+      // Step 1: Update basic MSI fields
+      const request: UpdateMsiRequest = {
+        name: state.name,
+        categoryId: state.categoryId,
+        measurementType: state.measurementType,
+        note: state.note || null,
+        defaultQty: Number(state.defaultQty),
+        showSwitch: state.showSwitch,
+        tagTitle: state.tagTitle || null,
+        tagRequired: state.tagRequired,
+        tagPickerOptions:
+          state.tagPickerOptions.length > 0 ? state.tagPickerOptions : null,
+        version,
+      };
+
+      const updateResult = await updateMutation.mutateAsync({
+        msiId,
+        data: request,
+      });
+      version = updateResult.item.version;
+
+      // Step 2: Sync offices if changed
+      const originalOfficeIds = new Set(msiData.item.offices.map(o => o.id));
+      const newOfficeIds = new Set(state.officeIds);
+      const officesChanged =
+        originalOfficeIds.size !== newOfficeIds.size ||
+        [...originalOfficeIds].some(id => !newOfficeIds.has(id));
+
+      if (officesChanged) {
+        const syncResult = await syncOfficesMutation.mutateAsync({
+          msiId,
+          officeIds: state.officeIds,
+          version,
+        });
+        version = syncResult.item.version;
+      }
+
+      // Step 3: Sync options (unlink removed, link new)
+      const originalOptionIds = new Set(
+        msiData.item.options.map(o => o.optionId),
+      );
+      const newOptionIds = new Set(state.options.map(o => o.id));
+
+      // Unlink removed options
+      const optionsToUnlink = [...originalOptionIds].filter(
+        id => !newOptionIds.has(id),
+      );
+      for (const optionId of optionsToUnlink) {
+        await unlinkOptionMutation.mutateAsync({ msiId, optionId });
+      }
+
+      // Link new options
+      const optionsToLink = [...newOptionIds].filter(
+        id => !originalOptionIds.has(id),
+      );
+      if (optionsToLink.length > 0) {
+        await linkOptionsMutation.mutateAsync({
+          msiId,
+          optionIds: optionsToLink,
+        });
+      }
+
+      // Step 4: Sync upcharges (unlink removed, link new)
+      const originalUpchargeIds = new Set(
+        msiData.item.upcharges.map(u => u.upchargeId),
+      );
+      const newUpchargeIds = new Set(state.upcharges.map(u => u.id));
+
+      // Unlink removed upcharges
+      const upchargesToUnlink = [...originalUpchargeIds].filter(
+        id => !newUpchargeIds.has(id),
+      );
+      for (const upchargeId of upchargesToUnlink) {
+        await unlinkUpchargeMutation.mutateAsync({ msiId, upchargeId });
+      }
+
+      // Link new upcharges
+      const upchargesToLink = [...newUpchargeIds].filter(
+        id => !originalUpchargeIds.has(id),
+      );
+      if (upchargesToLink.length > 0) {
+        await linkUpchargesMutation.mutateAsync({
+          msiId,
+          upchargeIds: upchargesToLink,
+        });
+      }
+
+      // Step 5: Sync additional details (unlink removed, link new)
+      const originalDetailIds = new Set(
+        msiData.item.additionalDetails.map(d => d.fieldId),
+      );
+      const newDetailIds = new Set(state.additionalDetails.map(d => d.id));
+
+      // Unlink removed additional details
+      const detailsToUnlink = [...originalDetailIds].filter(
+        id => !newDetailIds.has(id),
+      );
+      for (const fieldId of detailsToUnlink) {
+        await unlinkAdditionalDetailMutation.mutateAsync({ msiId, fieldId });
+      }
+
+      // Link new additional details
+      const detailsToLink = [...newDetailIds].filter(
+        id => !originalDetailIds.has(id),
+      );
+      if (detailsToLink.length > 0) {
+        await linkAdditionalDetailsMutation.mutateAsync({
+          msiId,
+          fieldIds: detailsToLink,
+        });
+      }
+
       void navigate(`/price-guide/${msiId}`);
     } catch (error) {
       console.error('Failed to update MSI:', error);
     }
-  }, [msiId, state, msiData, updateMutation, navigate]);
+  }, [
+    msiId,
+    state,
+    msiData,
+    updateMutation,
+    syncOfficesMutation,
+    linkOptionsMutation,
+    unlinkOptionMutation,
+    linkUpchargesMutation,
+    unlinkUpchargeMutation,
+    linkAdditionalDetailsMutation,
+    unlinkAdditionalDetailMutation,
+    navigate,
+  ]);
 
   const handleCancel = useCallback(() => {
     void navigate(`/price-guide/${msiId}`);
@@ -324,10 +447,11 @@ export function EditWizard(): React.ReactElement {
         </Card>
 
         {/* Save error */}
-        {updateMutation.isError && (
+        {(updateMutation.isError || syncOfficesMutation.isError) && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {(() => {
-              const error = updateMutation.error as
+              const error = (updateMutation.error ??
+                syncOfficesMutation.error) as
                 | { response?: { data?: { error?: string } } }
                 | undefined;
               const errorCode = error?.response?.data?.error;
@@ -365,21 +489,34 @@ export function EditWizard(): React.ReactElement {
                 Next
               </Button>
             ) : (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={
-                  updateMutation.isPending ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : (
-                    <SaveIcon />
-                  )
-                }
-                onClick={() => void handleSave()}
-                disabled={!canProceed || updateMutation.isPending}
-              >
-                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </Button>
+              (() => {
+                const isSaving =
+                  updateMutation.isPending ||
+                  syncOfficesMutation.isPending ||
+                  linkOptionsMutation.isPending ||
+                  unlinkOptionMutation.isPending ||
+                  linkUpchargesMutation.isPending ||
+                  unlinkUpchargeMutation.isPending ||
+                  linkAdditionalDetailsMutation.isPending ||
+                  unlinkAdditionalDetailMutation.isPending;
+                return (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={
+                      isSaving ? (
+                        <CircularProgress size={20} color="inherit" />
+                      ) : (
+                        <SaveIcon />
+                      )
+                    }
+                    onClick={() => void handleSave()}
+                    disabled={!canProceed || isSaving}
+                  >
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                );
+              })()
             )}
           </Box>
         </Box>
