@@ -16,6 +16,10 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Skeleton from '@mui/material/Skeleton';
@@ -38,6 +42,7 @@ import {
   useOptionList,
   useUpchargeList,
   useAdditionalDetailList,
+  useCreateOption,
 } from '../../hooks/usePriceGuide';
 
 import type {
@@ -63,6 +68,77 @@ function TabPanel({
 }: TabPanelProps): React.ReactElement | null {
   if (value !== index) return null;
   return <Box sx={{ pt: 2 }}>{children}</Box>;
+}
+
+// ============================================================================
+// Quick Add Option Dialog
+// ============================================================================
+
+type QuickAddOptionDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (name: string, brand?: string) => Promise<void>;
+  isLoading: boolean;
+};
+
+function QuickAddOptionDialog({
+  open,
+  onClose,
+  onAdd,
+  isLoading,
+}: QuickAddOptionDialogProps): React.ReactElement {
+  const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    await onAdd(name.trim(), brand.trim() || undefined);
+    setName('');
+    setBrand('');
+  };
+
+  const handleClose = () => {
+    setName('');
+    setBrand('');
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Create New Option</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label="Option Name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            fullWidth
+            required
+            autoFocus
+          />
+          <TextField
+            label="Brand (optional)"
+            value={brand}
+            onChange={e => setBrand(e.target.value)}
+            fullWidth
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => void handleSubmit()}
+          disabled={!name.trim() || isLoading}
+          startIcon={isLoading ? <CircularProgress size={16} /> : <AddIcon />}
+        >
+          Add Option
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }
 
 // ============================================================================
@@ -676,6 +752,10 @@ function AdditionalDetailsTab({
 export function LibraryPage(): React.ReactElement {
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch] = useState('');
+  const [showAddOptionDialog, setShowAddOptionDialog] = useState(false);
+
+  // Mutation for creating options
+  const createOptionMutation = useCreateOption();
 
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, newValue: number) => {
@@ -705,6 +785,31 @@ export function LibraryPage(): React.ReactElement {
     // TODO: Show confirmation dialog and delete
     console.log('Delete:', id);
   }, []);
+
+  const handleAddClick = useCallback(() => {
+    switch (activeTab) {
+      case 0:
+        // Options - open create dialog
+        setShowAddOptionDialog(true);
+        break;
+      case 1:
+        // UpCharges - not yet implemented
+        alert('Create UpCharge is not yet implemented');
+        break;
+      case 2:
+        // Additional Details - not yet implemented
+        alert('Create Additional Detail is not yet implemented');
+        break;
+    }
+  }, [activeTab]);
+
+  const handleCreateOption = useCallback(
+    async (name: string, brand?: string) => {
+      await createOptionMutation.mutateAsync({ name, brand });
+      setShowAddOptionDialog(false);
+    },
+    [createOptionMutation],
+  );
 
   const getAddButtonLabel = () => {
     switch (activeTab) {
@@ -741,7 +846,11 @@ export function LibraryPage(): React.ReactElement {
             </Typography>
           </Box>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleAddClick}
+        >
           {getAddButtonLabel()}
         </Button>
       </Box>
@@ -807,6 +916,14 @@ export function LibraryPage(): React.ReactElement {
           </TabPanel>
         </CardContent>
       </Card>
+
+      {/* Quick Add Option Dialog */}
+      <QuickAddOptionDialog
+        open={showAddOptionDialog}
+        onClose={() => setShowAddOptionDialog(false)}
+        onAdd={handleCreateOption}
+        isLoading={createOptionMutation.isPending}
+      />
     </Box>
   );
 }

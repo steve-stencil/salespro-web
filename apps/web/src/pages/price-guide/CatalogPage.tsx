@@ -482,7 +482,11 @@ export function CatalogPage(): React.ReactElement {
           >
             Export
           </Button>
-          <Button variant="contained" startIcon={<AddIcon />}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => void navigate('/price-guide/create')}
+          >
             New Item
           </Button>
         </Stack>
@@ -623,6 +627,7 @@ export function CatalogPage(): React.ReactElement {
                 variant="contained"
                 startIcon={<AddIcon />}
                 sx={{ mt: 3 }}
+                onClick={() => void navigate('/price-guide/create')}
               >
                 Create First Item
               </Button>

@@ -86,6 +86,7 @@ router.get(
           sortOrder: pt.sortOrder,
           isGlobal: !pt.company,
           isEditable: !!pt.company,
+          isActive: true, // All returned types are active (filtered in query)
         })),
       });
     } catch (err) {
