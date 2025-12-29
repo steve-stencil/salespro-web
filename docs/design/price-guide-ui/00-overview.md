@@ -42,13 +42,22 @@ This document outlines a redesigned UI for the Price Guide management system. Th
 │  │  (Line Items)    │                       └──────────────────┘       │
 │  └────────┬─────────┘                                                   │
 │           │                                                             │
-│           │ links to                                                    │
-│           ▼                                                             │
-│  ┌──────────────────┐       links to        ┌──────────────────┐       │
-│  │    UPCHARGES     │◄─────────────────────►│ ADDITIONAL DETAIL│       │
-│  │ (Shared Library) │       (M:N)           │     FIELDS       │       │
-│  └────────┬─────────┘                       │  (Shared Library)│       │
-│           │                                 └──────────────────┘       │
+│           │ links to (M:N)                                              │
+│           ├──────────────────────────────────────────┐                  │
+│           │                                          ▼                  │
+│           │                                 ┌──────────────────┐       │
+│           │                                 │ ADDITIONAL DETAIL│       │
+│           │                                 │     FIELDS       │       │
+│           │                                 │  (Shared Library)│       │
+│           │                                 └────────▲─────────┘       │
+│           │                                          │                  │
+│           │ links to                        links to │ (M:N)            │
+│           ▼                                          │                  │
+│  ┌──────────────────┐                                │                  │
+│  │    UPCHARGES     │────────────────────────────────┘                  │
+│  │ (Shared Library) │                                                   │
+│  └────────┬─────────┘                                                   │
+│           │                                                             │
 │           │ can disable                                                 │
 │           ▼                                                             │
 │  ┌──────────────────┐                                                   │
