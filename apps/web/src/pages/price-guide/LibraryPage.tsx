@@ -43,6 +43,7 @@ import {
   useUpchargeList,
   useAdditionalDetailList,
   useCreateOption,
+  useCreateUpcharge,
 } from '../../hooks/usePriceGuide';
 
 import type {
@@ -135,6 +136,79 @@ function QuickAddOptionDialog({
           startIcon={isLoading ? <CircularProgress size={16} /> : <AddIcon />}
         >
           Add Option
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Quick Add UpCharge Dialog
+// ============================================================================
+
+type QuickAddUpChargeDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (name: string, note?: string) => Promise<void>;
+  isLoading: boolean;
+};
+
+function QuickAddUpChargeDialog({
+  open,
+  onClose,
+  onAdd,
+  isLoading,
+}: QuickAddUpChargeDialogProps): React.ReactElement {
+  const [name, setName] = useState('');
+  const [note, setNote] = useState('');
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    await onAdd(name.trim(), note.trim() || undefined);
+    setName('');
+    setNote('');
+  };
+
+  const handleClose = () => {
+    setName('');
+    setNote('');
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Create New UpCharge</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label="UpCharge Name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            fullWidth
+            required
+            autoFocus
+          />
+          <TextField
+            label="Note (optional)"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            fullWidth
+            multiline
+            rows={2}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => void handleSubmit()}
+          disabled={!name.trim() || isLoading}
+          startIcon={isLoading ? <CircularProgress size={16} /> : <AddIcon />}
+        >
+          Add UpCharge
         </Button>
       </DialogActions>
     </Dialog>
@@ -753,9 +827,11 @@ export function LibraryPage(): React.ReactElement {
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch] = useState('');
   const [showAddOptionDialog, setShowAddOptionDialog] = useState(false);
+  const [showAddUpChargeDialog, setShowAddUpChargeDialog] = useState(false);
 
-  // Mutation for creating options
+  // Mutations for creating items
   const createOptionMutation = useCreateOption();
+  const createUpchargeMutation = useCreateUpcharge();
 
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, newValue: number) => {
@@ -793,8 +869,8 @@ export function LibraryPage(): React.ReactElement {
         setShowAddOptionDialog(true);
         break;
       case 1:
-        // UpCharges - not yet implemented
-        alert('Create UpCharge is not yet implemented');
+        // UpCharges - open create dialog
+        setShowAddUpChargeDialog(true);
         break;
       case 2:
         // Additional Details - not yet implemented
@@ -809,6 +885,14 @@ export function LibraryPage(): React.ReactElement {
       setShowAddOptionDialog(false);
     },
     [createOptionMutation],
+  );
+
+  const handleCreateUpCharge = useCallback(
+    async (name: string, note?: string) => {
+      await createUpchargeMutation.mutateAsync({ name, note });
+      setShowAddUpChargeDialog(false);
+    },
+    [createUpchargeMutation],
   );
 
   const getAddButtonLabel = () => {
@@ -923,6 +1007,14 @@ export function LibraryPage(): React.ReactElement {
         onClose={() => setShowAddOptionDialog(false)}
         onAdd={handleCreateOption}
         isLoading={createOptionMutation.isPending}
+      />
+
+      {/* Quick Add UpCharge Dialog */}
+      <QuickAddUpChargeDialog
+        open={showAddUpChargeDialog}
+        onClose={() => setShowAddUpChargeDialog(false)}
+        onAdd={handleCreateUpCharge}
+        isLoading={createUpchargeMutation.isPending}
       />
     </Box>
   );

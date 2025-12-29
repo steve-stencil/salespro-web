@@ -288,6 +288,53 @@ export const priceGuideApi = {
     );
   },
 
+  /**
+   * Create a new upcharge.
+   */
+  createUpcharge: async (data: {
+    name: string;
+    note?: string;
+    measurementType?: string;
+    identifier?: string;
+  }): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.post('/price-guide/library/upcharges', data);
+  },
+
+  /**
+   * Update an upcharge.
+   */
+  updateUpcharge: async (
+    upchargeId: string,
+    data: {
+      name?: string;
+      note?: string | null;
+      measurementType?: string | null;
+      identifier?: string | null;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/library/upcharges/${upchargeId}`, data);
+  },
+
+  /**
+   * Delete an upcharge.
+   */
+  deleteUpcharge: async (
+    upchargeId: string,
+    force = false,
+  ): Promise<SuccessResponse> => {
+    const url = force
+      ? `/price-guide/library/upcharges/${upchargeId}?force=true`
+      : `/price-guide/library/upcharges/${upchargeId}`;
+    return apiClient.delete(url);
+  },
+
   // ==========================================================================
   // Library - Additional Details
   // ==========================================================================

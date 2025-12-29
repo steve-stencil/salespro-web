@@ -430,6 +430,80 @@ export function useUpchargeDetail(upchargeId: string) {
 }
 
 /**
+ * Hook to create an upcharge.
+ */
+export function useCreateUpcharge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      name: string;
+      note?: string;
+      measurementType?: string;
+      identifier?: string;
+    }) => priceGuideApi.createUpcharge(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update an upcharge.
+ */
+export function useUpdateUpcharge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      data,
+    }: {
+      upchargeId: string;
+      data: {
+        name?: string;
+        note?: string | null;
+        measurementType?: string | null;
+        identifier?: string | null;
+        version: number;
+      };
+    }) => priceGuideApi.updateUpcharge(upchargeId, data),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeDetail(upchargeId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete an upcharge.
+ */
+export function useDeleteUpcharge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      force,
+    }: {
+      upchargeId: string;
+      force?: boolean;
+    }) => priceGuideApi.deleteUpcharge(upchargeId, force),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeLists(),
+      });
+    },
+  });
+}
+
+/**
  * Hook to fetch paginated additional details list.
  */
 export function useAdditionalDetailList(
