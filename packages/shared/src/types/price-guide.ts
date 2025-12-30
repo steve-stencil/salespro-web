@@ -196,6 +196,12 @@ export type AdditionalDetailFieldDetail = {
   linkedMsiCount: number;
   isActive: boolean;
   version: number;
+  /** MSIs using this additional detail (for detail view) */
+  usedByMSIs?: Array<{
+    id: string;
+    name: string;
+    category: string;
+  }>;
 };
 
 /** Additional detail linked to an MSI */
@@ -589,6 +595,11 @@ export type UpChargeDetailResponse = {
 /** Additional detail field list response */
 export type AdditionalDetailFieldListResponse =
   CursorPaginatedResponse<AdditionalDetailFieldSummary>;
+
+/** Additional detail field detail response */
+export type AdditionalDetailFieldDetailResponse = {
+  field: AdditionalDetailFieldDetail;
+};
 
 /** Price types response */
 export type PriceTypesResponse = {

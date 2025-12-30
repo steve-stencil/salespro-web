@@ -63,6 +63,10 @@ export const priceGuideKeys = {
     [...priceGuideKeys.additionalDetails(), 'list'] as const,
   additionalDetailList: (filters?: LibraryListParams) =>
     [...priceGuideKeys.additionalDetailLists(), filters] as const,
+  additionalDetailDetails: () =>
+    [...priceGuideKeys.additionalDetails(), 'detail'] as const,
+  additionalDetailDetail: (id: string) =>
+    [...priceGuideKeys.additionalDetailDetails(), id] as const,
 
   // Price Types
   priceTypes: () => [...priceGuideKeys.all, 'price-types'] as const,
@@ -608,6 +612,17 @@ export function useAdditionalDetailList(
     initialPageParam: undefined as string | undefined,
     getNextPageParam: lastPage =>
       lastPage.hasMore ? lastPage.nextCursor : undefined,
+  });
+}
+
+/**
+ * Hook to fetch additional detail field details.
+ */
+export function useAdditionalDetailDetail(fieldId: string) {
+  return useQuery({
+    queryKey: priceGuideKeys.additionalDetailDetail(fieldId),
+    queryFn: () => priceGuideApi.getAdditionalDetail(fieldId),
+    enabled: !!fieldId,
   });
 }
 

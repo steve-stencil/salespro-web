@@ -41,9 +41,7 @@ import Typography from '@mui/material/Typography';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { UpchargeDefaultPricingInline } from '../../components/price-guide/upcharge-pricing';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useOfficesList } from '../../hooks/useOffices';
 import {
   useOptionList,
   useUpchargeList,
@@ -51,6 +49,12 @@ import {
   useCreateOption,
   useCreateUpcharge,
   useCreateAdditionalDetail,
+  useOptionDetail,
+  useUpdateOption,
+  useUpchargeDetail,
+  useUpdateUpcharge,
+  useAdditionalDetailDetail,
+  useUpdateAdditionalDetail,
 } from '../../hooks/usePriceGuide';
 
 import type {
@@ -330,26 +334,443 @@ function QuickAddAdditionalDetailDialog({
 }
 
 // ============================================================================
-// Usage Count Badge Component
+// Edit Option Dialog
+// ============================================================================
+
+type EditOptionDialogProps = {
+  open: boolean;
+  optionId: string | null;
+  onClose: () => void;
+  onSave: (
+    optionId: string,
+    data: { name: string; brand?: string | null; itemCode?: string | null },
+    version: number,
+  ) => Promise<void>;
+  isLoading: boolean;
+};
+
+function EditOptionDialog({
+  open,
+  optionId,
+  onClose,
+  onSave,
+  isLoading,
+}: EditOptionDialogProps): React.ReactElement {
+  const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
+  const [itemCode, setItemCode] = useState('');
+  const [version, setVersion] = useState(1);
+
+  const { data: optionData, isLoading: isLoadingDetail } = useOptionDetail(
+    optionId ?? '',
+  );
+
+  // Sync form state when option data loads
+  useEffect(() => {
+    if (optionData?.option) {
+      setName(optionData.option.name);
+      setBrand(optionData.option.brand ?? '');
+      setItemCode(optionData.option.itemCode ?? '');
+      setVersion(optionData.option.version);
+    }
+  }, [optionData]);
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !optionId) return;
+    await onSave(
+      optionId,
+      {
+        name: name.trim(),
+        brand: brand.trim() || null,
+        itemCode: itemCode.trim() || null,
+      },
+      version,
+    );
+  };
+
+  const handleClose = () => {
+    setName('');
+    setBrand('');
+    setItemCode('');
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Edit Option</DialogTitle>
+      <DialogContent>
+        {isLoadingDetail ? (
+          <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Option Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              fullWidth
+              required
+              autoFocus
+            />
+            <TextField
+              label="Brand"
+              value={brand}
+              onChange={e => setBrand(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Item Code"
+              value={itemCode}
+              onChange={e => setItemCode(e.target.value)}
+              fullWidth
+            />
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => void handleSubmit()}
+          disabled={!name.trim() || isLoading || isLoadingDetail}
+          startIcon={isLoading ? <CircularProgress size={16} /> : <EditIcon />}
+        >
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Edit UpCharge Dialog
+// ============================================================================
+
+type EditUpChargeDialogProps = {
+  open: boolean;
+  upchargeId: string | null;
+  onClose: () => void;
+  onSave: (
+    upchargeId: string,
+    data: { name: string; note?: string | null },
+    version: number,
+  ) => Promise<void>;
+  isLoading: boolean;
+};
+
+function EditUpChargeDialog({
+  open,
+  upchargeId,
+  onClose,
+  onSave,
+  isLoading,
+}: EditUpChargeDialogProps): React.ReactElement {
+  const [name, setName] = useState('');
+  const [note, setNote] = useState('');
+  const [version, setVersion] = useState(1);
+
+  const { data: upchargeData, isLoading: isLoadingDetail } = useUpchargeDetail(
+    upchargeId ?? '',
+  );
+
+  // Sync form state when upcharge data loads
+  useEffect(() => {
+    if (upchargeData?.upcharge) {
+      setName(upchargeData.upcharge.name);
+      setNote(upchargeData.upcharge.note ?? '');
+      setVersion(upchargeData.upcharge.version);
+    }
+  }, [upchargeData]);
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !upchargeId) return;
+    await onSave(
+      upchargeId,
+      {
+        name: name.trim(),
+        note: note.trim() || null,
+      },
+      version,
+    );
+  };
+
+  const handleClose = () => {
+    setName('');
+    setNote('');
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Edit UpCharge</DialogTitle>
+      <DialogContent>
+        {isLoadingDetail ? (
+          <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="UpCharge Name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              fullWidth
+              required
+              autoFocus
+            />
+            <TextField
+              label="Note"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              fullWidth
+              multiline
+              rows={2}
+            />
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => void handleSubmit()}
+          disabled={!name.trim() || isLoading || isLoadingDetail}
+          startIcon={isLoading ? <CircularProgress size={16} /> : <EditIcon />}
+        >
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Edit Additional Detail Dialog
+// ============================================================================
+
+type EditAdditionalDetailDialogProps = {
+  open: boolean;
+  detailId: string | null;
+  onClose: () => void;
+  onSave: (
+    detailId: string,
+    data: { title: string; inputType: string; isRequired: boolean },
+    version: number,
+  ) => Promise<void>;
+  isLoading: boolean;
+};
+
+function EditAdditionalDetailDialog({
+  open,
+  detailId,
+  onClose,
+  onSave,
+  isLoading,
+}: EditAdditionalDetailDialogProps): React.ReactElement {
+  const [title, setTitle] = useState('');
+  const [inputType, setInputType] = useState('text');
+  const [isRequired, setIsRequired] = useState(false);
+  const [version, setVersion] = useState(1);
+
+  const { data: detailData, isLoading: isLoadingDetail } =
+    useAdditionalDetailDetail(detailId ?? '');
+
+  // Sync form state when detail data loads
+  useEffect(() => {
+    if (detailData?.field) {
+      setTitle(detailData.field.title);
+      setInputType(detailData.field.inputType);
+      setIsRequired(detailData.field.isRequired);
+      setVersion(detailData.field.version);
+    }
+  }, [detailData]);
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !detailId) return;
+    await onSave(
+      detailId,
+      {
+        title: title.trim(),
+        inputType,
+        isRequired,
+      },
+      version,
+    );
+  };
+
+  const handleClose = () => {
+    setTitle('');
+    setInputType('text');
+    setIsRequired(false);
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Edit Additional Detail</DialogTitle>
+      <DialogContent>
+        {isLoadingDetail ? (
+          <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              fullWidth
+              required
+              autoFocus
+            />
+            <TextField
+              select
+              label="Input Type"
+              value={inputType}
+              onChange={e => setInputType(e.target.value)}
+              fullWidth
+              required
+            >
+              {INPUT_TYPE_OPTIONS.map(option => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isRequired}
+                  onChange={e => setIsRequired(e.target.checked)}
+                />
+              }
+              label="Required field"
+            />
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => void handleSubmit()}
+          disabled={!title.trim() || isLoading || isLoadingDetail}
+          startIcon={isLoading ? <CircularProgress size={16} /> : <EditIcon />}
+        >
+          Save Changes
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+// Usage Count Badge Component (with lazy-loading tooltip)
 // ============================================================================
 
 type UsageCountBadgeProps = {
   count: number;
   label?: string;
+  /** Item ID to fetch details for (lazy loads on hover) */
+  itemId?: string;
+  /** Type of item for fetching details */
+  itemType?: 'option' | 'upcharge' | 'additionalDetail';
 };
 
 function UsageCountBadge({
   count,
   label = 'MSIs',
+  itemId,
+  itemType,
 }: UsageCountBadgeProps): React.ReactElement {
+  const [isHovered, setIsHovered] = useState(false);
+  const [msiNames, setMsiNames] = useState<string[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Lazy fetch MSI names when hovering
+  const { data: optionData } = useOptionDetail(
+    itemType === 'option' && isHovered && itemId ? itemId : '',
+  );
+  const { data: upchargeData } = useUpchargeDetail(
+    itemType === 'upcharge' && isHovered && itemId ? itemId : '',
+  );
+  const { data: additionalDetailData } = useAdditionalDetailDetail(
+    itemType === 'additionalDetail' && isHovered && itemId ? itemId : '',
+  );
+
+  // Update MSI names when data loads
+  useEffect(() => {
+    let msis: Array<{ name: string }> | undefined;
+
+    if (itemType === 'option' && optionData) {
+      msis = optionData.option.usedByMSIs;
+    } else if (itemType === 'upcharge' && upchargeData) {
+      msis = upchargeData.upcharge.usedByMSIs;
+    } else if (itemType === 'additionalDetail' && additionalDetailData) {
+      msis = additionalDetailData.field.usedByMSIs;
+    }
+
+    if (msis && msis.length > 0) {
+      setMsiNames(msis.map(m => m.name));
+      setIsLoading(false);
+    }
+  }, [itemType, optionData, upchargeData, additionalDetailData]);
+
+  const handleMouseEnter = () => {
+    if (count > 0 && itemId && itemType && !msiNames) {
+      setIsHovered(true);
+      setIsLoading(true);
+    }
+  };
+
+  const tooltipContent =
+    count === 0 ? (
+      `Not used by any ${label}`
+    ) : isLoading ? (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <CircularProgress size={12} sx={{ color: 'inherit' }} />
+        <Typography variant="caption">Loading...</Typography>
+      </Box>
+    ) : msiNames && msiNames.length > 0 ? (
+      <Box sx={{ maxWidth: 300 }}>
+        <Typography variant="caption" sx={{ fontWeight: 600 }}>
+          Used by {count} {label}:
+        </Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2, mt: 0.5 }}>
+          {msiNames.slice(0, 10).map((name, idx) => (
+            <li key={idx}>
+              <Typography variant="caption">{name}</Typography>
+            </li>
+          ))}
+          {msiNames.length > 10 && (
+            <li>
+              <Typography variant="caption" sx={{ fontStyle: 'italic' }}>
+                +{msiNames.length - 10} more...
+              </Typography>
+            </li>
+          )}
+        </Box>
+      </Box>
+    ) : (
+      `Used in ${count} ${label}`
+    );
+
   return (
-    <Tooltip title={`Used in ${count} ${label}`}>
+    <Tooltip title={tooltipContent}>
       <Chip
         label={count}
         size="small"
         color={count > 0 ? 'primary' : 'default'}
         variant={count > 0 ? 'filled' : 'outlined'}
         sx={{ minWidth: 40 }}
+        onMouseEnter={handleMouseEnter}
       />
     </Tooltip>
   );
@@ -453,10 +874,9 @@ function OptionsTab({
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
               <TableCell>Brand</TableCell>
+              <TableCell>Name</TableCell>
               <TableCell>Item Code</TableCell>
-              <TableCell>Measurement</TableCell>
               <TableCell align="center">Used By</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -464,11 +884,11 @@ function OptionsTab({
           <TableBody>
             {isLoading ? (
               [...Array(5)].map((_, i) => (
-                <TableRowSkeleton key={i} columns={6} />
+                <TableRowSkeleton key={i} columns={5} />
               ))
             ) : allItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
                     {search
                       ? 'No options match your search.'
@@ -480,13 +900,13 @@ function OptionsTab({
               allItems.map((option: OptionSummary) => (
                 <TableRow key={option.id} hover>
                   <TableCell>
-                    <Typography variant="body2" fontWeight={500}>
-                      {option.name}
+                    <Typography variant="body2" color="text.secondary">
+                      {option.brand ?? '-'}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {option.brand ?? '-'}
+                    <Typography variant="body2" fontWeight={500}>
+                      {option.name}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -498,13 +918,12 @@ function OptionsTab({
                       {option.itemCode ?? '-'}
                     </Typography>
                   </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {option.measurementType ?? '-'}
-                    </Typography>
-                  </TableCell>
                   <TableCell align="center">
-                    <UsageCountBadge count={option.linkedMsiCount} />
+                    <UsageCountBadge
+                      count={option.linkedMsiCount}
+                      itemId={option.id}
+                      itemType="option"
+                    />
                   </TableCell>
                   <TableCell align="right">
                     <Stack
@@ -565,14 +984,12 @@ function OptionsTab({
 
 type UpChargesTabProps = {
   search: string;
-  offices: Array<{ id: string; name: string }>;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 };
 
 function UpChargesTab({
   search,
-  offices,
   onEdit,
   onDelete,
 }: UpChargesTabProps): React.ReactElement {
@@ -596,6 +1013,8 @@ function UpChargesTab({
     return data.pages.flatMap(page => page.items);
   }, [data]);
 
+  const totalCount = data?.pages[0]?.total ?? 0;
+
   // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -615,16 +1034,6 @@ function UpChargesTab({
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Transform items to match the expected shape
-  const upcharges = useMemo(() => {
-    return allItems.map((upcharge: UpChargeSummary) => ({
-      id: upcharge.id,
-      name: upcharge.name,
-      note: upcharge.note,
-      linkedMsiCount: upcharge.linkedMsiCount,
-    }));
-  }, [allItems]);
-
   if (error) {
     return (
       <Alert severity="error" sx={{ mt: 2 }}>
@@ -635,19 +1044,99 @@ function UpChargesTab({
 
   return (
     <Box>
-      {search && allItems.length === 0 && !isLoading && (
-        <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-          No upcharges match your search.
-        </Typography>
-      )}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {isLoading ? (
+          <Skeleton width={100} />
+        ) : (
+          `${totalCount} upcharge${totalCount !== 1 ? 's' : ''}`
+        )}
+      </Typography>
 
-      <UpchargeDefaultPricingInline
-        upcharges={upcharges}
-        offices={offices}
-        isLoading={isLoading}
-        onEdit={onEdit}
-        onDelete={onDelete}
-      />
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Note</TableCell>
+              <TableCell align="center">Used By</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {isLoading ? (
+              [...Array(5)].map((_, i) => (
+                <TableRowSkeleton key={i} columns={4} />
+              ))
+            ) : allItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">
+                    {search
+                      ? 'No upcharges match your search.'
+                      : 'No upcharges found.'}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              allItems.map((upcharge: UpChargeSummary) => (
+                <TableRow key={upcharge.id} hover>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={500}>
+                      {upcharge.name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        maxWidth: 300,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {upcharge.note ?? '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <UsageCountBadge
+                      count={upcharge.linkedMsiCount}
+                      itemId={upcharge.id}
+                      itemType="upcharge"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      justifyContent="flex-end"
+                    >
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => onEdit?.(upcharge.id)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          onClick={() => onDelete?.(upcharge.id)}
+                          disabled={upcharge.linkedMsiCount > 0}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Load More Trigger */}
       <Box
@@ -796,7 +1285,11 @@ function AdditionalDetailsTab({
                     )}
                   </TableCell>
                   <TableCell align="center">
-                    <UsageCountBadge count={detail.linkedMsiCount} />
+                    <UsageCountBadge
+                      count={detail.linkedMsiCount}
+                      itemId={detail.id}
+                      itemType="additionalDetail"
+                    />
                   </TableCell>
                   <TableCell align="right">
                     <Stack
@@ -871,6 +1364,13 @@ export function LibraryPage(): React.ReactElement {
   const [showAddAdditionalDetailDialog, setShowAddAdditionalDetailDialog] =
     useState(false);
 
+  // Edit dialog state
+  const [showEditOptionDialog, setShowEditOptionDialog] = useState(false);
+  const [showEditUpChargeDialog, setShowEditUpChargeDialog] = useState(false);
+  const [showEditAdditionalDetailDialog, setShowEditAdditionalDetailDialog] =
+    useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
   // Get initial tab from URL param (default to 0 = options)
   const tabParam = searchParams.get('tab');
   const activeTab = tabParam ? (TAB_MAP[tabParam] ?? 0) : 0;
@@ -880,18 +1380,15 @@ export function LibraryPage(): React.ReactElement {
   const createUpchargeMutation = useCreateUpcharge();
   const createAdditionalDetailMutation = useCreateAdditionalDetail();
 
-  // Fetch offices for pricing dialog
-  const { data: officesData } = useOfficesList();
-  const offices = useMemo(() => {
-    if (!officesData?.offices) return [];
-    return officesData.offices
-      .filter(o => o.isActive)
-      .map(o => ({ id: o.id, name: o.name }));
-  }, [officesData]);
+  // Mutations for updating items
+  const updateOptionMutation = useUpdateOption();
+  const updateUpchargeMutation = useUpdateUpcharge();
+  const updateAdditionalDetailMutation = useUpdateAdditionalDetail();
 
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, newValue: number) => {
-      setSearchParams({ tab: TAB_NAMES[newValue] });
+      const tabName = TAB_NAMES[newValue] ?? 'options';
+      setSearchParams({ tab: tabName });
       setSearch(''); // Clear search when switching tabs
     },
     [setSearchParams],
@@ -908,10 +1405,23 @@ export function LibraryPage(): React.ReactElement {
     setSearch('');
   }, []);
 
-  const handleEdit = useCallback((id: string) => {
-    // TODO: Open edit modal or navigate to edit page
-    console.log('Edit:', id);
-  }, []);
+  const handleEdit = useCallback(
+    (id: string) => {
+      setEditingItemId(id);
+      switch (activeTab) {
+        case 0:
+          setShowEditOptionDialog(true);
+          break;
+        case 1:
+          setShowEditUpChargeDialog(true);
+          break;
+        case 2:
+          setShowEditAdditionalDetailDialog(true);
+          break;
+      }
+    },
+    [activeTab],
+  );
 
   const handleDelete = useCallback((id: string) => {
     // TODO: Show confirmation dialog and delete
@@ -961,6 +1471,55 @@ export function LibraryPage(): React.ReactElement {
       setShowAddAdditionalDetailDialog(false);
     },
     [createAdditionalDetailMutation],
+  );
+
+  // Update handlers
+  const handleUpdateOption = useCallback(
+    async (
+      optionId: string,
+      data: { name: string; brand?: string | null; itemCode?: string | null },
+      version: number,
+    ) => {
+      await updateOptionMutation.mutateAsync({
+        optionId,
+        data: { ...data, version },
+      });
+      setShowEditOptionDialog(false);
+      setEditingItemId(null);
+    },
+    [updateOptionMutation],
+  );
+
+  const handleUpdateUpCharge = useCallback(
+    async (
+      upchargeId: string,
+      data: { name: string; note?: string | null },
+      version: number,
+    ) => {
+      await updateUpchargeMutation.mutateAsync({
+        upchargeId,
+        data: { ...data, version },
+      });
+      setShowEditUpChargeDialog(false);
+      setEditingItemId(null);
+    },
+    [updateUpchargeMutation],
+  );
+
+  const handleUpdateAdditionalDetail = useCallback(
+    async (
+      detailId: string,
+      data: { title: string; inputType: string; isRequired: boolean },
+      version: number,
+    ) => {
+      await updateAdditionalDetailMutation.mutateAsync({
+        fieldId: detailId,
+        data: { ...data, version },
+      });
+      setShowEditAdditionalDetailDialog(false);
+      setEditingItemId(null);
+    },
+    [updateAdditionalDetailMutation],
   );
 
   const getAddButtonLabel = () => {
@@ -1055,7 +1614,6 @@ export function LibraryPage(): React.ReactElement {
           <TabPanel value={activeTab} index={1}>
             <UpChargesTab
               search={search}
-              offices={offices}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
@@ -1092,6 +1650,42 @@ export function LibraryPage(): React.ReactElement {
         onClose={() => setShowAddAdditionalDetailDialog(false)}
         onAdd={handleCreateAdditionalDetail}
         isLoading={createAdditionalDetailMutation.isPending}
+      />
+
+      {/* Edit Option Dialog */}
+      <EditOptionDialog
+        open={showEditOptionDialog}
+        optionId={editingItemId}
+        onClose={() => {
+          setShowEditOptionDialog(false);
+          setEditingItemId(null);
+        }}
+        onSave={handleUpdateOption}
+        isLoading={updateOptionMutation.isPending}
+      />
+
+      {/* Edit UpCharge Dialog */}
+      <EditUpChargeDialog
+        open={showEditUpChargeDialog}
+        upchargeId={editingItemId}
+        onClose={() => {
+          setShowEditUpChargeDialog(false);
+          setEditingItemId(null);
+        }}
+        onSave={handleUpdateUpCharge}
+        isLoading={updateUpchargeMutation.isPending}
+      />
+
+      {/* Edit Additional Detail Dialog */}
+      <EditAdditionalDetailDialog
+        open={showEditAdditionalDetailDialog}
+        detailId={editingItemId}
+        onClose={() => {
+          setShowEditAdditionalDetailDialog(false);
+          setEditingItemId(null);
+        }}
+        onSave={handleUpdateAdditionalDetail}
+        isLoading={updateAdditionalDetailMutation.isPending}
       />
     </Box>
   );

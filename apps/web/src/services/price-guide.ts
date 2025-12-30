@@ -14,6 +14,7 @@ import type {
   UpChargeListResponse,
   UpChargeDetailResponse,
   AdditionalDetailFieldListResponse,
+  AdditionalDetailFieldDetailResponse,
   LibraryListParams,
   CreateMsiRequest,
   UpdateMsiRequest,
@@ -401,6 +402,17 @@ export const priceGuideApi = {
       ? `/price-guide/library/additional-details?${queryString}`
       : '/price-guide/library/additional-details';
     return apiClient.get<AdditionalDetailFieldListResponse>(url);
+  },
+
+  /**
+   * Get additional detail field details by ID.
+   */
+  getAdditionalDetail: async (
+    fieldId: string,
+  ): Promise<AdditionalDetailFieldDetailResponse> => {
+    return apiClient.get<AdditionalDetailFieldDetailResponse>(
+      `/price-guide/library/additional-details/${fieldId}`,
+    );
   },
 
   // ==========================================================================
