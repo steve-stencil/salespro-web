@@ -1,6 +1,6 @@
 /**
  * Basic Info Section Component.
- * Handles name, category, measurement type, note, default qty, show switch, and tag settings.
+ * Handles name, category, measurement type, note, default qty, show switch, tag settings, and thumbnail.
  */
 
 import Autocomplete from '@mui/material/Autocomplete';
@@ -19,9 +19,13 @@ import Typography from '@mui/material/Typography';
 import { flattenCategoryTree } from '@shared/utils';
 import { useMemo, useCallback } from 'react';
 
+import { MsiThumbnailUpload } from '../../../components/price-guide/MsiThumbnailUpload';
 import { useCategoryTree } from '../../../hooks/usePriceGuide';
 
-import type { WizardState } from '../../../components/price-guide/wizard/WizardContext';
+import type {
+  PendingImage,
+  WizardState,
+} from '../../../components/price-guide/wizard/WizardContext';
 import type { SelectChangeEvent } from '@mui/material/Select';
 
 // ============================================================================
@@ -32,6 +36,10 @@ export type BasicInfoSectionProps = {
   state: WizardState;
   setBasicInfo: (info: Partial<WizardState>) => void;
   setCategory: (categoryId: string, categoryName: string) => void;
+  /** Called when a file is selected (local preview, not uploaded yet) */
+  onFileSelected: (pendingImage: PendingImage) => void;
+  /** Called when image is removed */
+  onImageRemoved: () => void;
 };
 
 // ============================================================================
@@ -57,6 +65,8 @@ export function BasicInfoSection({
   state,
   setBasicInfo,
   setCategory,
+  onFileSelected,
+  onImageRemoved,
 }: BasicInfoSectionProps): React.ReactElement {
   // Queries
   const { data: categoryData, isLoading: isLoadingCategories } =
@@ -144,16 +154,27 @@ export function BasicInfoSection({
 
   return (
     <Stack spacing={3} sx={{ maxWidth: 600 }}>
-      {/* Name */}
-      <TextField
-        label="Item Name"
-        value={state.name}
-        onChange={handleNameChange}
-        required
-        fullWidth
-        placeholder="e.g., Double Hung Window"
-        helperText="Enter a descriptive name for this item"
-      />
+      {/* Thumbnail and Name Row */}
+      <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        {/* Product Thumbnail */}
+        <MsiThumbnailUpload
+          image={state.image}
+          onFileSelected={onFileSelected}
+          onImageRemoved={onImageRemoved}
+        />
+
+        {/* Name */}
+        <TextField
+          label="Item Name"
+          value={state.name}
+          onChange={handleNameChange}
+          required
+          fullWidth
+          placeholder="e.g., Double Hung Window"
+          helperText="Enter a descriptive name for this item"
+          sx={{ flex: 1 }}
+        />
+      </Box>
 
       {/* Category */}
       <Autocomplete

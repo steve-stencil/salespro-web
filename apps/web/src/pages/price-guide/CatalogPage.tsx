@@ -32,6 +32,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { flattenCategoryTree } from '@shared/utils';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -63,6 +64,8 @@ import {
   useUnlinkOption,
   useUnlinkUpcharge,
 } from '../../hooks/usePriceGuide';
+import { filesApi } from '../../services/files';
+import { priceGuideApi } from '../../services/price-guide';
 
 import type {
   ExportOptions,
@@ -181,6 +184,8 @@ type MsiCardWrapperProps = {
   onLinkDetails: () => void;
   onUnlinkOption: (optionId: string, optionName: string) => void;
   onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
+  onThumbnailClick: () => void;
+  isThumbnailLoading: boolean;
 };
 
 function MsiCardWrapper({
@@ -198,6 +203,8 @@ function MsiCardWrapper({
   onLinkDetails,
   onUnlinkOption,
   onUnlinkUpcharge,
+  onThumbnailClick,
+  isThumbnailLoading,
 }: MsiCardWrapperProps): React.ReactElement {
   const menuActions: MenuAction[] = [
     {
@@ -249,6 +256,9 @@ function MsiCardWrapper({
       entityType="msi"
       name={msi.name}
       subtitle={msi.category.fullPath}
+      thumbnailUrl={msi.thumbnailUrl}
+      onThumbnailClick={onThumbnailClick}
+      isThumbnailLoading={isThumbnailLoading}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       isSelected={isSelected}
@@ -277,6 +287,7 @@ function MsiCardWrapper({
 
 export function CatalogPage(): React.ReactElement {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // State
   const [search, setSearch] = useState('');
@@ -308,6 +319,11 @@ export function CatalogPage(): React.ReactElement {
     itemId: string;
     itemName: string;
   } | null>(null);
+
+  // Thumbnail upload state
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const [thumbnailMsiId, setThumbnailMsiId] = useState<string | null>(null);
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
 
   // Debounced search
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -524,6 +540,62 @@ export function CatalogPage(): React.ReactElement {
     console.log('Delete MSI:', msiId);
   }, []);
 
+  // Thumbnail upload handlers
+  const handleThumbnailClick = useCallback((msiId: string) => {
+    setThumbnailMsiId(msiId);
+    thumbnailInputRef.current?.click();
+  }, []);
+
+  const handleThumbnailFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !thumbnailMsiId) return;
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        console.error('File must be an image');
+        return;
+      }
+
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        console.error('File must be less than 5MB');
+        return;
+      }
+
+      setThumbnailUploading(true);
+      try {
+        // Upload the file
+        const uploadResponse = await filesApi.uploadImage(file, {
+          visibility: 'company',
+          description: 'MSI product thumbnail',
+        });
+
+        // Update the MSI thumbnail using the dedicated endpoint
+        // This won't bump version and will delete the old image automatically
+        await priceGuideApi.updateMsiThumbnail(
+          thumbnailMsiId,
+          uploadResponse.file.id,
+        );
+
+        // Invalidate MSI list to refresh thumbnails
+        void queryClient.invalidateQueries({
+          queryKey: ['price-guide', 'msis', 'list'],
+        });
+      } catch (err) {
+        console.error('Failed to upload thumbnail:', err);
+      } finally {
+        setThumbnailUploading(false);
+        setThumbnailMsiId(null);
+        // Reset the input
+        if (thumbnailInputRef.current) {
+          thumbnailInputRef.current.value = '';
+        }
+      }
+    },
+    [thumbnailMsiId, queryClient],
+  );
+
   // Link picker handlers
   const openLinkPicker = useCallback(
     (type: 'option' | 'upcharge' | 'additionalDetail', msiId: string) => {
@@ -685,6 +757,15 @@ export function CatalogPage(): React.ReactElement {
 
   return (
     <Box>
+      {/* Hidden file input for thumbnail upload */}
+      <input
+        ref={thumbnailInputRef}
+        type="file"
+        accept="image/*"
+        onChange={e => void handleThumbnailFileChange(e)}
+        style={{ display: 'none' }}
+      />
+
       {/* Header */}
       <Box
         sx={{
@@ -889,6 +970,10 @@ export function CatalogPage(): React.ReactElement {
               onEdit={() => handleEdit(msi.id)}
               onPricing={() => handlePricing(msi.id)}
               onDelete={() => handleDelete(msi.id)}
+              onThumbnailClick={() => handleThumbnailClick(msi.id)}
+              isThumbnailLoading={
+                thumbnailUploading && thumbnailMsiId === msi.id
+              }
               onLinkOptions={() => openLinkPicker('option', msi.id)}
               onLinkUpcharges={() => openLinkPicker('upcharge', msi.id)}
               onLinkDetails={() => openLinkPicker('additionalDetail', msi.id)}

@@ -22,4 +22,7 @@ export type {
   LinkedUpCharge,
   LinkedAdditionalDetail,
   MsiPricingData,
+  MsiImage,
+  ExistingImage,
+  PendingImage,
 } from './WizardContext';

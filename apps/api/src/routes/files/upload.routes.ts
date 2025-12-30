@@ -7,7 +7,7 @@ import { Router } from 'express';
 
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
-import { isS3Configured } from '../../lib/storage';
+import { getStorageAdapter, isS3Configured } from '../../lib/storage';
 import {
   requireAuth,
   requirePermission,
@@ -81,9 +81,27 @@ router.post(
         ...(description && { description }),
       });
 
+      // Generate presigned URLs for the response
+      const storage = getStorageAdapter();
+      const url = await storage.getSignedDownloadUrl({
+        key: uploadedFile.storageKey,
+        expiresIn: 3600,
+      });
+      const thumbnailUrl = uploadedFile.thumbnailKey
+        ? await storage.getSignedDownloadUrl({
+            key: uploadedFile.thumbnailKey,
+            expiresIn: 3600,
+          })
+        : null;
+
       res.status(201).json({
         message: 'File uploaded successfully',
-        file: formatFileResponse(uploadedFile),
+        file: {
+          ...formatFileResponse(uploadedFile),
+          url,
+          thumbnailUrl,
+          isImage: uploadedFile.mimeType.startsWith('image/'),
+        },
       });
     } catch (err) {
       if (err instanceof FileServiceError) {

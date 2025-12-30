@@ -129,6 +129,28 @@ export const priceGuideApi = {
   },
 
   /**
+   * Update only the thumbnail for an MSI.
+   * This is a lightweight update that doesn't require version and won't
+   * conflict with other users editing the MSI.
+   * The old thumbnail is automatically deleted when replaced.
+   */
+  updateMsiThumbnail: async (
+    msiId: string,
+    imageId: string | null,
+  ): Promise<{
+    message: string;
+    thumbnailUrl: string | null;
+    imageUrl: string | null;
+  }> => {
+    return apiClient.put(
+      `/price-guide/measure-sheet-items/${msiId}/thumbnail`,
+      {
+        imageId,
+      },
+    );
+  },
+
+  /**
    * Delete an MSI.
    */
   deleteMsi: async (msiId: string): Promise<SuccessResponse> => {
@@ -371,6 +393,26 @@ export const priceGuideApi = {
     upcharge: { id: string; name: string; version: number };
   }> => {
     return apiClient.put(`/price-guide/library/upcharges/${upchargeId}`, data);
+  },
+
+  /**
+   * Update only the thumbnail for an upcharge.
+   * This is a lightweight update that doesn't require version and won't
+   * conflict with other users editing the upcharge.
+   * The old thumbnail is automatically deleted when replaced.
+   */
+  updateUpchargeThumbnail: async (
+    upchargeId: string,
+    imageId: string | null,
+  ): Promise<{
+    message: string;
+    thumbnailUrl: string | null;
+    imageUrl: string | null;
+  }> => {
+    return apiClient.put(
+      `/price-guide/library/upcharges/${upchargeId}/thumbnail`,
+      { imageId },
+    );
   },
 
   /**

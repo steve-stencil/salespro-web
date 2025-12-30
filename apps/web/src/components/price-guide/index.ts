@@ -18,6 +18,10 @@ export { DuplicateMsiDialog } from './DuplicateMsiDialog';
 export { JobProgressModal } from './JobProgressModal';
 export { WhereUsedModal } from './WhereUsedModal';
 
+// Thumbnail Upload
+export { MsiThumbnailUpload } from './MsiThumbnailUpload';
+export type { MsiThumbnailUploadProps } from './MsiThumbnailUpload';
+
 // EntityCard
 export { EntityCard, EntityCardSkeleton } from './EntityCard';
 export type {

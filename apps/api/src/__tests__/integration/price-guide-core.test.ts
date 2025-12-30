@@ -455,6 +455,74 @@ describe('Price Guide Core Routes', () => {
       });
     });
 
+    describe('PUT /api/price-guide/measure-sheet-items/:id/thumbnail', () => {
+      it('should update MSI thumbnail without requiring version', async () => {
+        const category = await createTestCategory(em, setup.company);
+        const msi = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          category,
+        );
+
+        // Update with null (clear thumbnail)
+        const response = await makeRequest()
+          .put(`/api/price-guide/measure-sheet-items/${msi.id}/thumbnail`)
+          .set('Cookie', setup.adminCookie)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Thumbnail updated');
+        expect(response.body.thumbnailUrl).toBeNull();
+      });
+
+      it('should return 404 for non-existent MSI', async () => {
+        const fakeId = '00000000-0000-0000-0000-000000000000';
+
+        const response = await makeRequest()
+          .put(`/api/price-guide/measure-sheet-items/${fakeId}/thumbnail`)
+          .set('Cookie', setup.adminCookie)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(404);
+      });
+
+      it('should require authentication', async () => {
+        const category = await createTestCategory(em, setup.company);
+        const msi = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          category,
+        );
+
+        const response = await makeRequest()
+          .put(`/api/price-guide/measure-sheet-items/${msi.id}/thumbnail`)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(401);
+      });
+
+      it('should require settings:update permission', async () => {
+        const noPermUser = await createUserWithPermissions(
+          em,
+          setup.company,
+          [],
+        );
+        const category = await createTestCategory(em, setup.company);
+        const msi = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          category,
+        );
+
+        const response = await makeRequest()
+          .put(`/api/price-guide/measure-sheet-items/${msi.id}/thumbnail`)
+          .set('Cookie', noPermUser.cookie)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(403);
+      });
+    });
+
     describe('DELETE /api/price-guide/measure-sheet-items/:id', () => {
       it('should soft delete an MSI', async () => {
         const category = await createTestCategory(em, setup.company);

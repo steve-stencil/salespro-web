@@ -4,11 +4,13 @@
  */
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ImageIcon from '@mui/icons-material/Image';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Checkbox from '@mui/material/Checkbox';
+import CircularProgress from '@mui/material/CircularProgress';
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
@@ -40,6 +42,12 @@ export type EntityCardProps = {
   name: string;
   /** Secondary text (e.g., category path, brand) */
   subtitle?: string;
+  /** Thumbnail URL for the entity (optional) */
+  thumbnailUrl?: string | null;
+  /** Callback when thumbnail is clicked (for inline editing) */
+  onThumbnailClick?: () => void;
+  /** Whether the thumbnail is loading (e.g., during upload) */
+  isThumbnailLoading?: boolean;
   /** Whether the card is expanded */
   isExpanded?: boolean;
   /** Callback when expand toggle is clicked */
@@ -74,6 +82,9 @@ export function EntityCard({
   entityType: _entityType,
   name,
   subtitle,
+  thumbnailUrl,
+  onThumbnailClick,
+  isThumbnailLoading = false,
   isExpanded = false,
   onToggleExpand,
   isSelected = false,
@@ -127,6 +138,14 @@ export function EntityCard({
     onClick?.();
   }, [onClick]);
 
+  const handleThumbnailClick = useCallback(
+    (event: MouseEvent) => {
+      event.stopPropagation();
+      onThumbnailClick?.();
+    },
+    [onThumbnailClick],
+  );
+
   return (
     <Card
       className={className}
@@ -171,6 +190,76 @@ export function EntityCard({
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
           )}
+
+          {/* Thumbnail */}
+          <Box
+            onClick={
+              onThumbnailClick && !isThumbnailLoading
+                ? handleThumbnailClick
+                : undefined
+            }
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 1,
+              overflow: 'hidden',
+              flexShrink: 0,
+              bgcolor: 'grey.100',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: 1,
+              borderColor: 'divider',
+              cursor:
+                onThumbnailClick && !isThumbnailLoading ? 'pointer' : 'default',
+              position: 'relative',
+              transition: 'all 0.2s',
+              '&:hover':
+                onThumbnailClick && !isThumbnailLoading
+                  ? {
+                      borderColor: 'primary.main',
+                      '& .thumbnail-overlay': {
+                        opacity: 1,
+                      },
+                    }
+                  : undefined,
+            }}
+          >
+            {isThumbnailLoading ? (
+              <CircularProgress size={24} />
+            ) : thumbnailUrl ? (
+              <Box
+                component="img"
+                src={thumbnailUrl}
+                alt={`${name} thumbnail`}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <ImageIcon sx={{ color: 'grey.400', fontSize: 24 }} />
+            )}
+            {/* Hover overlay for clickable thumbnails */}
+            {onThumbnailClick && !isThumbnailLoading && (
+              <Box
+                className="thumbnail-overlay"
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  bgcolor: 'rgba(0, 0, 0, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0,
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                <ImageIcon sx={{ color: 'white', fontSize: 20 }} />
+              </Box>
+            )}
+          </Box>
 
           {/* Name & Subtitle - Clickable */}
           <Box

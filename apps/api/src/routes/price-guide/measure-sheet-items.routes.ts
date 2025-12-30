@@ -21,6 +21,7 @@ import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 import { getStorageAdapter } from '../../lib/storage';
 import { requireAuth, requirePermission } from '../../middleware';
+import { FileService } from '../../services';
 
 import type { AuthenticatedRequest } from '../../middleware/requireAuth';
 import type { EntityManager } from '@mikro-orm/postgresql';
@@ -899,6 +900,120 @@ router.put(
       });
     } catch (err) {
       req.log.error({ err }, 'Update MSI error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PUT /price-guide/measure-sheet-items/:id/thumbnail
+ * Update only the thumbnail for an MSI (quick inline update).
+ *
+ * This endpoint:
+ * - Does NOT bump the version (won't disrupt other users editing the MSI)
+ * - Deletes the old thumbnail when replaced
+ * - Uses raw SQL to avoid MikroORM's automatic version increment
+ */
+router.put(
+  '/:id/thumbnail',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'MSI ID is required' });
+        return;
+      }
+
+      // Simple validation - only imageId is expected
+      const { imageId } = req.body as { imageId?: string | null };
+
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      // Get current MSI with its image to capture old image ID
+      const msi = await em.findOne(
+        MeasureSheetItem,
+        { id, company: company.id },
+        { populate: ['image'] },
+      );
+
+      if (!msi) {
+        res.status(404).json({ error: 'Measure sheet item not found' });
+        return;
+      }
+
+      // Capture old image ID for deletion
+      const oldImageId = msi.image?.id;
+
+      // Validate new image exists and belongs to company (if provided)
+      if (imageId) {
+        const file = await em.findOne(File, {
+          id: imageId,
+          company: company.id,
+        });
+        if (!file) {
+          res.status(400).json({ error: 'Image file not found' });
+          return;
+        }
+      }
+
+      // Use raw SQL to update only image_id and last_modified_by
+      // This bypasses MikroORM's automatic version increment
+      const knex = em.getKnex();
+      await knex('measure_sheet_item')
+        .where({ id, company_id: company.id })
+        .update({
+          image_id: imageId ?? null,
+          last_modified_by_id: user.id,
+          updated_at: new Date(),
+        });
+
+      // Delete old image if it was replaced (not just cleared)
+      if (oldImageId && imageId && oldImageId !== imageId) {
+        try {
+          const fileService = new FileService(em);
+          await fileService.deleteFile(oldImageId, company.id);
+          req.log.info({ oldImageId, msiId: id }, 'Deleted old MSI thumbnail');
+        } catch (deleteErr) {
+          // Log but don't fail the request - the image is orphaned but not critical
+          req.log.warn(
+            { err: deleteErr, oldImageId },
+            'Failed to delete old MSI thumbnail',
+          );
+        }
+      }
+
+      // Clear the entity manager cache and refetch for response
+      em.clear();
+      const updatedMsi = await em.findOne(
+        MeasureSheetItem,
+        { id, company: company.id },
+        { populate: ['image'] },
+      );
+
+      const imageUrls = await getImageUrls(updatedMsi?.image);
+
+      req.log.info(
+        { msiId: id, msiName: msi.name, imageId, oldImageId, userId: user.id },
+        'MSI thumbnail updated',
+      );
+
+      res.status(200).json({
+        message: 'Thumbnail updated',
+        thumbnailUrl: imageUrls.thumbnailUrl,
+        imageUrl: imageUrls.imageUrl,
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Update MSI thumbnail error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

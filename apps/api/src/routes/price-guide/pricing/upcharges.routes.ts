@@ -278,8 +278,11 @@ router.get(
         // Determine which category this price belongs to
         if (!price.option) {
           // Default price (no option)
-          if (price.office && defaultPrices[price.office.id]) {
-            defaultPrices[price.office.id].prices[priceTypeId] = priceData;
+          const officeEntry = price.office
+            ? defaultPrices[price.office.id]
+            : undefined;
+          if (officeEntry) {
+            officeEntry.prices[priceTypeId] = priceData;
           }
           // Note: office=null (default for all offices) not yet implemented in UI
         } else if (!price.measureSheetItem) {

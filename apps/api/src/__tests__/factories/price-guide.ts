@@ -98,7 +98,6 @@ export type CreateUpChargeOptions = {
   note?: string;
   measurementType?: string;
   identifier?: string;
-  imageUrl?: string;
   isActive?: boolean;
   lastModifiedBy?: User;
 };
@@ -115,7 +114,6 @@ export async function createTestUpCharge(
     note: options.note,
     measurementType: options.measurementType,
     identifier: options.identifier,
-    imageUrl: options.imageUrl,
     isActive: options.isActive ?? true,
     lastModifiedBy: options.lastModifiedBy,
   });

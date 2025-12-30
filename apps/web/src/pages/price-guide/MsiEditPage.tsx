@@ -40,6 +40,8 @@ import {
   useLinkAdditionalDetails,
   useUnlinkAdditionalDetail,
 } from '../../hooks/usePriceGuide';
+import { ApiClientError } from '../../lib/api-client';
+import { filesApi } from '../../services/files';
 
 import { AdditionalDetailsSection } from './sections/AdditionalDetailsSection';
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -51,6 +53,7 @@ import type {
   LinkedAdditionalDetail,
   LinkedOption,
   LinkedUpCharge,
+  PendingImage,
   WizardAction,
   WizardState,
 } from '../../components/price-guide/wizard/WizardContext';
@@ -59,6 +62,36 @@ import type {
   LinkedOption as SharedLinkedOption,
   LinkedUpCharge as SharedLinkedUpCharge,
 } from '@shared/types';
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Extract a user-friendly error message from an error object.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    // Check for validation errors with details
+    if (error.apiError.details && Array.isArray(error.apiError.details)) {
+      const details = error.apiError.details as Array<{
+        field?: string;
+        message?: string;
+      }>;
+      const messages = details
+        .map(d => (d.field ? `${d.field}: ${d.message}` : d.message))
+        .filter(Boolean);
+      if (messages.length > 0) {
+        return messages.join('. ');
+      }
+    }
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Failed to save changes. Please try again.';
+}
 
 // ============================================================================
 // State Management
@@ -80,6 +113,7 @@ const initialState: WizardState = {
   upcharges: [],
   additionalDetails: [],
   msiPricing: {},
+  image: null,
 };
 
 function reducer(state: WizardState, action: WizardAction): WizardState {
@@ -94,6 +128,10 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
         categoryId: action.payload.categoryId,
         categoryName: action.payload.categoryName,
       };
+    case 'SET_IMAGE':
+      return { ...state, image: action.payload };
+    case 'REMOVE_IMAGE':
+      return { ...state, image: null };
     case 'ADD_OPTION':
       if (state.options.some(o => o.id === action.payload.id)) {
         return state;
@@ -199,6 +237,9 @@ export function MsiEditPage(): React.ReactElement {
   // Track original state for diffing on save
   const [originalState, setOriginalState] = useState<WizardState | null>(null);
 
+  // Track image IDs that should be deleted on save (when removing existing images)
+  const [imageIdsToDelete, setImageIdsToDelete] = useState<string[]>([]);
+
   // Load MSI data into state
   useEffect(() => {
     if (msiData?.item && !state.isLoaded) {
@@ -215,6 +256,15 @@ export function MsiEditPage(): React.ReactElement {
         tagRequired: msi.tagRequired,
         tagPickerOptions: (msi.tagPickerOptions ?? []) as string[],
         officeIds: msi.offices.map(o => o.id),
+        // Load image from API response (existing image)
+        image: msi.imageId
+          ? {
+              type: 'existing' as const,
+              id: msi.imageId,
+              url: msi.imageUrl ?? '',
+              thumbnailUrl: msi.thumbnailUrl ?? null,
+            }
+          : null,
         options: msi.options.map((o: SharedLinkedOption) => ({
           id: o.optionId,
           name: o.name,
@@ -251,6 +301,30 @@ export function MsiEditPage(): React.ReactElement {
     },
     [],
   );
+
+  /**
+   * Handle file selection - stores the pending image in state.
+   * Actual upload happens on save.
+   */
+  const onFileSelected = useCallback((pendingImage: PendingImage) => {
+    dispatch({ type: 'SET_IMAGE', payload: pendingImage });
+  }, []);
+
+  /**
+   * Handle image removal.
+   * If removing an existing image, track its ID for deletion on save.
+   */
+  const onImageRemoved = useCallback(() => {
+    // If there's an existing image being removed, mark it for deletion
+    if (state.image?.type === 'existing') {
+      setImageIdsToDelete(prev => [...prev, state.image!.id]);
+    }
+    // If it's a pending image, revoke the preview URL to free memory
+    if (state.image?.type === 'pending') {
+      URL.revokeObjectURL(state.image.previewUrl);
+    }
+    dispatch({ type: 'REMOVE_IMAGE' });
+  }, [state.image]);
 
   const addOption = useCallback((option: LinkedOption) => {
     dispatch({ type: 'ADD_OPTION', payload: option });
@@ -322,7 +396,30 @@ export function MsiEditPage(): React.ReactElement {
       return;
 
     try {
-      // 1. Update basic fields
+      // 1. Upload pending image if present
+      let imageId: string | null | undefined;
+      const originalImageId =
+        originalState.image?.type === 'existing'
+          ? originalState.image.id
+          : null;
+
+      if (state.image?.type === 'pending') {
+        // Upload the pending image
+        const uploadResponse = await filesApi.uploadImage(state.image.file, {
+          visibility: 'company',
+          description: 'MSI product thumbnail',
+        });
+        imageId = uploadResponse.file.id;
+      } else if (state.image?.type === 'existing') {
+        // Keep existing image, but only send if changed
+        imageId =
+          state.image.id !== originalImageId ? state.image.id : undefined;
+      } else {
+        // No image - if there was one before, send null to remove
+        imageId = originalImageId ? null : undefined;
+      }
+
+      // 2. Update basic fields (including image)
       await updateMutation.mutateAsync({
         msiId,
         data: {
@@ -330,11 +427,14 @@ export function MsiEditPage(): React.ReactElement {
           categoryId: state.categoryId,
           measurementType: state.measurementType,
           note: state.note || undefined,
-          defaultQty: state.defaultQty,
+          // Ensure defaultQty is a number (form inputs may store as string)
+          defaultQty: Number(state.defaultQty),
           showSwitch: state.showSwitch,
           tagTitle: state.tagTitle || undefined,
           tagRequired: state.tagRequired,
           tagPickerOptions: state.tagPickerOptions,
+          // Include imageId from upload or existing
+          imageId,
           version: state.version,
         },
       });
@@ -421,6 +521,21 @@ export function MsiEditPage(): React.ReactElement {
         await unlinkDetailMutation.mutateAsync({ msiId, fieldId });
       }
 
+      // 6. Delete removed images (fire and forget - don't block save)
+      // We do this after save so if save fails, we don't lose the images
+      for (const fileId of imageIdsToDelete) {
+        void filesApi.deleteFile(fileId).catch(() => {
+          // Silently ignore delete errors - the file will be orphaned but not critical
+        });
+      }
+      // Clear the deletion queue
+      setImageIdsToDelete([]);
+
+      // Clean up preview URL if we just uploaded a pending image
+      if (state.image?.type === 'pending') {
+        URL.revokeObjectURL(state.image.previewUrl);
+      }
+
       void navigate('/price-guide');
     } catch {
       // Error handled by mutations
@@ -438,6 +553,7 @@ export function MsiEditPage(): React.ReactElement {
     unlinkUpchargeMutation,
     linkDetailsMutation,
     unlinkDetailMutation,
+    imageIdsToDelete,
     navigate,
   ]);
 
@@ -527,7 +643,7 @@ export function MsiEditPage(): React.ReactElement {
 
       {updateMutation.isError && (
         <Alert severity="error" sx={{ mx: 3, mt: 2 }}>
-          Failed to save changes. Please try again.
+          {getErrorMessage(updateMutation.error)}
         </Alert>
       )}
 
@@ -546,6 +662,8 @@ export function MsiEditPage(): React.ReactElement {
                 state={state}
                 setBasicInfo={setBasicInfo}
                 setCategory={setCategory}
+                onFileSelected={onFileSelected}
+                onImageRemoved={onImageRemoved}
               />
             </AccordionDetails>
           </Accordion>

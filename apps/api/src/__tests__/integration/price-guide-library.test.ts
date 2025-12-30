@@ -325,6 +325,61 @@ describe('Price Guide Library Routes', () => {
       });
     });
 
+    describe('PUT /api/price-guide/library/upcharges/:id/thumbnail', () => {
+      it('should update upcharge thumbnail without requiring version', async () => {
+        const upCharge = await createTestUpCharge(em, setup.company, {
+          name: 'Test Upcharge',
+        });
+
+        // Update with null (clear thumbnail)
+        const response = await makeRequest()
+          .put(`/api/price-guide/library/upcharges/${upCharge.id}/thumbnail`)
+          .set('Cookie', setup.adminCookie)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toBe('Thumbnail updated');
+        expect(response.body.thumbnailUrl).toBeNull();
+      });
+
+      it('should return 404 for non-existent upcharge', async () => {
+        const fakeId = '00000000-0000-0000-0000-000000000000';
+
+        const response = await makeRequest()
+          .put(`/api/price-guide/library/upcharges/${fakeId}/thumbnail`)
+          .set('Cookie', setup.adminCookie)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(404);
+      });
+
+      it('should require authentication', async () => {
+        const upCharge = await createTestUpCharge(em, setup.company);
+
+        const response = await makeRequest()
+          .put(`/api/price-guide/library/upcharges/${upCharge.id}/thumbnail`)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(401);
+      });
+
+      it('should require settings:update permission', async () => {
+        const noPermUser = await createUserWithPermissions(
+          em,
+          setup.company,
+          [],
+        );
+        const upCharge = await createTestUpCharge(em, setup.company);
+
+        const response = await makeRequest()
+          .put(`/api/price-guide/library/upcharges/${upCharge.id}/thumbnail`)
+          .set('Cookie', noPermUser.cookie)
+          .send({ imageId: null });
+
+        expect(response.status).toBe(403);
+      });
+    });
+
     describe('DELETE /api/price-guide/library/upcharges/:id', () => {
       it('should soft delete an upcharge', async () => {
         const upCharge = await createTestUpCharge(em, setup.company);
