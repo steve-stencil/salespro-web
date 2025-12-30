@@ -70,6 +70,21 @@ export {
 // Pricing
 export { PricingGrid } from './PricingGrid';
 
+// UpCharge Pricing
+export {
+  UpChargePricingConfig,
+  UpChargePricingDialog,
+  UpChargePricingModeBadge,
+  PriceTypeModeSelector,
+  FixedModeConfig,
+  PercentageModeConfig,
+  PricingPreview,
+  transformToConfig,
+  deriveDisplayMode,
+  formatPercentageRate,
+  formatBaseTypes,
+} from './upcharge-pricing';
+
 // RelationshipBadges
 export {
   UsageCountBadge,

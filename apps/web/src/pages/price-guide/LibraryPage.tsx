@@ -39,8 +39,11 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
+import { UpchargeDefaultPricingInline } from '../../components/price-guide/upcharge-pricing';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useOfficesList } from '../../hooks/useOffices';
 import {
   useOptionList,
   useUpchargeList,
@@ -562,12 +565,14 @@ function OptionsTab({
 
 type UpChargesTabProps = {
   search: string;
+  offices: Array<{ id: string; name: string }>;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 };
 
 function UpChargesTab({
   search,
+  offices,
   onEdit,
   onDelete,
 }: UpChargesTabProps): React.ReactElement {
@@ -591,8 +596,6 @@ function UpChargesTab({
     return data.pages.flatMap(page => page.items);
   }, [data]);
 
-  const totalCount = data?.pages[0]?.total ?? 0;
-
   // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -612,6 +615,16 @@ function UpChargesTab({
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Transform items to match the expected shape
+  const upcharges = useMemo(() => {
+    return allItems.map((upcharge: UpChargeSummary) => ({
+      id: upcharge.id,
+      name: upcharge.name,
+      note: upcharge.note,
+      linkedMsiCount: upcharge.linkedMsiCount,
+    }));
+  }, [allItems]);
+
   if (error) {
     return (
       <Alert severity="error" sx={{ mt: 2 }}>
@@ -622,111 +635,19 @@ function UpChargesTab({
 
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {isLoading ? (
-          <Skeleton width={100} />
-        ) : (
-          `${totalCount} upcharge${totalCount !== 1 ? 's' : ''}`
-        )}
-      </Typography>
+      {search && allItems.length === 0 && !isLoading && (
+        <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+          No upcharges match your search.
+        </Typography>
+      )}
 
-      <TableContainer>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Note</TableCell>
-              <TableCell>Identifier</TableCell>
-              <TableCell>Measurement</TableCell>
-              <TableCell align="center">Used By</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
-              [...Array(5)].map((_, i) => (
-                <TableRowSkeleton key={i} columns={6} />
-              ))
-            ) : allItems.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">
-                    {search
-                      ? 'No upcharges match your search.'
-                      : 'No upcharges found.'}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              allItems.map((upcharge: UpChargeSummary) => (
-                <TableRow key={upcharge.id} hover>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={500}>
-                      {upcharge.name}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        maxWidth: 200,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {upcharge.note ?? '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ fontFamily: 'monospace' }}
-                    >
-                      {upcharge.identifier ?? '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {upcharge.measurementType ?? '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <UsageCountBadge count={upcharge.linkedMsiCount} />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                      justifyContent="flex-end"
-                    >
-                      <Tooltip title="Edit">
-                        <IconButton
-                          size="small"
-                          onClick={() => onEdit?.(upcharge.id)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={() => onDelete?.(upcharge.id)}
-                          disabled={upcharge.linkedMsiCount > 0}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <UpchargeDefaultPricingInline
+        upcharges={upcharges}
+        offices={offices}
+        isLoading={isLoading}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
 
       {/* Load More Trigger */}
       <Box
@@ -934,25 +855,46 @@ function AdditionalDetailsTab({
 // Main Component
 // ============================================================================
 
+// Map tab names to indices
+const TAB_MAP: Record<string, number> = {
+  options: 0,
+  upcharges: 1,
+  details: 2,
+};
+const TAB_NAMES = ['options', 'upcharges', 'details'];
+
 export function LibraryPage(): React.ReactElement {
-  const [activeTab, setActiveTab] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [showAddOptionDialog, setShowAddOptionDialog] = useState(false);
   const [showAddUpChargeDialog, setShowAddUpChargeDialog] = useState(false);
   const [showAddAdditionalDetailDialog, setShowAddAdditionalDetailDialog] =
     useState(false);
 
+  // Get initial tab from URL param (default to 0 = options)
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam ? (TAB_MAP[tabParam] ?? 0) : 0;
+
   // Mutations for creating items
   const createOptionMutation = useCreateOption();
   const createUpchargeMutation = useCreateUpcharge();
   const createAdditionalDetailMutation = useCreateAdditionalDetail();
 
+  // Fetch offices for pricing dialog
+  const { data: officesData } = useOfficesList();
+  const offices = useMemo(() => {
+    if (!officesData?.offices) return [];
+    return officesData.offices
+      .filter(o => o.isActive)
+      .map(o => ({ id: o.id, name: o.name }));
+  }, [officesData]);
+
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, newValue: number) => {
-      setActiveTab(newValue);
+      setSearchParams({ tab: TAB_NAMES[newValue] });
       setSearch(''); // Clear search when switching tabs
     },
-    [],
+    [setSearchParams],
   );
 
   const handleSearchChange = useCallback(
@@ -1113,6 +1055,7 @@ export function LibraryPage(): React.ReactElement {
           <TabPanel value={activeTab} index={1}>
             <UpChargesTab
               search={search}
+              offices={offices}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />

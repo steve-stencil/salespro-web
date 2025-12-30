@@ -15,6 +15,8 @@ import type {
   LibraryListParams,
   CreateMsiRequest,
   UpdateMsiRequest,
+  UpdateUpChargeDefaultPricesRequest,
+  UpdateUpChargeOverridePricesRequest,
 } from '@shared/types';
 
 // ============================================================================
@@ -64,6 +66,11 @@ export const priceGuideKeys = {
 
   // Price Types
   priceTypes: () => [...priceGuideKeys.all, 'price-types'] as const,
+
+  // UpCharge Pricing
+  upchargePricing: () => [...priceGuideKeys.all, 'upcharge-pricing'] as const,
+  upchargePricingDetail: (upchargeId: string) =>
+    [...priceGuideKeys.upchargePricing(), upchargeId] as const,
 };
 
 // ============================================================================
@@ -241,6 +248,10 @@ export function useLinkOptions() {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiDetail(msiId),
       });
+      // Also invalidate list to update counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiLists(),
+      });
     },
   });
 }
@@ -257,6 +268,10 @@ export function useUnlinkOption() {
     onSuccess: (_, { msiId }) => {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiDetail(msiId),
+      });
+      // Also invalidate list to update counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiLists(),
       });
     },
   });
@@ -280,6 +295,10 @@ export function useLinkUpcharges() {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiDetail(msiId),
       });
+      // Also invalidate list to update counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiLists(),
+      });
     },
   });
 }
@@ -301,6 +320,10 @@ export function useUnlinkUpcharge() {
     onSuccess: (_, { msiId }) => {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiDetail(msiId),
+      });
+      // Also invalidate list to update counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiLists(),
       });
     },
   });
@@ -346,6 +369,10 @@ export function useLinkAdditionalDetails() {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiDetail(msiId),
       });
+      // Also invalidate list to update counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiLists(),
+      });
     },
   });
 }
@@ -362,6 +389,10 @@ export function useUnlinkAdditionalDetail() {
     onSuccess: (_, { msiId }) => {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiDetail(msiId),
+      });
+      // Also invalidate list to update counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiLists(),
       });
     },
   });
@@ -663,6 +694,211 @@ export function usePriceTypes() {
   return useQuery({
     queryKey: priceGuideKeys.priceTypes(),
     queryFn: () => priceGuideApi.getPriceTypes(),
+  });
+}
+
+// ============================================================================
+// UpCharge Pricing Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch option pricing (all offices and price types).
+ */
+export function useOptionPricing(optionId: string) {
+  return useQuery({
+    queryKey: [...priceGuideKeys.optionDetail(optionId), 'pricing'],
+    queryFn: () => priceGuideApi.getOptionPricing(optionId),
+    enabled: !!optionId,
+  });
+}
+
+/**
+ * Hook to update option pricing for a specific office.
+ */
+export function useUpdateOptionPricing() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      optionId,
+      data,
+    }: {
+      optionId: string;
+      data: {
+        officeId: string;
+        prices: Array<{ priceTypeId: string; amount: number }>;
+        version: number;
+      };
+    }) => priceGuideApi.updateOptionPricing(optionId, data),
+    onSuccess: (_, { optionId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: [...priceGuideKeys.optionDetail(optionId), 'pricing'],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to bulk update option pricing across all offices for a price type.
+ */
+export function useUpdateOptionPricingBulk() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      optionId,
+      data,
+    }: {
+      optionId: string;
+      data: {
+        priceTypeId: string;
+        amount: number;
+        version: number;
+      };
+    }) => priceGuideApi.updateOptionPricingBulk(optionId, data),
+    onSuccess: (_, { optionId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: [...priceGuideKeys.optionDetail(optionId), 'pricing'],
+      });
+    },
+  });
+}
+
+/**
+ * Hook to fetch upcharge pricing details (defaults and overrides).
+ */
+export function useUpchargePricing(upchargeId: string) {
+  return useQuery({
+    queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
+    queryFn: () => priceGuideApi.getUpchargePricing(upchargeId),
+    enabled: !!upchargeId,
+  });
+}
+
+/**
+ * Hook to update default prices for an upcharge.
+ */
+export function useUpdateUpchargeDefaultPrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      data,
+    }: {
+      upchargeId: string;
+      data: UpdateUpChargeDefaultPricesRequest;
+    }) => priceGuideApi.updateUpchargeDefaultPrices(upchargeId, data),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update override prices for an upcharge.
+ */
+export function useUpdateUpchargeOverridePrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      data,
+    }: {
+      upchargeId: string;
+      data: UpdateUpChargeOverridePricesRequest;
+    }) => priceGuideApi.updateUpchargeOverridePrices(upchargeId, data),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete global option override prices for an upcharge.
+ */
+export function useDeleteUpchargeOverridePrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      optionId,
+      officeId,
+    }: {
+      upchargeId: string;
+      optionId: string;
+      officeId?: string;
+    }) =>
+      priceGuideApi.deleteUpchargeOverridePrices(
+        upchargeId,
+        optionId,
+        officeId,
+      ),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update MSI+Option specific override prices.
+ */
+export function useUpdateUpchargeMsiOverridePrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      data,
+    }: {
+      upchargeId: string;
+      data: Parameters<typeof priceGuideApi.updateUpchargeMsiOverridePrices>[1];
+    }) => priceGuideApi.updateUpchargeMsiOverridePrices(upchargeId, data),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete MSI+Option specific override prices.
+ */
+export function useDeleteUpchargeMsiOverridePrices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      msiId,
+      optionId,
+      officeId,
+    }: {
+      upchargeId: string;
+      msiId: string;
+      optionId: string;
+      officeId?: string;
+    }) =>
+      priceGuideApi.deleteUpchargeMsiOverridePrices(
+        upchargeId,
+        msiId,
+        optionId,
+        officeId,
+      ),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
+      });
+    },
   });
 }
 

@@ -20,6 +20,10 @@ import type {
   LinkResult,
   SuccessResponse,
   PriceTypesResponse,
+  UpChargePricingDetail,
+  UpdateUpChargeDefaultPricesRequest,
+  UpdateUpChargeOverridePricesRequest,
+  UpdateUpChargeMsiOverridePricesRequest,
 } from '@shared/types';
 
 /**
@@ -469,6 +473,166 @@ export const priceGuideApi = {
   getPriceTypes: async (): Promise<PriceTypesResponse> => {
     return apiClient.get<PriceTypesResponse>(
       '/price-guide/pricing/price-types',
+    );
+  },
+
+  // ==========================================================================
+  // Option Pricing
+  // ==========================================================================
+
+  /**
+   * Get all pricing for an option across all offices and price types.
+   */
+  getOptionPricing: async (
+    optionId: string,
+  ): Promise<{
+    option: {
+      id: string;
+      name: string;
+      brand: string | null;
+      itemCode: string | null;
+      version: number;
+    };
+    priceTypes: Array<{
+      id: string;
+      code: string;
+      name: string;
+      sortOrder: number;
+    }>;
+    byOffice: Record<
+      string,
+      { office: { id: string; name: string }; prices: Record<string, number> }
+    >;
+  }> => {
+    return apiClient.get(`/price-guide/pricing/options/${optionId}`);
+  },
+
+  /**
+   * Update prices for an option for a specific office.
+   */
+  updateOptionPricing: async (
+    optionId: string,
+    data: {
+      officeId: string;
+      prices: Array<{ priceTypeId: string; amount: number }>;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    option: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/pricing/options/${optionId}`, data);
+  },
+
+  /**
+   * Bulk update prices for an option across all offices for a specific price type.
+   */
+  updateOptionPricingBulk: async (
+    optionId: string,
+    data: {
+      priceTypeId: string;
+      amount: number;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    option: { id: string; name: string; version: number };
+    updatedCount: number;
+  }> => {
+    return apiClient.put(`/price-guide/pricing/options/${optionId}/bulk`, data);
+  },
+
+  // ==========================================================================
+  // UpCharge Pricing
+  // ==========================================================================
+
+  /**
+   * Get all pricing for an upcharge (defaults and option overrides).
+   */
+  getUpchargePricing: async (
+    upchargeId: string,
+  ): Promise<UpChargePricingDetail> => {
+    return apiClient.get<UpChargePricingDetail>(
+      `/price-guide/pricing/upcharges/${upchargeId}`,
+    );
+  },
+
+  /**
+   * Update default prices for an upcharge for a specific office.
+   */
+  updateUpchargeDefaultPrices: async (
+    upchargeId: string,
+    data: UpdateUpChargeDefaultPricesRequest,
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/upcharges/${upchargeId}/defaults`,
+      data,
+    );
+  },
+
+  /**
+   * Update override prices for an upcharge for a specific option and office.
+   */
+  updateUpchargeOverridePrices: async (
+    upchargeId: string,
+    data: UpdateUpChargeOverridePricesRequest,
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/upcharges/${upchargeId}/overrides`,
+      data,
+    );
+  },
+
+  /**
+   * Delete global option override prices for an upcharge.
+   */
+  deleteUpchargeOverridePrices: async (
+    upchargeId: string,
+    optionId: string,
+    officeId?: string,
+  ): Promise<{ message: string; deletedCount: number }> => {
+    const params = new URLSearchParams({ optionId });
+    if (officeId) params.set('officeId', officeId);
+    return apiClient.delete(
+      `/price-guide/pricing/upcharges/${upchargeId}/overrides?${params.toString()}`,
+    );
+  },
+
+  /**
+   * Update MSI+Option specific override prices.
+   */
+  updateUpchargeMsiOverridePrices: async (
+    upchargeId: string,
+    data: UpdateUpChargeMsiOverridePricesRequest,
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/upcharges/${upchargeId}/msi-overrides`,
+      data,
+    );
+  },
+
+  /**
+   * Delete MSI+Option specific override prices.
+   */
+  deleteUpchargeMsiOverridePrices: async (
+    upchargeId: string,
+    msiId: string,
+    optionId: string,
+    officeId?: string,
+  ): Promise<{ message: string; deletedCount: number }> => {
+    const params = new URLSearchParams({ msiId, optionId });
+    if (officeId) params.set('officeId', officeId);
+    return apiClient.delete(
+      `/price-guide/pricing/upcharges/${upchargeId}/msi-overrides?${params.toString()}`,
     );
   },
 

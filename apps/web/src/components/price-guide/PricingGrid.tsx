@@ -4,7 +4,10 @@
  */
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import InputAdornment from '@mui/material/InputAdornment';
 import Paper from '@mui/material/Paper';
+import Popover from '@mui/material/Popover';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -13,7 +16,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import type { PriceType } from '@shared/types';
 
@@ -41,6 +44,8 @@ type PricingGridProps = {
     priceTypeId: string,
     amount: number,
   ) => void;
+  /** Callback when bulk price change is requested for a price type */
+  onBulkPriceChange?: (priceTypeId: string, amount: number) => void;
   /** Whether the grid is read-only */
   readOnly?: boolean;
   /** Optional title for the grid */
@@ -48,6 +53,83 @@ type PricingGridProps = {
   /** Optional subtitle for the grid */
   subtitle?: string;
 };
+
+// ============================================================================
+// Quick Add Popover
+// ============================================================================
+
+type QuickAddPopoverProps = {
+  open: boolean;
+  anchorEl: HTMLElement | null;
+  priceTypeName: string;
+  onClose: () => void;
+  onApply: (amount: number) => void;
+};
+
+function QuickAddPopover({
+  open,
+  anchorEl,
+  priceTypeName,
+  onClose,
+  onApply,
+}: QuickAddPopoverProps): React.ReactElement {
+  const [amount, setAmount] = useState('');
+
+  const handleApply = useCallback(() => {
+    const numericAmount = parseFloat(amount) || 0;
+    onApply(numericAmount);
+    setAmount('');
+    onClose();
+  }, [amount, onApply, onClose]);
+
+  const handleClose = useCallback(() => {
+    setAmount('');
+    onClose();
+  }, [onClose]);
+
+  return (
+    <Popover
+      open={open}
+      anchorEl={anchorEl}
+      onClose={handleClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+    >
+      <Box sx={{ p: 2, minWidth: 200 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          Set {priceTypeName} for all offices
+        </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          type="number"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          placeholder="0.00"
+          InputProps={{
+            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+          }}
+          inputProps={{ min: 0, step: 0.01 }}
+          autoFocus
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              handleApply();
+            }
+          }}
+          sx={{ mb: 2 }}
+        />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+          <Button size="small" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button size="small" variant="contained" onClick={handleApply}>
+            Apply to All
+          </Button>
+        </Box>
+      </Box>
+    </Popover>
+  );
+}
 
 // ============================================================================
 // Main Component
@@ -58,10 +140,18 @@ export function PricingGrid({
   priceTypes,
   pricing,
   onPriceChange,
+  onBulkPriceChange,
   readOnly = false,
   title,
   subtitle,
 }: PricingGridProps): React.ReactElement {
+  const [quickAddAnchor, setQuickAddAnchor] = useState<HTMLElement | null>(
+    null,
+  );
+  const [quickAddPriceType, setQuickAddPriceType] = useState<PriceType | null>(
+    null,
+  );
+
   // Handler for price changes
   const handlePriceChange = useCallback(
     (officeId: string, priceTypeId: string, value: string) => {
@@ -85,6 +175,32 @@ export function PricingGrid({
     [pricing],
   );
 
+  // Handle column header click for quick add
+  const handleColumnHeaderClick = useCallback(
+    (event: React.MouseEvent<HTMLTableCellElement>, priceType: PriceType) => {
+      if (readOnly || !onBulkPriceChange) return;
+      setQuickAddAnchor(event.currentTarget);
+      setQuickAddPriceType(priceType);
+    },
+    [readOnly, onBulkPriceChange],
+  );
+
+  // Handle quick add close
+  const handleQuickAddClose = useCallback(() => {
+    setQuickAddAnchor(null);
+    setQuickAddPriceType(null);
+  }, []);
+
+  // Handle quick add apply
+  const handleQuickAddApply = useCallback(
+    (amount: number) => {
+      if (quickAddPriceType && onBulkPriceChange) {
+        onBulkPriceChange(quickAddPriceType.id, amount);
+      }
+    },
+    [quickAddPriceType, onBulkPriceChange],
+  );
+
   if (offices.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -102,6 +218,8 @@ export function PricingGrid({
       </Box>
     );
   }
+
+  const showQuickAdd = !readOnly && onBulkPriceChange;
 
   return (
     <Box>
@@ -123,7 +241,7 @@ export function PricingGrid({
               <TableCell
                 sx={{
                   fontWeight: 600,
-                  bgcolor: 'grey.100',
+                  bgcolor: 'action.hover',
                   position: 'sticky',
                   left: 0,
                   zIndex: 1,
@@ -136,9 +254,42 @@ export function PricingGrid({
                 <TableCell
                   key={priceType.id}
                   align="right"
-                  sx={{ fontWeight: 600, bgcolor: 'grey.100', minWidth: 120 }}
+                  onClick={e => handleColumnHeaderClick(e, priceType)}
+                  sx={{
+                    fontWeight: 600,
+                    bgcolor: 'action.hover',
+                    minWidth: 120,
+                    cursor: showQuickAdd ? 'pointer' : 'default',
+                    '&:hover': showQuickAdd
+                      ? {
+                          bgcolor: 'action.selected',
+                        }
+                      : undefined,
+                  }}
                 >
-                  {priceType.name}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 0.5,
+                    }}
+                  >
+                    {priceType.name}
+                    {showQuickAdd && (
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        sx={{
+                          color: 'primary.main',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                        }}
+                      >
+                        +
+                      </Typography>
+                    )}
+                  </Box>
                 </TableCell>
               ))}
             </TableRow>
@@ -196,6 +347,15 @@ export function PricingGrid({
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Quick Add Popover */}
+      <QuickAddPopover
+        open={Boolean(quickAddAnchor)}
+        anchorEl={quickAddAnchor}
+        priceTypeName={quickAddPriceType?.name ?? ''}
+        onClose={handleQuickAddClose}
+        onApply={handleQuickAddApply}
+      />
     </Box>
   );
 }
