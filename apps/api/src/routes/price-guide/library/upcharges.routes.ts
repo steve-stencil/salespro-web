@@ -8,9 +8,11 @@ import {
   UpChargeDisabledOption,
   Company,
   User,
+  File,
 } from '../../../entities';
 import { getORM } from '../../../lib/db';
 import { PERMISSIONS } from '../../../lib/permissions';
+import { getStorageAdapter } from '../../../lib/storage';
 import { requireAuth, requirePermission } from '../../../middleware';
 
 import type { AuthenticatedRequest } from '../../../middleware/requireAuth';
@@ -34,7 +36,8 @@ const createUpchargeSchema = z.object({
   note: z.string().max(2000).optional(),
   measurementType: z.string().max(50).optional(),
   identifier: z.string().max(255).optional(),
-  imageUrl: z.string().max(255).optional(),
+  /** File ID for product thumbnail image */
+  imageId: z.string().uuid().optional(),
 });
 
 const updateUpchargeSchema = z.object({
@@ -42,7 +45,8 @@ const updateUpchargeSchema = z.object({
   note: z.string().max(2000).optional().nullable(),
   measurementType: z.string().max(50).optional().nullable(),
   identifier: z.string().max(255).optional().nullable(),
-  imageUrl: z.string().max(255).optional().nullable(),
+  /** File ID for product thumbnail image (null to remove) */
+  imageId: z.string().uuid().optional().nullable(),
   version: z.number().int().min(1),
 });
 
@@ -79,6 +83,52 @@ function decodeCursor(cursor: string): { name: string; id: string } | null {
 
 function encodeCursor(name: string, id: string): string {
   return Buffer.from(`${name}:${id}`).toString('base64');
+}
+
+/** Presigned URL expiration for image thumbnails (1 hour) */
+const IMAGE_URL_EXPIRES_IN = 3600;
+
+/**
+ * Type guard to check if a loaded relation has a valid storageKey.
+ * Handles MikroORM's lazy-loaded relations which may not be fully loaded.
+ */
+function isLoadedFile(
+  file: unknown,
+): file is { storageKey: string; thumbnailKey?: string } {
+  return (
+    file !== null &&
+    file !== undefined &&
+    typeof file === 'object' &&
+    'storageKey' in file &&
+    typeof (file as { storageKey: unknown }).storageKey === 'string'
+  );
+}
+
+/**
+ * Generate signed URLs for a File entity's image and thumbnail.
+ */
+async function getImageUrls(
+  file: unknown,
+): Promise<{ imageUrl: string | null; thumbnailUrl: string | null }> {
+  if (!isLoadedFile(file)) {
+    return { imageUrl: null, thumbnailUrl: null };
+  }
+
+  const storage = getStorageAdapter();
+
+  const imageUrl = await storage.getSignedDownloadUrl({
+    key: file.storageKey,
+    expiresIn: IMAGE_URL_EXPIRES_IN,
+  });
+
+  const thumbnailUrl = file.thumbnailKey
+    ? await storage.getSignedDownloadUrl({
+        key: file.thumbnailKey,
+        expiresIn: IMAGE_URL_EXPIRES_IN,
+      })
+    : null;
+
+  return { imageUrl, thumbnailUrl };
 }
 
 // ============================================================================
@@ -150,22 +200,35 @@ router.get(
       const hasMore = items.length > limit;
       if (hasMore) items.pop();
 
+      // Load image relationships for presigned URLs
+      await em.populate(items, ['image']);
+
       const lastItem = items[items.length - 1];
       const nextCursor =
         hasMore && lastItem
           ? encodeCursor(lastItem.name, lastItem.id)
           : undefined;
 
+      // Build response with presigned URLs
+      const responseItems = await Promise.all(
+        items.map(async u => {
+          const { imageUrl, thumbnailUrl } = await getImageUrls(u.image);
+          return {
+            id: u.id,
+            name: u.name,
+            note: u.note,
+            measurementType: u.measurementType,
+            identifier: u.identifier,
+            linkedMsiCount: u.linkedMsiCount,
+            imageUrl,
+            thumbnailUrl,
+            isActive: u.isActive,
+          };
+        }),
+      );
+
       res.status(200).json({
-        items: items.map(u => ({
-          id: u.id,
-          name: u.name,
-          note: u.note,
-          measurementType: u.measurementType,
-          identifier: u.identifier,
-          linkedMsiCount: u.linkedMsiCount,
-          isActive: u.isActive,
-        })),
+        items: responseItems,
         nextCursor,
         hasMore,
         total: items.length,
@@ -206,7 +269,7 @@ router.get(
       const upcharge = await em.findOne(
         UpCharge,
         { id, company: company.id },
-        { populate: ['lastModifiedBy'] },
+        { populate: ['lastModifiedBy', 'image'] },
       );
 
       if (!upcharge) {
@@ -231,6 +294,9 @@ router.get(
         { populate: ['option'] },
       );
 
+      // Generate presigned URLs for image
+      const { imageUrl, thumbnailUrl } = await getImageUrls(upcharge.image);
+
       res.status(200).json({
         upcharge: {
           id: upcharge.id,
@@ -238,7 +304,9 @@ router.get(
           note: upcharge.note,
           measurementType: upcharge.measurementType,
           identifier: upcharge.identifier,
-          imageUrl: upcharge.imageUrl,
+          imageId: upcharge.image?.id ?? null,
+          imageUrl,
+          thumbnailUrl,
           usageCount: upcharge.linkedMsiCount,
           hasAllOfficePricing: true, // TODO: Calculate
           disabledOptionIds: disabledOptions.map(d => d.option.id),
@@ -299,12 +367,30 @@ router.post(
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
+      // Validate image file if provided
+      let imageFile: File | undefined;
+      if (data.imageId) {
+        const file = await em.findOne(File, {
+          id: data.imageId,
+          company: company.id,
+        });
+        if (!file) {
+          res.status(400).json({ error: 'Image file not found' });
+          return;
+        }
+        if (!file.isImage) {
+          res.status(400).json({ error: 'File is not an image' });
+          return;
+        }
+        imageFile = file;
+      }
+
       const upcharge = new UpCharge();
       upcharge.name = data.name;
       upcharge.note = data.note;
       upcharge.measurementType = data.measurementType;
       upcharge.identifier = data.identifier;
-      upcharge.imageUrl = data.imageUrl;
+      upcharge.image = imageFile;
       upcharge.company = em.getReference(Company, company.id);
       upcharge.lastModifiedBy = em.getReference(User, user.id);
 
@@ -410,8 +496,27 @@ router.put(
         upcharge.measurementType = data.measurementType ?? undefined;
       if (data.identifier !== undefined)
         upcharge.identifier = data.identifier ?? undefined;
-      if (data.imageUrl !== undefined)
-        upcharge.imageUrl = data.imageUrl ?? undefined;
+
+      // Update image (can be set to new file or removed with null)
+      if (data.imageId !== undefined) {
+        if (data.imageId === null) {
+          upcharge.image = undefined;
+        } else {
+          const file = await em.findOne(File, {
+            id: data.imageId,
+            company: company.id,
+          });
+          if (!file) {
+            res.status(400).json({ error: 'Image file not found' });
+            return;
+          }
+          if (!file.isImage) {
+            res.status(400).json({ error: 'File is not an image' });
+            return;
+          }
+          upcharge.image = file;
+        }
+      }
 
       upcharge.lastModifiedBy = em.getReference(User, user.id);
       await em.flush();

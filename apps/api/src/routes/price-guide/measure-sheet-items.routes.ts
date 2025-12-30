@@ -15,9 +15,11 @@ import {
   Office,
   Company,
   User,
+  File,
 } from '../../entities';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
+import { getStorageAdapter } from '../../lib/storage';
 import { requireAuth, requirePermission } from '../../middleware';
 
 import type { AuthenticatedRequest } from '../../middleware/requireAuth';
@@ -55,6 +57,8 @@ const createMsiSchema = z.object({
   tagRequired: z.boolean().default(false),
   tagPickerOptions: z.array(z.unknown()).optional(),
   tagParams: z.record(z.string(), z.unknown()).optional(),
+  /** File ID for product thumbnail image */
+  imageId: z.string().uuid().optional(),
   officeIds: z
     .array(z.string().uuid())
     .min(1, 'At least one office is required'),
@@ -79,6 +83,8 @@ const updateMsiSchema = z.object({
   tagRequired: z.boolean().optional(),
   tagPickerOptions: z.array(z.unknown()).optional().nullable(),
   tagParams: z.record(z.string(), z.unknown()).optional().nullable(),
+  /** File ID for product thumbnail image (null to remove) */
+  imageId: z.string().uuid().optional().nullable(),
   version: z.number().int().min(1),
 });
 
@@ -157,6 +163,52 @@ async function getCategoryPath(
   }
 
   return pathParts.join(' > ');
+}
+
+/** Presigned URL expiration for image thumbnails (1 hour) */
+const IMAGE_URL_EXPIRES_IN = 3600;
+
+/**
+ * Type guard to check if a loaded relation has a valid storageKey.
+ * Handles MikroORM's lazy-loaded relations which may not be fully loaded.
+ */
+function isLoadedFile(
+  file: unknown,
+): file is { storageKey: string; thumbnailKey?: string } {
+  return (
+    file !== null &&
+    file !== undefined &&
+    typeof file === 'object' &&
+    'storageKey' in file &&
+    typeof (file as { storageKey: unknown }).storageKey === 'string'
+  );
+}
+
+/**
+ * Generate signed URLs for a File entity's image and thumbnail.
+ */
+async function getImageUrls(
+  file: unknown,
+): Promise<{ imageUrl: string | null; thumbnailUrl: string | null }> {
+  if (!isLoadedFile(file)) {
+    return { imageUrl: null, thumbnailUrl: null };
+  }
+
+  const storage = getStorageAdapter();
+
+  const imageUrl = await storage.getSignedDownloadUrl({
+    key: file.storageKey,
+    expiresIn: IMAGE_URL_EXPIRES_IN,
+  });
+
+  const thumbnailUrl = file.thumbnailKey
+    ? await storage.getSignedDownloadUrl({
+        key: file.thumbnailKey,
+        expiresIn: IMAGE_URL_EXPIRES_IN,
+      })
+    : null;
+
+  return { imageUrl, thumbnailUrl };
 }
 
 // ============================================================================
@@ -250,8 +302,8 @@ router.get(
       const hasMore = items.length > limit;
       if (hasMore) items.pop();
 
-      // Load relationships
-      await em.populate(items, ['category']);
+      // Load relationships (including image file for presigned URLs)
+      await em.populate(items, ['category', 'image']);
 
       // Get counts and names for each MSI
       const msiIds = items.map(i => i.id);
@@ -326,6 +378,7 @@ router.get(
           const office = officeMap.get(msi.id);
           const option = optionMap.get(msi.id);
           const upcharge = upchargeMap.get(msi.id);
+          const { imageUrl, thumbnailUrl } = await getImageUrls(msi.image);
           return {
             id: msi.id,
             name: msi.name,
@@ -341,7 +394,8 @@ router.get(
             officeNames: office?.names ?? [],
             optionNames: option?.names ?? [],
             upchargeNames: upcharge?.names ?? [],
-            imageUrl: msi.imageUrl,
+            imageUrl,
+            thumbnailUrl,
             sortOrder: msi.sortOrder,
           };
         }),
@@ -411,7 +465,7 @@ router.get(
       const msi = await em.findOne(
         MeasureSheetItem,
         { id, company: company.id },
-        { populate: ['category', 'lastModifiedBy'] },
+        { populate: ['category', 'lastModifiedBy', 'image'] },
       );
 
       if (!msi) {
@@ -447,6 +501,9 @@ router.get(
           ),
         ]);
 
+      // Generate presigned URLs for image
+      const { imageUrl, thumbnailUrl } = await getImageUrls(msi.image);
+
       res.status(200).json({
         item: {
           id: msi.id,
@@ -466,7 +523,9 @@ router.get(
           tagRequired: msi.tagRequired,
           tagPickerOptions: msi.tagPickerOptions,
           tagParams: msi.tagParams,
-          imageUrl: msi.imageUrl,
+          imageId: msi.image?.id ?? null,
+          imageUrl,
+          thumbnailUrl,
           sortOrder: msi.sortOrder,
           offices: offices.map(o => ({
             id: o.office.id,
@@ -572,6 +631,24 @@ router.post(
         return;
       }
 
+      // Validate image file if provided
+      let imageFile: File | undefined;
+      if (data.imageId) {
+        const file = await em.findOne(File, {
+          id: data.imageId,
+          company: company.id,
+        });
+        if (!file) {
+          res.status(400).json({ error: 'Image file not found' });
+          return;
+        }
+        if (!file.isImage) {
+          res.status(400).json({ error: 'File is not an image' });
+          return;
+        }
+        imageFile = file;
+      }
+
       // Get next sort order
       const maxSortOrder = await em
         .createQueryBuilder(MeasureSheetItem, 'm')
@@ -596,6 +673,7 @@ router.post(
       msi.tagRequired = data.tagRequired;
       msi.tagPickerOptions = data.tagPickerOptions;
       msi.tagParams = data.tagParams;
+      msi.image = imageFile;
       msi.sortOrder = sortOrder;
       msi.searchVector = `${data.name} ${data.note ?? ''}`.trim();
       msi.lastModifiedBy = em.getReference(User, user.id);
@@ -785,6 +863,27 @@ router.put(
         msi.tagPickerOptions = data.tagPickerOptions ?? undefined;
       if (data.tagParams !== undefined)
         msi.tagParams = data.tagParams ?? undefined;
+
+      // Update image (can be set to new file or removed with null)
+      if (data.imageId !== undefined) {
+        if (data.imageId === null) {
+          msi.image = undefined;
+        } else {
+          const file = await em.findOne(File, {
+            id: data.imageId,
+            company: company.id,
+          });
+          if (!file) {
+            res.status(400).json({ error: 'Image file not found' });
+            return;
+          }
+          if (!file.isImage) {
+            res.status(400).json({ error: 'File is not an image' });
+            return;
+          }
+          msi.image = file;
+        }
+      }
 
       // Update search vector
       msi.searchVector = `${msi.name} ${msi.note ?? ''}`.trim();

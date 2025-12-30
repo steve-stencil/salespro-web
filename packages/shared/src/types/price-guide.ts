@@ -123,6 +123,10 @@ export type UpChargeSummary = {
   measurementType: string | null;
   identifier: string | null;
   linkedMsiCount: number;
+  /** Presigned URL for product thumbnail (full size) */
+  imageUrl: string | null;
+  /** Presigned URL for product thumbnail (thumbnail size) */
+  thumbnailUrl: string | null;
   isActive: boolean;
 };
 
@@ -133,7 +137,12 @@ export type UpChargeDetail = {
   note: string | null;
   measurementType: string | null;
   identifier: string | null;
+  /** File ID for the thumbnail image */
+  imageId: string | null;
+  /** Presigned URL for product thumbnail (full size) */
   imageUrl: string | null;
+  /** Presigned URL for product thumbnail (thumbnail size) */
+  thumbnailUrl: string | null;
   linkedMsiCount: number;
   isActive: boolean;
   version: number;
@@ -234,7 +243,10 @@ export type MeasureSheetItemSummary = {
   optionNames?: string[];
   /** Names of linked upcharges (for tooltip display) */
   upchargeNames?: string[];
+  /** Presigned URL for product thumbnail (full size) */
   imageUrl: string | null;
+  /** Presigned URL for product thumbnail (thumbnail size) */
+  thumbnailUrl: string | null;
   sortOrder: number;
 };
 
@@ -253,7 +265,12 @@ export type MeasureSheetItemDetail = {
   tagRequired: boolean;
   tagPickerOptions: unknown[] | null;
   tagParams: Record<string, unknown> | null;
+  /** File ID for the thumbnail image */
+  imageId: string | null;
+  /** Presigned URL for product thumbnail (full size) */
   imageUrl: string | null;
+  /** Presigned URL for product thumbnail (thumbnail size) */
+  thumbnailUrl: string | null;
   sortOrder: number;
   offices: Array<{
     id: string;
@@ -514,6 +531,8 @@ export type CreateMsiRequest = {
   tagRequired?: boolean;
   tagPickerOptions?: unknown[];
   tagParams?: Record<string, unknown>;
+  /** File ID for product thumbnail image */
+  imageId?: string;
   officeIds: string[];
   /** Required: At least one option is required for pricing. */
   optionIds: string[];
@@ -535,6 +554,8 @@ export type UpdateMsiRequest = {
   tagRequired?: boolean;
   tagPickerOptions?: unknown[] | null;
   tagParams?: Record<string, unknown> | null;
+  /** File ID for product thumbnail image (null to remove) */
+  imageId?: string | null;
   version: number;
 };
 

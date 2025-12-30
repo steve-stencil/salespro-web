@@ -343,6 +343,8 @@ export const priceGuideApi = {
     note?: string;
     measurementType?: string;
     identifier?: string;
+    /** File ID for product thumbnail image */
+    imageId?: string;
   }): Promise<{
     message: string;
     upcharge: { id: string; name: string; version: number };
@@ -360,6 +362,8 @@ export const priceGuideApi = {
       note?: string | null;
       measurementType?: string | null;
       identifier?: string | null;
+      /** File ID for product thumbnail image (null to remove) */
+      imageId?: string | null;
       version: number;
     },
   ): Promise<{

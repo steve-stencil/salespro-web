@@ -11,6 +11,7 @@ import {
 import { v4 as uuid } from 'uuid';
 
 import type { Company } from '../Company.entity';
+import type { File } from '../File.entity';
 import type { User } from '../User.entity';
 import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
 import type { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.entity';
@@ -51,9 +52,12 @@ export class UpCharge {
   @Property({ type: 'string', nullable: true })
   identifier?: string;
 
-  /** Product thumbnail URL */
-  @Property({ type: 'string', nullable: true })
-  imageUrl?: string;
+  /**
+   * Product thumbnail image from company's file library.
+   * References a File entity for proper S3 key storage and presigned URL generation.
+   */
+  @ManyToOne('File', { nullable: true })
+  image?: File;
 
   /**
    * Denormalized count of linked MSIs.
