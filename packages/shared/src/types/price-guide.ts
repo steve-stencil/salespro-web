@@ -304,6 +304,156 @@ export type UpChargePricing = {
   isPercentage: boolean;
 };
 
+// ============================================================================
+// UpCharge Pricing Configuration Types (Mixed Mode Support)
+// ============================================================================
+
+/** Pricing mode for a single price type */
+export type UpChargePriceTypeMode = 'fixed' | 'percentage';
+
+/** Mode for option override - includes 'use_default' */
+export type UpChargeOverrideMode = 'fixed' | 'percentage' | 'use_default';
+
+/** Price configuration for a single price type */
+export type UpChargePriceTypeConfig = {
+  priceTypeId: string;
+  mode: UpChargePriceTypeMode;
+  /** Fixed amount (when mode='fixed'), keyed by officeId */
+  fixedAmounts?: Record<string, number>;
+  /** Percentage rate as decimal, e.g. 0.10 = 10% (when mode='percentage') */
+  percentageRate?: number;
+  /** Price type IDs to include in percentage base calculation */
+  percentageBaseTypeIds?: string[];
+};
+
+/** Price configuration for option override */
+export type UpChargeOverridePriceTypeConfig = {
+  priceTypeId: string;
+  mode: UpChargeOverrideMode;
+  /** Fixed amount (when mode='fixed'), keyed by officeId */
+  fixedAmounts?: Record<string, number>;
+  /** Percentage rate as decimal (when mode='percentage') */
+  percentageRate?: number;
+  /** Price type IDs to include in percentage base calculation */
+  percentageBaseTypeIds?: string[];
+};
+
+/** Single price entry from API response */
+export type UpChargePriceData = {
+  amount: number;
+  isPercentage: boolean;
+  percentageBaseTypeIds: string[];
+};
+
+/** Office pricing data from API response */
+export type UpChargeOfficePricing = {
+  office: { id: string; name: string };
+  prices: Record<string, UpChargePriceData>;
+};
+
+/** Option override pricing data from API response (global option override) */
+export type UpChargeOptionOverride = {
+  option: { id: string; name: string };
+  byOffice: Record<string, UpChargeOfficePricing>;
+};
+
+/** MSI+Option override pricing data from API response */
+export type UpChargeMsiOptionOverride = {
+  msi: { id: string; name: string };
+  option: { id: string; name: string };
+  byOffice: Record<string, UpChargeOfficePricing>;
+};
+
+/** Linked MSI with its options */
+export type LinkedMsiWithOptions = {
+  id: string;
+  name: string;
+  options: Array<{ id: string; name: string }>;
+};
+
+/** Full upcharge pricing response from API */
+export type UpChargePricingDetail = {
+  upcharge: {
+    id: string;
+    name: string;
+    note: string | null;
+    measurementType: string | null;
+    version: number;
+  };
+  priceTypes: Array<{
+    id: string;
+    code: string;
+    name: string;
+    sortOrder: number;
+  }>;
+  /** Default pricing (applies when no overrides exist) */
+  defaultPricing: UpChargeOfficePricing[];
+  /** Global option overrides (apply across all MSIs) */
+  globalOptionOverrides: UpChargeOptionOverride[];
+  /** MSI+Option specific overrides */
+  msiOptionOverrides: UpChargeMsiOptionOverride[];
+  /** Options that can have overrides (from MSIs linked to this upcharge) */
+  linkedOptions: Array<{ id: string; name: string }>;
+  /** MSIs linked to this upcharge with their options */
+  linkedMsis: LinkedMsiWithOptions[];
+};
+
+/** Request to update default prices for one office */
+export type UpdateUpChargeDefaultPricesRequest = {
+  officeId: string;
+  prices: Array<{
+    priceTypeId: string;
+    amount: number;
+    isPercentage: boolean;
+    percentageBaseTypeIds?: string[];
+  }>;
+  version: number;
+};
+
+/** Request to update global option override prices */
+export type UpdateUpChargeOverridePricesRequest = {
+  optionId: string;
+  officeId: string;
+  prices: Array<{
+    priceTypeId: string;
+    amount: number;
+    isPercentage: boolean;
+    percentageBaseTypeIds?: string[];
+  }>;
+  version: number;
+};
+
+/** Request to update MSI+Option specific override prices */
+export type UpdateUpChargeMsiOverridePricesRequest = {
+  msiId: string;
+  optionId: string;
+  officeId?: string; // Optional - if not provided, applies to all offices
+  prices: Array<{
+    priceTypeId: string;
+    amount: number;
+    isPercentage: boolean;
+    percentageBaseTypeIds?: string[];
+  }>;
+  version: number;
+};
+
+/** Request to delete MSI+Option override */
+export type DeleteUpChargeMsiOverrideRequest = {
+  msiId: string;
+  optionId: string;
+  officeId?: string; // Optional - if not provided, deletes all office configs
+};
+
+/**
+ * Derives the display mode for an upcharge based on its pricing configuration.
+ * Returns 'All Fixed', 'All X% of Y', or 'Mixed'
+ */
+export type UpChargeModeDisplay =
+  | { type: 'all_fixed' }
+  | { type: 'all_percentage'; rate: number; baseTypes: string[] }
+  | { type: 'mixed' }
+  | { type: 'none' };
+
 /** Pricing grid row (for UI display) */
 export type PricingGridRow = {
   officeId: string;

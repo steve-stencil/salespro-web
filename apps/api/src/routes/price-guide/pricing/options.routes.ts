@@ -153,7 +153,7 @@ router.get(
           name: pt.name,
           sortOrder: pt.sortOrder,
         })),
-        pricing: Object.values(pricesByOffice),
+        byOffice: pricesByOffice,
       });
     } catch (err) {
       req.log.error({ err }, 'Get option prices error');
