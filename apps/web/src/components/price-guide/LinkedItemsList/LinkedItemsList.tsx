@@ -3,8 +3,7 @@
  */
 import AddLinkIcon from '@mui/icons-material/AddLink';
 import CloseIcon from '@mui/icons-material/Close';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import InboxIcon from '@mui/icons-material/Inbox';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -157,13 +156,24 @@ export function LinkedItemsList({
 
       {/* Items list */}
       {items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-          No{' '}
-          {itemType === 'additionalDetail'
-            ? 'additional details'
-            : `${itemType}s`}{' '}
-          linked
-        </Typography>
+        <Box
+          sx={{
+            py: 2,
+            px: 1.5,
+            textAlign: 'center',
+            bgcolor: 'action.hover',
+            borderRadius: 1,
+            border: 1,
+            borderColor: 'divider',
+            borderStyle: 'dashed',
+          }}
+        >
+          <InboxIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 0.5 }} />
+          <Typography variant="body2" color="text.secondary">
+            No {itemType === 'additionalDetail' ? 'details' : `${itemType}s`}{' '}
+            linked yet
+          </Typography>
+        </Box>
       ) : (
         <List
           dense
@@ -184,39 +194,33 @@ export function LinkedItemsList({
             return (
               <ListItem
                 key={itemId}
+                onClick={() => onViewItem?.(itemId)}
                 sx={{
                   py: 0.5,
                   borderBottom: index < items.length - 1 ? 1 : 0,
                   borderColor: 'divider',
+                  cursor: onViewItem ? 'pointer' : 'default',
+                  '&:hover': onViewItem
+                    ? { bgcolor: 'action.hover' }
+                    : undefined,
+                  transition: 'background-color 0.15s',
                 }}
                 secondaryAction={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {onViewItem && (
-                      <Tooltip title="View details">
-                        <IconButton
-                          size="small"
-                          onClick={() => onViewItem(itemId)}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    {onUnlinkItem && (
-                      <Tooltip title="Unlink">
-                        <IconButton
-                          size="small"
-                          onClick={() => onUnlinkItem(itemId)}
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </Box>
+                  onUnlinkItem && (
+                    <Tooltip title="Unlink">
+                      <IconButton
+                        size="small"
+                        onClick={e => {
+                          e.stopPropagation();
+                          onUnlinkItem(itemId);
+                        }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )
                 }
               >
-                <ListItemIcon sx={{ minWidth: 28, cursor: 'grab' }}>
-                  <DragIndicatorIcon fontSize="small" color="action" />
-                </ListItemIcon>
                 <ListItemText
                   primary={getItemName(item)}
                   secondary={subtitle}

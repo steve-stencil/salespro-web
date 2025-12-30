@@ -1,8 +1,10 @@
 /**
  * CountBadge - Generic count badge for options, upcharges, offices.
  */
+import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 
 import type { SxProps, Theme } from '@mui/material/styles';
 
@@ -13,6 +15,8 @@ export type CountBadgeProps = {
   count: number;
   /** Type of item being counted */
   variant: CountBadgeVariant;
+  /** Optional list of item names to show in tooltip */
+  items?: string[];
   /** Custom sx props */
   sx?: SxProps<Theme>;
 };
@@ -37,11 +41,13 @@ const variantConfig: Record<
 export function CountBadge({
   count,
   variant,
+  items,
   sx,
 }: CountBadgeProps): React.ReactElement {
   const config = variantConfig[variant];
   const label = `${count} ${count === 1 ? config.singularLabel : config.pluralLabel}`;
-  const tooltipLabel = (() => {
+
+  const headerLabel = (() => {
     switch (variant) {
       case 'option':
         return count === 1 ? '1 option linked' : `${count} options linked`;
@@ -58,8 +64,40 @@ export function CountBadge({
     }
   })();
 
+  // Build tooltip content - show list if items provided
+  const tooltipContent =
+    items && items.length > 0 ? (
+      <Box sx={{ maxWidth: 250 }}>
+        <Typography variant="caption" fontWeight={600} display="block" mb={0.5}>
+          {headerLabel}
+        </Typography>
+        {items.slice(0, 10).map((item, index) => (
+          <Typography
+            key={index}
+            variant="caption"
+            display="block"
+            sx={{ pl: 1, py: 0.25 }}
+          >
+            • {item}
+          </Typography>
+        ))}
+        {items.length > 10 && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            sx={{ pl: 1, pt: 0.5 }}
+          >
+            +{items.length - 10} more...
+          </Typography>
+        )}
+      </Box>
+    ) : (
+      headerLabel
+    );
+
   return (
-    <Tooltip title={tooltipLabel} arrow>
+    <Tooltip title={tooltipContent} arrow>
       <Chip
         label={label}
         size="small"

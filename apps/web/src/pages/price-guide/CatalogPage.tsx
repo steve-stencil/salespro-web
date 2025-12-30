@@ -20,7 +20,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
@@ -31,7 +30,6 @@ import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { flattenCategoryTree } from '@shared/utils';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -58,8 +56,10 @@ import {
   useCategoryTree,
   useOptionList,
   useUpchargeList,
+  useAdditionalDetailList,
   useLinkOptions,
   useLinkUpcharges,
+  useLinkAdditionalDetails,
   useUnlinkOption,
   useUnlinkUpcharge,
 } from '../../hooks/usePriceGuide';
@@ -82,22 +82,18 @@ import type { MeasureSheetItemSummary } from '@shared/types';
 
 type MsiExpandedContentProps = {
   msiId: string;
-  onView: () => void;
-  onEdit: () => void;
-  onPricing: () => void;
   onLinkOptions: () => void;
   onLinkUpcharges: () => void;
+  onLinkDetails: () => void;
   onUnlinkOption: (optionId: string, optionName: string) => void;
   onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
 };
 
 function MsiExpandedContent({
   msiId,
-  onView,
-  onEdit,
-  onPricing,
   onLinkOptions,
   onLinkUpcharges,
+  onLinkDetails,
   onUnlinkOption,
   onUnlinkUpcharge,
 }: MsiExpandedContentProps): React.ReactElement {
@@ -110,13 +106,12 @@ function MsiExpandedContent({
 
   return (
     <Box>
-      {/* Linked Items */}
+      {/* Linked Items Grid */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
-          gap: 2,
-          mb: 2,
+          gap: 3,
         }}
       >
         <LinkedItemsList
@@ -125,9 +120,7 @@ function MsiExpandedContent({
           items={options}
           isLoading={isLoading}
           onLinkClick={onLinkOptions}
-          onViewItem={optionId =>
-            void navigate(`/price-guide/library/options/${optionId}`)
-          }
+          onViewItem={() => void navigate('/price-guide/library?tab=options')}
           onUnlinkItem={optionId => {
             const option = options.find(o => o.optionId === optionId);
             if (option) {
@@ -141,9 +134,7 @@ function MsiExpandedContent({
           items={upcharges}
           isLoading={isLoading}
           onLinkClick={onLinkUpcharges}
-          onViewItem={upchargeId =>
-            void navigate(`/price-guide/library/upcharges/${upchargeId}`)
-          }
+          onViewItem={() => void navigate('/price-guide/library?tab=upcharges')}
           onUnlinkItem={upchargeId => {
             const upcharge = upcharges.find(u => u.upchargeId === upchargeId);
             if (upcharge) {
@@ -156,44 +147,17 @@ function MsiExpandedContent({
           itemType="additionalDetail"
           items={additionalDetails}
           isLoading={isLoading}
-          canLink={false}
+          onLinkClick={onLinkDetails}
+          onViewItem={() => void navigate('/price-guide/library?tab=details')}
         />
       </Box>
 
-      {/* Action Buttons */}
-      <Stack direction="row" spacing={2} alignItems="center">
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<VisibilityIcon />}
-          onClick={onView}
-        >
-          View Details
-        </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<EditIcon />}
-          onClick={onEdit}
-        >
-          Edit
-        </Button>
-        <Button
-          size="small"
-          variant="text"
-          startIcon={<LocalOfferIcon />}
-          onClick={onPricing}
-        >
-          Pricing
-        </Button>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ ml: 'auto' }}
-        >
+      {/* Footer with ID */}
+      <Box sx={{ mt: 2, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="caption" color="text.disabled">
           ID: {msiId}
         </Typography>
-      </Stack>
+      </Box>
     </Box>
   );
 }
@@ -214,6 +178,7 @@ type MsiCardWrapperProps = {
   onDelete: () => void;
   onLinkOptions: () => void;
   onLinkUpcharges: () => void;
+  onLinkDetails: () => void;
   onUnlinkOption: (optionId: string, optionName: string) => void;
   onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
 };
@@ -230,6 +195,7 @@ function MsiCardWrapper({
   onDelete,
   onLinkOptions,
   onLinkUpcharges,
+  onLinkDetails,
   onUnlinkOption,
   onUnlinkUpcharge,
 }: MsiCardWrapperProps): React.ReactElement {
@@ -260,17 +226,21 @@ function MsiCardWrapper({
 
   const badges = (
     <>
-      <Tooltip title={msi.measurementType}>
-        <Chip
-          label={msi.measurementType}
-          size="small"
-          variant="outlined"
-          sx={{ minWidth: 70 }}
-        />
-      </Tooltip>
-      <CountBadge count={msi.optionCount} variant="option" />
-      <CountBadge count={msi.upchargeCount} variant="upcharge" />
-      <CountBadge count={msi.officeCount} variant="office" />
+      <CountBadge
+        count={msi.optionCount}
+        variant="option"
+        items={msi.optionNames}
+      />
+      <CountBadge
+        count={msi.upchargeCount}
+        variant="upcharge"
+        items={msi.upchargeNames}
+      />
+      <CountBadge
+        count={msi.officeCount}
+        variant="office"
+        items={msi.officeNames}
+      />
     </>
   );
 
@@ -283,17 +253,16 @@ function MsiCardWrapper({
       onToggleExpand={onToggleExpand}
       isSelected={isSelected}
       onToggleSelect={onToggleSelect}
+      showCheckbox={false}
       onClick={onView}
       badges={badges}
       menuActions={menuActions}
       expandedContent={
         <MsiExpandedContent
           msiId={msi.id}
-          onView={onView}
-          onEdit={onEdit}
-          onPricing={onPricing}
           onLinkOptions={onLinkOptions}
           onLinkUpcharges={onLinkUpcharges}
+          onLinkDetails={onLinkDetails}
           onUnlinkOption={onUnlinkOption}
           onUnlinkUpcharge={onUnlinkUpcharge}
         />
@@ -324,9 +293,9 @@ export function CatalogPage(): React.ReactElement {
 
   // Link picker state
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
-  const [linkPickerType, setLinkPickerType] = useState<'option' | 'upcharge'>(
-    'option',
-  );
+  const [linkPickerType, setLinkPickerType] = useState<
+    'option' | 'upcharge' | 'additionalDetail'
+  >('option');
   const [linkPickerMsiId, setLinkPickerMsiId] = useState<string>('');
   const [linkPickerSearch, setLinkPickerSearch] = useState('');
 
@@ -389,9 +358,22 @@ export function CatalogPage(): React.ReactElement {
     limit: 20,
   });
 
+  // Additional Details list for link picker
+  const {
+    data: additionalDetailsData,
+    isLoading: isLoadingAdditionalDetails,
+    hasNextPage: hasMoreAdditionalDetails,
+    fetchNextPage: fetchMoreAdditionalDetails,
+    isFetchingNextPage: isFetchingMoreAdditionalDetails,
+  } = useAdditionalDetailList({
+    search: debouncedLinkPickerSearch || undefined,
+    limit: 20,
+  });
+
   // Mutations
   const linkOptionsMutation = useLinkOptions();
   const linkUpchargesMutation = useLinkUpcharges();
+  const linkAdditionalDetailsMutation = useLinkAdditionalDetails();
   const unlinkOptionMutation = useUnlinkOption();
   const unlinkUpchargeMutation = useUnlinkUpcharge();
 
@@ -422,7 +404,7 @@ export function CatalogPage(): React.ReactElement {
           usageCount: item.linkedMsiCount,
         })),
       );
-    } else {
+    } else if (linkPickerType === 'upcharge') {
       if (!upchargesData?.pages) return [];
       return upchargesData.pages.flatMap(page =>
         page.items.map(item => ({
@@ -432,8 +414,18 @@ export function CatalogPage(): React.ReactElement {
           usageCount: item.linkedMsiCount,
         })),
       );
+    } else {
+      if (!additionalDetailsData?.pages) return [];
+      return additionalDetailsData.pages.flatMap(page =>
+        page.items.map(item => ({
+          id: item.id,
+          name: item.title,
+          subtitle: item.inputType,
+          usageCount: item.linkedMsiCount,
+        })),
+      );
     }
-  }, [linkPickerType, optionsData, upchargesData]);
+  }, [linkPickerType, optionsData, upchargesData, additionalDetailsData]);
 
   // Get current MSI for determining already linked items
   const { data: currentMsiData } = useMsiDetail(linkPickerMsiId);
@@ -441,8 +433,10 @@ export function CatalogPage(): React.ReactElement {
     if (!currentMsiData?.item) return [];
     if (linkPickerType === 'option') {
       return currentMsiData.item.options.map(o => o.optionId);
+    } else if (linkPickerType === 'upcharge') {
+      return currentMsiData.item.upcharges.map(u => u.upchargeId);
     }
-    return currentMsiData.item.upcharges.map(u => u.upchargeId);
+    return currentMsiData.item.additionalDetails.map(d => d.fieldId);
   }, [currentMsiData, linkPickerType]);
 
   // Toggle expanded
@@ -513,7 +507,7 @@ export function CatalogPage(): React.ReactElement {
 
   const handleEdit = useCallback(
     (msiId: string) => {
-      void navigate(`/price-guide/${msiId}/edit`);
+      void navigate(`/price-guide/${msiId}`);
     },
     [navigate],
   );
@@ -532,7 +526,7 @@ export function CatalogPage(): React.ReactElement {
 
   // Link picker handlers
   const openLinkPicker = useCallback(
-    (type: 'option' | 'upcharge', msiId: string) => {
+    (type: 'option' | 'upcharge' | 'additionalDetail', msiId: string) => {
       setLinkPickerType(type);
       setLinkPickerMsiId(msiId);
       setLinkPickerSearch('');
@@ -549,10 +543,15 @@ export function CatalogPage(): React.ReactElement {
             msiId: linkPickerMsiId,
             optionIds: itemIds,
           });
-        } else {
+        } else if (linkPickerType === 'upcharge') {
           await linkUpchargesMutation.mutateAsync({
             msiId: linkPickerMsiId,
             upchargeIds: itemIds,
+          });
+        } else {
+          await linkAdditionalDetailsMutation.mutateAsync({
+            msiId: linkPickerMsiId,
+            fieldIds: itemIds,
           });
         }
         setLinkPickerOpen(false);
@@ -565,6 +564,7 @@ export function CatalogPage(): React.ReactElement {
       linkPickerMsiId,
       linkOptionsMutation,
       linkUpchargesMutation,
+      linkAdditionalDetailsMutation,
     ],
   );
 
@@ -840,7 +840,7 @@ export function CatalogPage(): React.ReactElement {
       {isLoading && (
         <Box>
           {[...Array(5)].map((_, i) => (
-            <EntityCardSkeleton key={i} badgeCount={4} />
+            <EntityCardSkeleton key={i} badgeCount={4} showCheckbox={false} />
           ))}
         </Box>
       )}
@@ -891,6 +891,7 @@ export function CatalogPage(): React.ReactElement {
               onDelete={() => handleDelete(msi.id)}
               onLinkOptions={() => openLinkPicker('option', msi.id)}
               onLinkUpcharges={() => openLinkPicker('upcharge', msi.id)}
+              onLinkDetails={() => openLinkPicker('additionalDetail', msi.id)}
               onUnlinkOption={(optionId, optionName) =>
                 openUnlinkDialog(
                   'option',
@@ -953,26 +954,40 @@ export function CatalogPage(): React.ReactElement {
         items={linkPickerItems}
         alreadyLinkedIds={alreadyLinkedIds}
         isLoading={
-          linkPickerType === 'option' ? isLoadingOptions : isLoadingUpcharges
+          linkPickerType === 'option'
+            ? isLoadingOptions
+            : linkPickerType === 'upcharge'
+              ? isLoadingUpcharges
+              : isLoadingAdditionalDetails
         }
         hasMore={
-          linkPickerType === 'option' ? hasMoreOptions : hasMoreUpcharges
+          linkPickerType === 'option'
+            ? hasMoreOptions
+            : linkPickerType === 'upcharge'
+              ? hasMoreUpcharges
+              : hasMoreAdditionalDetails
         }
         onLoadMore={() => {
           void (linkPickerType === 'option'
             ? fetchMoreOptions()
-            : fetchMoreUpcharges());
+            : linkPickerType === 'upcharge'
+              ? fetchMoreUpcharges()
+              : fetchMoreAdditionalDetails());
         }}
         isLoadingMore={
           linkPickerType === 'option'
             ? isFetchingMoreOptions
-            : isFetchingMoreUpcharges
+            : linkPickerType === 'upcharge'
+              ? isFetchingMoreUpcharges
+              : isFetchingMoreAdditionalDetails
         }
         onSearch={setLinkPickerSearch}
         onClose={() => setLinkPickerOpen(false)}
         onLink={itemIds => void handleLink(itemIds)}
         isLinking={
-          linkOptionsMutation.isPending || linkUpchargesMutation.isPending
+          linkOptionsMutation.isPending ||
+          linkUpchargesMutation.isPending ||
+          linkAdditionalDetailsMutation.isPending
         }
       />
 
