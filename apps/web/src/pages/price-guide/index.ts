@@ -5,10 +5,9 @@
 export { CatalogPage } from './CatalogPage';
 export { CategoryManagementPage } from './CategoryManagementPage';
 export { CreateWizard } from './CreateWizard';
-export { EditWizard } from './EditWizard';
 export { LibraryPage } from './LibraryPage';
 export { MigrationWizardPage } from './MigrationWizardPage';
-export { MsiDetailPage } from './MsiDetailPage';
+export { MsiEditPage } from './MsiEditPage';
 export { PricingPage } from './PricingPage';
 export { ToolsPage } from './ToolsPage';
 

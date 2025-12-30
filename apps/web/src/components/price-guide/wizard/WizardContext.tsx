@@ -1,6 +1,6 @@
 /**
  * Shared Wizard Context.
- * Used by both CreateWizard and EditWizard.
+ * Used by CreateWizard and MsiEditPage.
  */
 
 import { createContext, useContext } from 'react';
@@ -222,7 +222,7 @@ export const WizardContext = createContext<WizardContextType | null>(null);
 
 /**
  * Hook to access wizard context.
- * Must be used within a wizard provider (CreateWizard or EditWizard).
+ * Must be used within a wizard provider (CreateWizard).
  */
 export function useWizard(): WizardContextType {
   const context = useContext(WizardContext);

@@ -23,10 +23,9 @@ import {
   CatalogPage,
   CategoryManagementPage,
   CreateWizard,
-  EditWizard,
   LibraryPage,
   MigrationWizardPage,
-  MsiDetailPage,
+  MsiEditPage,
   PricingPage,
   ToolsPage,
 } from './pages/price-guide';
@@ -194,18 +193,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: '/price-guide/:msiId/edit',
-        element: (
-          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
-            <EditWizard />
-          </PermissionGuard>
-        ),
-      },
-      {
         path: '/price-guide/:msiId',
         element: (
-          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
-            <MsiDetailPage />
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <MsiEditPage />
           </PermissionGuard>
         ),
       },
