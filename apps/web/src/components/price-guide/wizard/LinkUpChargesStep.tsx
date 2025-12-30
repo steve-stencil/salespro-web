@@ -359,7 +359,7 @@ export function LinkUpChargesStep(): React.ReactElement {
             {state.upcharges.length === 0 ? (
               <Paper
                 variant="outlined"
-                sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.50' }}
+                sx={{ p: 2, textAlign: 'center', bgcolor: 'action.hover' }}
               >
                 <Typography variant="body2" color="text.secondary">
                   No upcharges selected yet.

@@ -94,7 +94,7 @@ function ChangeRow({ change }: ChangeRowProps): React.ReactElement {
         alignItems: 'center',
         py: 1.5,
         px: 2,
-        bgcolor: hasConflict ? 'warning.lighter' : 'grey.50',
+        bgcolor: hasConflict ? 'warning.lighter' : 'action.hover',
         borderRadius: 1,
         mb: 1,
       }}

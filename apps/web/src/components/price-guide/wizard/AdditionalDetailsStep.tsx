@@ -254,7 +254,7 @@ export function AdditionalDetailsStep(): React.ReactElement {
           </Typography>
           <Paper
             variant="outlined"
-            sx={{ p: 1, minHeight: 200, bgcolor: 'grey.50' }}
+            sx={{ p: 1, minHeight: 200, bgcolor: 'action.hover' }}
           >
             {state.additionalDetails.length === 0 ? (
               <Typography

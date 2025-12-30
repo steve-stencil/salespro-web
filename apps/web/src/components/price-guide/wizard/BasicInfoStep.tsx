@@ -250,7 +250,7 @@ export function BasicInfoStep(): React.ReactElement {
         />
 
         {/* Tag Settings */}
-        <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
             Tag Settings (Optional)
           </Typography>

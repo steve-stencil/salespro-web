@@ -132,7 +132,7 @@ export function PricingStep(): React.ReactElement {
               <TableCell
                 sx={{
                   fontWeight: 600,
-                  bgcolor: 'grey.100',
+                  bgcolor: 'action.hover',
                   position: 'sticky',
                   left: 0,
                   zIndex: 1,
@@ -144,7 +144,11 @@ export function PricingStep(): React.ReactElement {
                 <TableCell
                   key={priceType.id}
                   align="right"
-                  sx={{ fontWeight: 600, bgcolor: 'grey.100', minWidth: 120 }}
+                  sx={{
+                    fontWeight: 600,
+                    bgcolor: 'action.hover',
+                    minWidth: 120,
+                  }}
                 >
                   {priceType.name}
                 </TableCell>
