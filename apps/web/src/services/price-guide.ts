@@ -105,11 +105,11 @@ export const priceGuideApi = {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
     if (params?.categoryIds && params.categoryIds.length > 0) {
-      const categoryIdsStr = (params.categoryIds).join(',');
+      const categoryIdsStr = params.categoryIds.join(',');
       searchParams.set('categoryIds', categoryIdsStr);
     }
     if (params?.officeIds && params.officeIds.length > 0) {
-      const officeIdsStr = (params.officeIds).join(',');
+      const officeIdsStr = params.officeIds.join(',');
       searchParams.set('officeIds', officeIdsStr);
     }
 

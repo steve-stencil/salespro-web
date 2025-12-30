@@ -27,7 +27,11 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { UsageCountBadge } from '../RelationshipBadges';
 
-export type LinkableItemType = 'option' | 'upcharge' | 'additionalDetail';
+export type LinkableItemType =
+  | 'office'
+  | 'option'
+  | 'upcharge'
+  | 'additionalDetail';
 
 export type LinkableItem = {
   id: string;
@@ -75,6 +79,7 @@ const itemTypeConfig: Record<
   LinkableItemType,
   { title: string; singular: string; plural: string }
 > = {
+  office: { title: 'Link Offices', singular: 'office', plural: 'offices' },
   option: { title: 'Link Options', singular: 'option', plural: 'options' },
   upcharge: {
     title: 'Link UpCharges',

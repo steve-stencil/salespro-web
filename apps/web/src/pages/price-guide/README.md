@@ -84,8 +84,12 @@ The `CatalogPage` uses `EntityCard` components with expandable content:
 
 - **Row Click**: Expands/collapses the card to show linked items
 - **Stoplight Menu**: Edit, Pricing, Delete actions
-- **Count Badges**: Options, UpCharges, Offices counts with tooltip lists
-- **Navigation**: Click on linked items navigates to Library page
+- **Count Badges**: Displayed in order: Offices → Options → UpCharges (with tooltip lists)
+- **Expanded Content**: Three-column grid showing:
+  - **Offices**: Link/unlink offices for MSI availability
+  - **Options**: Link/unlink options with navigation to Library
+  - **UpCharges**: Link/unlink upcharges with navigation to Library
+- **Note**: Additional Details are managed only on the MSI Edit page, not in the catalog expanded view
 
 ## Dependencies
 

@@ -16,7 +16,7 @@ export type UnlinkConfirmationProps = {
   /** Name of the item being unlinked */
   itemName: string;
   /** Type of item being unlinked */
-  itemType: 'option' | 'upcharge' | 'additionalDetail';
+  itemType: 'office' | 'option' | 'upcharge' | 'additionalDetail';
   /** Name of the MSI the item is being unlinked from */
   msiName: string;
   /** Callback when user cancels */
@@ -41,6 +41,8 @@ export function UnlinkConfirmation({
 }: UnlinkConfirmationProps): React.ReactElement {
   const itemTypeLabel = (() => {
     switch (itemType) {
+      case 'office':
+        return 'office';
       case 'option':
         return 'option';
       case 'upcharge':

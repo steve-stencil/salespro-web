@@ -57,7 +57,7 @@ export type {
 
 // LinkedItemsList
 export { LinkedItemsList } from './LinkedItemsList';
-export type { LinkedItemsListProps } from './LinkedItemsList';
+export type { LinkedItemsListProps, LinkedOffice } from './LinkedItemsList';
 
 // Loading States
 export {

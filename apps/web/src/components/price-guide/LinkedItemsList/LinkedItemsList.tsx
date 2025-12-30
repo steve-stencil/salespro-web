@@ -1,5 +1,5 @@
 /**
- * LinkedItemsList - Displays linked Options/UpCharges/Additional Details for an MSI.
+ * LinkedItemsList - Displays linked Offices/Options/UpCharges/Additional Details for an MSI.
  */
 import AddLinkIcon from '@mui/icons-material/AddLink';
 import CloseIcon from '@mui/icons-material/Close';
@@ -23,13 +23,23 @@ import type {
   LinkedAdditionalDetail,
 } from '@shared/types';
 
+/** Office item for display in linked list */
+export type LinkedOffice = {
+  id: string;
+  name: string;
+};
+
 export type LinkedItemsListProps = {
   /** Section title */
   title: string;
   /** Type of items in the list */
-  itemType: 'option' | 'upcharge' | 'additionalDetail';
+  itemType: 'office' | 'option' | 'upcharge' | 'additionalDetail';
   /** Items to display */
-  items: LinkedOption[] | LinkedUpCharge[] | LinkedAdditionalDetail[];
+  items:
+    | LinkedOffice[]
+    | LinkedOption[]
+    | LinkedUpCharge[]
+    | LinkedAdditionalDetail[];
   /** Whether items are loading */
   isLoading?: boolean;
   /** Callback when "Link" button is clicked */
@@ -62,16 +72,17 @@ export function LinkedItemsList({
   usageCounts = {},
 }: LinkedItemsListProps): React.ReactElement {
   const getItemId = (
-    item: LinkedOption | LinkedUpCharge | LinkedAdditionalDetail,
+    item: LinkedOffice | LinkedOption | LinkedUpCharge | LinkedAdditionalDetail,
   ): string => {
     if ('optionId' in item) return item.optionId;
     if ('upchargeId' in item) return item.upchargeId;
     if ('fieldId' in item) return item.fieldId;
-    return '';
+    // LinkedOffice has 'id'
+    return item.id;
   };
 
   const getItemName = (
-    item: LinkedOption | LinkedUpCharge | LinkedAdditionalDetail,
+    item: LinkedOffice | LinkedOption | LinkedUpCharge | LinkedAdditionalDetail,
   ): string => {
     // LinkedOption and LinkedUpCharge have 'name', LinkedAdditionalDetail has 'title'
     if ('title' in item) return item.title;
@@ -79,7 +90,7 @@ export function LinkedItemsList({
   };
 
   const getItemSubtitle = (
-    item: LinkedOption | LinkedUpCharge | LinkedAdditionalDetail,
+    item: LinkedOffice | LinkedOption | LinkedUpCharge | LinkedAdditionalDetail,
   ): string | null => {
     if ('brand' in item && item.brand) return `Brand: ${item.brand}`;
     if ('note' in item && item.note) return item.note;
@@ -89,6 +100,8 @@ export function LinkedItemsList({
 
   const linkLabel = (() => {
     switch (itemType) {
+      case 'office':
+        return 'Link Office';
       case 'option':
         return 'Link Option';
       case 'upcharge':
@@ -170,7 +183,12 @@ export function LinkedItemsList({
         >
           <InboxIcon sx={{ fontSize: 28, color: 'text.disabled', mb: 0.5 }} />
           <Typography variant="body2" color="text.secondary">
-            No {itemType === 'additionalDetail' ? 'details' : `${itemType}s`}{' '}
+            No{' '}
+            {itemType === 'additionalDetail'
+              ? 'details'
+              : itemType === 'office'
+                ? 'offices'
+                : `${itemType}s`}{' '}
             linked yet
           </Typography>
         </Box>
