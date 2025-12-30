@@ -706,6 +706,273 @@ describe('Price Guide Core Routes', () => {
       });
     });
 
+    describe('Category filter with subcategories', () => {
+      it('should return items from parent category and all subcategories when filtering by parent', async () => {
+        // Create category hierarchy: Roofing > Shingles
+        const roofing = await createTestCategory(em, setup.company, {
+          name: 'Roofing',
+        });
+        const shingles = await createTestCategory(em, setup.company, {
+          name: 'Shingles',
+          parent: roofing,
+        });
+
+        // Create MSI in parent category
+        await createTestMeasureSheetItem(em, setup.company, roofing, {
+          name: 'Ridge Vent',
+        });
+        // Create MSI in subcategory
+        await createTestMeasureSheetItem(em, setup.company, shingles, {
+          name: 'GAF Shingle',
+        });
+
+        // Filter by parent category (Roofing) - should include both items
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: roofing.id })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(2);
+        expect(response.body.total).toBe(2);
+
+        const names = response.body.items.map(
+          (item: { name: string }) => item.name,
+        );
+        expect(names).toContain('Ridge Vent');
+        expect(names).toContain('GAF Shingle');
+      });
+
+      it('should return only items from subcategory when filtering by subcategory', async () => {
+        // Create category hierarchy: Roofing > Shingles
+        const roofing = await createTestCategory(em, setup.company, {
+          name: 'Roofing',
+        });
+        const shingles = await createTestCategory(em, setup.company, {
+          name: 'Shingles',
+          parent: roofing,
+        });
+
+        // Create MSI in parent category
+        await createTestMeasureSheetItem(em, setup.company, roofing, {
+          name: 'Ridge Vent',
+        });
+        // Create MSI in subcategory
+        await createTestMeasureSheetItem(em, setup.company, shingles, {
+          name: 'GAF Shingle',
+        });
+
+        // Filter by subcategory (Shingles) - should only include the shingle item
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: shingles.id })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(1);
+        expect(response.body.total).toBe(1);
+        expect(response.body.items[0].name).toBe('GAF Shingle');
+      });
+
+      it('should include items from deeply nested subcategories', async () => {
+        // Create 3-level hierarchy: Level1 > Level2 > Level3
+        const level1 = await createTestCategory(em, setup.company, {
+          name: 'Level 1',
+        });
+        const level2 = await createTestCategory(em, setup.company, {
+          name: 'Level 2',
+          parent: level1,
+        });
+        const level3 = await createTestCategory(em, setup.company, {
+          name: 'Level 3',
+          parent: level2,
+        });
+
+        // Create MSI at each level
+        await createTestMeasureSheetItem(em, setup.company, level1, {
+          name: 'Item Level 1',
+        });
+        await createTestMeasureSheetItem(em, setup.company, level2, {
+          name: 'Item Level 2',
+        });
+        await createTestMeasureSheetItem(em, setup.company, level3, {
+          name: 'Item Level 3',
+        });
+
+        // Filter by top-level category - should include all 3 items
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: level1.id })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(3);
+        expect(response.body.total).toBe(3);
+
+        const names = response.body.items.map(
+          (item: { name: string }) => item.name,
+        );
+        expect(names).toContain('Item Level 1');
+        expect(names).toContain('Item Level 2');
+        expect(names).toContain('Item Level 3');
+      });
+
+      it('should include items from multiple sibling subcategories', async () => {
+        // Create hierarchy with siblings: Parent > (Child1, Child2, Child3)
+        const parent = await createTestCategory(em, setup.company, {
+          name: 'Parent',
+        });
+        const child1 = await createTestCategory(em, setup.company, {
+          name: 'Child 1',
+          parent,
+        });
+        const child2 = await createTestCategory(em, setup.company, {
+          name: 'Child 2',
+          parent,
+        });
+        const child3 = await createTestCategory(em, setup.company, {
+          name: 'Child 3',
+          parent,
+        });
+
+        // Create MSI in each child category
+        await createTestMeasureSheetItem(em, setup.company, child1, {
+          name: 'Item in Child 1',
+        });
+        await createTestMeasureSheetItem(em, setup.company, child2, {
+          name: 'Item in Child 2',
+        });
+        await createTestMeasureSheetItem(em, setup.company, child3, {
+          name: 'Item in Child 3',
+        });
+
+        // Filter by parent category - should include all 3 items from children
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: parent.id })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(3);
+        expect(response.body.total).toBe(3);
+      });
+
+      it('should combine category filter with search filter', async () => {
+        // Create category hierarchy
+        const roofing = await createTestCategory(em, setup.company, {
+          name: 'Roofing',
+        });
+        const shingles = await createTestCategory(em, setup.company, {
+          name: 'Shingles',
+          parent: roofing,
+        });
+
+        // Create MSIs with different names
+        await createTestMeasureSheetItem(em, setup.company, roofing, {
+          name: 'Ridge Vent Premium',
+        });
+        await createTestMeasureSheetItem(em, setup.company, shingles, {
+          name: 'GAF Premium Shingle',
+        });
+        await createTestMeasureSheetItem(em, setup.company, shingles, {
+          name: 'Basic Shingle',
+        });
+
+        // Filter by Roofing category AND search for "Premium"
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: roofing.id, search: 'Premium' })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(2);
+        expect(response.body.total).toBe(2);
+
+        const names = response.body.items.map(
+          (item: { name: string }) => item.name,
+        );
+        expect(names).toContain('Ridge Vent Premium');
+        expect(names).toContain('GAF Premium Shingle');
+        expect(names).not.toContain('Basic Shingle');
+      });
+
+      it('should return empty results when category has no items in hierarchy', async () => {
+        // Create empty category hierarchy
+        const emptyParent = await createTestCategory(em, setup.company, {
+          name: 'Empty Parent',
+        });
+        await createTestCategory(em, setup.company, {
+          name: 'Empty Child',
+          parent: emptyParent,
+        });
+
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: emptyParent.id })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(0);
+        expect(response.body.total).toBe(0);
+      });
+
+      it('should not include items from other category trees', async () => {
+        // Create two separate category trees
+        const tree1Parent = await createTestCategory(em, setup.company, {
+          name: 'Tree 1 Parent',
+        });
+        const tree1Child = await createTestCategory(em, setup.company, {
+          name: 'Tree 1 Child',
+          parent: tree1Parent,
+        });
+
+        const tree2Parent = await createTestCategory(em, setup.company, {
+          name: 'Tree 2 Parent',
+        });
+
+        // Create items in both trees
+        await createTestMeasureSheetItem(em, setup.company, tree1Parent, {
+          name: 'Tree 1 Parent Item',
+        });
+        await createTestMeasureSheetItem(em, setup.company, tree1Child, {
+          name: 'Tree 1 Child Item',
+        });
+        await createTestMeasureSheetItem(em, setup.company, tree2Parent, {
+          name: 'Tree 2 Item',
+        });
+
+        // Filter by Tree 1 Parent - should NOT include Tree 2 items
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: tree1Parent.id })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(2);
+        expect(response.body.total).toBe(2);
+
+        const names = response.body.items.map(
+          (item: { name: string }) => item.name,
+        );
+        expect(names).toContain('Tree 1 Parent Item');
+        expect(names).toContain('Tree 1 Child Item');
+        expect(names).not.toContain('Tree 2 Item');
+      });
+
+      it('should handle non-existent category ID gracefully', async () => {
+        const fakeId = '00000000-0000-0000-0000-000000000000';
+
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryId: fakeId })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(0);
+        expect(response.body.total).toBe(0);
+      });
+    });
+
     describe('Link/Unlink Options', () => {
       it('should link options to MSI', async () => {
         const category = await createTestCategory(em, setup.company);

@@ -166,6 +166,36 @@ async function getCategoryPath(
   return pathParts.join(' > ');
 }
 
+/**
+ * Get all descendant category IDs for a given category (including the category itself).
+ * This enables filtering items by a parent category to include all items in subcategories.
+ */
+async function getDescendantCategoryIds(
+  em: EntityManager,
+  categoryId: string,
+  companyId: string,
+): Promise<string[]> {
+  // Use a recursive CTE to get all descendants efficiently
+  const result = await em.getConnection().execute<{ id: string }[]>(
+    `WITH RECURSIVE category_tree AS (
+      -- Base case: the selected category
+      SELECT id FROM price_guide_category 
+      WHERE id = ? AND company_id = ? AND is_active = true
+      
+      UNION ALL
+      
+      -- Recursive case: all children
+      SELECT c.id FROM price_guide_category c
+      INNER JOIN category_tree ct ON c.parent_id = ct.id
+      WHERE c.company_id = ? AND c.is_active = true
+    )
+    SELECT id FROM category_tree`,
+    [categoryId, companyId, companyId],
+  );
+
+  return result.map(r => r.id);
+}
+
 /** Presigned URL expiration for image thumbnails (1 hour) */
 const IMAGE_URL_EXPIRES_IN = 3600;
 
@@ -252,9 +282,20 @@ router.get(
         .select('*')
         .where({ company: company.id, isActive: true });
 
-      // Category filter
+      // Category filter - include items in subcategories
+      let categoryIds: string[] = [];
       if (categoryId) {
-        qb.andWhere({ category: categoryId });
+        categoryIds = await getDescendantCategoryIds(
+          em,
+          categoryId,
+          company.id,
+        );
+        if (categoryIds.length > 0) {
+          qb.andWhere({ category: { $in: categoryIds } });
+        } else {
+          // Category not found or has no descendants, filter by original ID
+          qb.andWhere({ category: categoryId });
+        }
       }
 
       // Office filter via junction table
@@ -413,7 +454,12 @@ router.get(
         .createQueryBuilder(MeasureSheetItem, 'msi')
         .count()
         .where({ company: company.id, isActive: true });
-      if (categoryId) totalQb.andWhere({ category: categoryId });
+      // Use the same categoryIds for total count (includes subcategories)
+      if (categoryId && categoryIds.length > 0) {
+        totalQb.andWhere({ category: { $in: categoryIds } });
+      } else if (categoryId) {
+        totalQb.andWhere({ category: categoryId });
+      }
       if (search) {
         totalQb.andWhere({
           $or: [
