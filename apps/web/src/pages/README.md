@@ -22,6 +22,31 @@ This folder contains page-level React components that correspond to application 
 | `SelectCompanyPage.tsx`   | `/select-company`          | Multi-company selection  |
 | `UsersPage.tsx`           | `/users`                   | User management          |
 
+### Price Guide Pages (`price-guide/`)
+
+| Page                         | Route                         | Purpose                         |
+| ---------------------------- | ----------------------------- | ------------------------------- |
+| `CatalogPage.tsx`            | `/price-guide`                | MSI catalog listing with search |
+| `MsiEditPage.tsx`            | `/price-guide/:msiId`         | Single-page MSI editing         |
+| `PricingPage.tsx`            | `/price-guide/:msiId/pricing` | Option & upcharge pricing       |
+| `CreateWizard.tsx`           | `/price-guide/new`            | Create new MSI wizard           |
+| `LibraryPage.tsx`            | `/price-guide/library`        | Options/UpCharges/Details mgmt  |
+| `CategoryManagementPage.tsx` | `/price-guide/categories`     | Category tree management        |
+| `ToolsPage.tsx`              | `/price-guide/tools`          | Import/Export/Migration tools   |
+| `MigrationWizardPage.tsx`    | `/price-guide/tools/migrate`  | Data migration wizard           |
+
+#### Section Components (`price-guide/sections/`)
+
+The `MsiEditPage` uses modular section components for each accordion panel:
+
+| Component                      | Purpose                                        |
+| ------------------------------ | ---------------------------------------------- |
+| `BasicInfoSection.tsx`         | Name, category, measurement type, tag settings |
+| `OfficesSection.tsx`           | Multi-select office visibility                 |
+| `OptionsSection.tsx`           | Link/unlink options with search & quick-add    |
+| `UpchargesSection.tsx`         | Link/unlink upcharges with compatibility       |
+| `AdditionalDetailsSection.tsx` | Link/unlink additional detail fields           |
+
 ## Route Configuration
 
 Routes are defined in `src/router.tsx`. See the router file for the complete route configuration.
@@ -40,6 +65,17 @@ Routes are defined in `src/router.tsx`. See the router file for the complete rou
 - `/roles` - Role management
 - `/offices` - Office management
 - `/settings/company` - Company settings
+
+### Price Guide Routes (requires `price_guide:read`)
+
+- `/price-guide` - MSI Catalog listing
+- `/price-guide/:msiId` - MSI Edit page with accordion sections
+- `/price-guide/:msiId/pricing` - Option and upcharge pricing
+- `/price-guide/new` - Create new MSI wizard
+- `/price-guide/library` - Library (Options, UpCharges, Additional Details)
+- `/price-guide/categories` - Category management
+- `/price-guide/tools` - Tools (Import/Export)
+- `/price-guide/tools/migrate` - Migration wizard
 
 ### Platform Routes (Internal Users Only)
 

@@ -250,6 +250,97 @@ When category depth exceeds recommended limit (5+):
 
 ---
 
+## UpCharge Mixed Mode Edge Cases
+
+### Percentage with No Base Types Selected
+
+When configuring a price type as percentage but no base types are checked:
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MATERIALS: [Percentage ▼]                                                  │
+│                                                                            │
+│ Rate: [ 10 ]%  of:  [☐] Materials  [☐] Labor  [☐] Tax  [☐] Other         │
+│                      ↑                                                     │
+│                      └─── ⚠ Select at least one price type for the base  │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Circular Percentage Reference
+
+Prevent selecting the same price type as its own percentage base:
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MATERIALS: [Percentage ▼]                                                  │
+│                                                                            │
+│ Rate: [ 10 ]%  of:  [☑] Materials  ← This would be circular!              │
+│                      ↑                                                     │
+│                      └─── ⚠ Cannot base Materials on itself               │
+│                                                                            │
+│ Valid bases for Materials: [☐] Labor  [☐] Tax  [☐] Other                  │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### All Price Types Set to "Not Used"
+
+When user sets all price types to "Not Used":
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ⚠ No Pricing Configured                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ All price types are set to "Not Used". This upcharge will have $0 total.  │
+│                                                                             │
+│ Is this intentional? If so, consider using option compatibility settings   │
+│ to disable this upcharge entirely instead.                                  │
+│                                                                             │
+│                              [Keep as $0]  [Configure Pricing]             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Switching from Advanced to Simple Mode with Mixed Configuration
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ⚠ Configuration Will Be Simplified                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Your current configuration has different modes per price type:             │
+│ • Materials: Percentage (10% of M+L)                                       │
+│ • Labor: Fixed ($25)                                                       │
+│ • Other: Fixed ($10)                                                       │
+│                                                                             │
+│ Switching to Simple mode will apply ONE configuration to ALL price types.  │
+│                                                                             │
+│ Apply which configuration to all?                                          │
+│ ○ Fixed amounts (will lose percentage configurations)                      │
+│ ○ Percentage (will lose fixed amounts)                                     │
+│                                                                             │
+│                              [Cancel]  [Switch to Simple]                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Percentage Preview with Missing Parent Pricing
+
+When parent option is missing pricing for the selected base types:
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MATERIALS: [Percentage ▼]  10% of [☑] Materials [☑] Labor                 │
+│                                                                            │
+│ Preview calculations:                                                      │
+│ • Pella Premium @ Denver: 10% × ($200 + $150) = $35.00                    │
+│ • Generic White @ Denver: ⚠ Cannot calculate - option missing Labor price │
+│ • Budget Option @ Denver: ⚠ Cannot calculate - option missing all prices  │
+│                                                                            │
+│ ℹ Options with missing prices will result in partial or $0 calculations   │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Form Validation Edge Cases
 
 ### Invalid Price Format

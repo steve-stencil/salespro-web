@@ -4,6 +4,10 @@
 
 ---
 
+> **Implementation Note (Dec 2024):** The original tab-based design below has been replaced with a single-page accordion-based layout (`MsiEditPage.tsx`). The new implementation uses collapsible sections for: Basic Information, Offices, Options, UpCharges, and Additional Details. This provides a more streamlined editing experience with a single "Save Changes" button instead of separate edit modes per tab. Pricing remains on its own dedicated page (`PricingPage.tsx`).
+
+---
+
 ## Purpose
 
 The Item Detail page provides a comprehensive view of a single Measure Sheet Item (MSI), including:
