@@ -253,68 +253,98 @@ router.get(
       // Load relationships
       await em.populate(items, ['category']);
 
-      // Get counts for each MSI
+      // Get counts and names for each MSI
       const msiIds = items.map(i => i.id);
-      const [officeCounts, optionCounts, upchargeCounts] = await Promise.all([
-        em
-          .createQueryBuilder(MeasureSheetItemOffice, 'o')
-          .select([
-            raw('o.measure_sheet_item_id as msi_id'),
-            raw('count(*)::int as count'),
-          ])
-          .where({ measureSheetItem: { $in: msiIds } })
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
-          .groupBy(raw('o.measure_sheet_item_id'))
-          .execute<{ msi_id: string; count: number }[]>(),
-        em
-          .createQueryBuilder(MeasureSheetItemOption, 'o')
-          .select([
-            raw('o.measure_sheet_item_id as msi_id'),
-            raw('count(*)::int as count'),
-          ])
-          .where({ measureSheetItem: { $in: msiIds } })
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
-          .groupBy(raw('o.measure_sheet_item_id'))
-          .execute<{ msi_id: string; count: number }[]>(),
-        em
-          .createQueryBuilder(MeasureSheetItemUpCharge, 'u')
-          .select([
-            raw('u.measure_sheet_item_id as msi_id'),
-            raw('count(*)::int as count'),
-          ])
-          .where({ measureSheetItem: { $in: msiIds } })
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
-          .groupBy(raw('u.measure_sheet_item_id'))
-          .execute<{ msi_id: string; count: number }[]>(),
+      const knex = em.getKnex();
+      const [officeData, optionData, upchargeData] = await Promise.all([
+        // Office counts and names
+        knex.raw<{
+          rows: { msi_id: string; count: number; names: string[] }[];
+        }>(
+          `SELECT 
+            msi_o.measure_sheet_item_id as msi_id, 
+            count(*)::int as count,
+            array_agg(o.name ORDER BY o.name) as names
+          FROM measure_sheet_item_office msi_o
+          JOIN office o ON o.id = msi_o.office_id
+          WHERE msi_o.measure_sheet_item_id = ANY(?)
+          GROUP BY msi_o.measure_sheet_item_id`,
+          [msiIds],
+        ),
+        // Option counts and names
+        knex.raw<{
+          rows: { msi_id: string; count: number; names: string[] }[];
+        }>(
+          `SELECT 
+            msi_o.measure_sheet_item_id as msi_id, 
+            count(*)::int as count,
+            array_agg(opt.name ORDER BY opt.name) as names
+          FROM measure_sheet_item_option msi_o
+          JOIN price_guide_option opt ON opt.id = msi_o.option_id
+          WHERE msi_o.measure_sheet_item_id = ANY(?)
+          GROUP BY msi_o.measure_sheet_item_id`,
+          [msiIds],
+        ),
+        // Upcharge counts and names
+        knex.raw<{
+          rows: { msi_id: string; count: number; names: string[] }[];
+        }>(
+          `SELECT 
+            msi_u.measure_sheet_item_id as msi_id, 
+            count(*)::int as count,
+            array_agg(uc.name ORDER BY uc.name) as names
+          FROM measure_sheet_item_up_charge msi_u
+          JOIN up_charge uc ON uc.id = msi_u.up_charge_id
+          WHERE msi_u.measure_sheet_item_id = ANY(?)
+          GROUP BY msi_u.measure_sheet_item_id`,
+          [msiIds],
+        ),
       ]);
 
-      const officeCountMap = new Map(
-        officeCounts.map(r => [r.msi_id, r.count]),
+      const officeMap = new Map(
+        officeData.rows.map(r => [
+          r.msi_id,
+          { count: r.count, names: r.names },
+        ]),
       );
-      const optionCountMap = new Map(
-        optionCounts.map(r => [r.msi_id, r.count]),
+      const optionMap = new Map(
+        optionData.rows.map(r => [
+          r.msi_id,
+          { count: r.count, names: r.names },
+        ]),
       );
-      const upchargeCountMap = new Map(
-        upchargeCounts.map(r => [r.msi_id, r.count]),
+      const upchargeMap = new Map(
+        upchargeData.rows.map(r => [
+          r.msi_id,
+          { count: r.count, names: r.names },
+        ]),
       );
 
       // Build response
       const responseItems = await Promise.all(
-        items.map(async msi => ({
-          id: msi.id,
-          name: msi.name,
-          category: {
-            id: msi.category.id,
-            name: msi.category.name,
-            fullPath: await getCategoryPath(em, msi.category),
-          },
-          measurementType: msi.measurementType,
-          officeCount: officeCountMap.get(msi.id) ?? 0,
-          optionCount: optionCountMap.get(msi.id) ?? 0,
-          upchargeCount: upchargeCountMap.get(msi.id) ?? 0,
-          imageUrl: msi.imageUrl,
-          sortOrder: msi.sortOrder,
-        })),
+        items.map(async msi => {
+          const office = officeMap.get(msi.id);
+          const option = optionMap.get(msi.id);
+          const upcharge = upchargeMap.get(msi.id);
+          return {
+            id: msi.id,
+            name: msi.name,
+            category: {
+              id: msi.category.id,
+              name: msi.category.name,
+              fullPath: await getCategoryPath(em, msi.category),
+            },
+            measurementType: msi.measurementType,
+            officeCount: office?.count ?? 0,
+            optionCount: option?.count ?? 0,
+            upchargeCount: upcharge?.count ?? 0,
+            officeNames: office?.names ?? [],
+            optionNames: option?.names ?? [],
+            upchargeNames: upcharge?.names ?? [],
+            imageUrl: msi.imageUrl,
+            sortOrder: msi.sortOrder,
+          };
+        }),
       );
 
       const lastItem = items[items.length - 1];

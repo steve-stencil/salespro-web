@@ -222,6 +222,12 @@ export type MeasureSheetItemSummary = {
   officeCount: number;
   optionCount: number;
   upchargeCount: number;
+  /** Names of linked offices (for tooltip display) */
+  officeNames?: string[];
+  /** Names of linked options (for tooltip display) */
+  optionNames?: string[];
+  /** Names of linked upcharges (for tooltip display) */
+  upchargeNames?: string[];
   imageUrl: string | null;
   sortOrder: number;
 };
