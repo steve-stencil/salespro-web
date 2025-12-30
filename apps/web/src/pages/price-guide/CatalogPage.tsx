@@ -9,7 +9,6 @@ import ClearIcon from '@mui/icons-material/Clear';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
-import FilterListIcon from '@mui/icons-material/FilterList';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import SearchIcon from '@mui/icons-material/Search';
@@ -20,6 +19,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
@@ -57,10 +57,9 @@ import {
   useCategoryTree,
   useOptionList,
   useUpchargeList,
-  useAdditionalDetailList,
   useLinkOptions,
   useLinkUpcharges,
-  useLinkAdditionalDetails,
+  useSyncOffices,
   useUnlinkOption,
   useUnlinkUpcharge,
 } from '../../hooks/usePriceGuide';
@@ -85,27 +84,29 @@ import type { MeasureSheetItemSummary } from '@shared/types';
 
 type MsiExpandedContentProps = {
   msiId: string;
+  onLinkOffices: () => void;
   onLinkOptions: () => void;
   onLinkUpcharges: () => void;
-  onLinkDetails: () => void;
+  onUnlinkOffice: (officeId: string, officeName: string) => void;
   onUnlinkOption: (optionId: string, optionName: string) => void;
   onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
 };
 
 function MsiExpandedContent({
   msiId,
+  onLinkOffices,
   onLinkOptions,
   onLinkUpcharges,
-  onLinkDetails,
+  onUnlinkOffice,
   onUnlinkOption,
   onUnlinkUpcharge,
 }: MsiExpandedContentProps): React.ReactElement {
   const navigate = useNavigate();
   const { data, isLoading } = useMsiDetail(msiId);
 
+  const offices = data?.item.offices ?? [];
   const options = data?.item.options ?? [];
   const upcharges = data?.item.upcharges ?? [];
-  const additionalDetails = data?.item.additionalDetails ?? [];
 
   return (
     <Box>
@@ -117,6 +118,19 @@ function MsiExpandedContent({
           gap: 3,
         }}
       >
+        <LinkedItemsList
+          title="Offices"
+          itemType="office"
+          items={offices}
+          isLoading={isLoading}
+          onLinkClick={onLinkOffices}
+          onUnlinkItem={officeId => {
+            const office = offices.find(o => o.id === officeId);
+            if (office) {
+              onUnlinkOffice(officeId, office.name);
+            }
+          }}
+        />
         <LinkedItemsList
           title="Options"
           itemType="option"
@@ -145,14 +159,6 @@ function MsiExpandedContent({
             }
           }}
         />
-        <LinkedItemsList
-          title="Additional Details"
-          itemType="additionalDetail"
-          items={additionalDetails}
-          isLoading={isLoading}
-          onLinkClick={onLinkDetails}
-          onViewItem={() => void navigate('/price-guide/library?tab=details')}
-        />
       </Box>
 
       {/* Footer with ID */}
@@ -179,9 +185,10 @@ type MsiCardWrapperProps = {
   onEdit: () => void;
   onPricing: () => void;
   onDelete: () => void;
+  onLinkOffices: () => void;
   onLinkOptions: () => void;
   onLinkUpcharges: () => void;
-  onLinkDetails: () => void;
+  onUnlinkOffice: (officeId: string, officeName: string) => void;
   onUnlinkOption: (optionId: string, optionName: string) => void;
   onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
   onThumbnailClick: () => void;
@@ -198,9 +205,10 @@ function MsiCardWrapper({
   onEdit,
   onPricing,
   onDelete,
+  onLinkOffices,
   onLinkOptions,
   onLinkUpcharges,
-  onLinkDetails,
+  onUnlinkOffice,
   onUnlinkOption,
   onUnlinkUpcharge,
   onThumbnailClick,
@@ -234,6 +242,11 @@ function MsiCardWrapper({
   const badges = (
     <>
       <CountBadge
+        count={msi.officeCount}
+        variant="office"
+        items={msi.officeNames}
+      />
+      <CountBadge
         count={msi.optionCount}
         variant="option"
         items={msi.optionNames}
@@ -242,11 +255,6 @@ function MsiCardWrapper({
         count={msi.upchargeCount}
         variant="upcharge"
         items={msi.upchargeNames}
-      />
-      <CountBadge
-        count={msi.officeCount}
-        variant="office"
-        items={msi.officeNames}
       />
     </>
   );
@@ -270,9 +278,10 @@ function MsiCardWrapper({
       expandedContent={
         <MsiExpandedContent
           msiId={msi.id}
+          onLinkOffices={onLinkOffices}
           onLinkOptions={onLinkOptions}
           onLinkUpcharges={onLinkUpcharges}
-          onLinkDetails={onLinkDetails}
+          onUnlinkOffice={onUnlinkOffice}
           onUnlinkOption={onUnlinkOption}
           onUnlinkUpcharge={onUnlinkUpcharge}
         />
@@ -291,8 +300,8 @@ export function CatalogPage(): React.ReactElement {
 
   // State
   const [search, setSearch] = useState('');
-  const [categoryId, setCategoryId] = useState<string>('');
-  const [officeId, setOfficeId] = useState<string>('');
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [officeIds, setOfficeIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -305,7 +314,7 @@ export function CatalogPage(): React.ReactElement {
   // Link picker state
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const [linkPickerType, setLinkPickerType] = useState<
-    'option' | 'upcharge' | 'additionalDetail'
+    'office' | 'option' | 'upcharge' | 'additionalDetail'
   >('option');
   const [linkPickerMsiId, setLinkPickerMsiId] = useState<string>('');
   const [linkPickerSearch, setLinkPickerSearch] = useState('');
@@ -313,7 +322,7 @@ export function CatalogPage(): React.ReactElement {
   // Unlink confirmation state
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
   const [unlinkItem, setUnlinkItem] = useState<{
-    type: 'option' | 'upcharge';
+    type: 'office' | 'option' | 'upcharge';
     msiId: string;
     msiName: string;
     itemId: string;
@@ -345,8 +354,8 @@ export function CatalogPage(): React.ReactElement {
     error,
   } = useMsiList({
     search: debouncedSearch || undefined,
-    categoryId: categoryId || undefined,
-    officeId: officeId || undefined,
+    categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+    officeIds: officeIds.length > 0 ? officeIds : undefined,
     limit: 20,
   });
 
@@ -374,22 +383,10 @@ export function CatalogPage(): React.ReactElement {
     limit: 20,
   });
 
-  // Additional Details list for link picker
-  const {
-    data: additionalDetailsData,
-    isLoading: isLoadingAdditionalDetails,
-    hasNextPage: hasMoreAdditionalDetails,
-    fetchNextPage: fetchMoreAdditionalDetails,
-    isFetchingNextPage: isFetchingMoreAdditionalDetails,
-  } = useAdditionalDetailList({
-    search: debouncedLinkPickerSearch || undefined,
-    limit: 20,
-  });
-
   // Mutations
   const linkOptionsMutation = useLinkOptions();
   const linkUpchargesMutation = useLinkUpcharges();
-  const linkAdditionalDetailsMutation = useLinkAdditionalDetails();
+  const syncOfficesMutation = useSyncOffices();
   const unlinkOptionMutation = useUnlinkOption();
   const unlinkUpchargeMutation = useUnlinkUpcharge();
 
@@ -398,6 +395,22 @@ export function CatalogPage(): React.ReactElement {
     if (!categoryData?.categories) return [];
     return flattenCategoryTree(categoryData.categories);
   }, [categoryData]);
+
+  // Get selected categories for chip display
+  const selectedCategories = useMemo(() => {
+    if (categoryIds.length === 0) return [];
+    return categoryIds
+      .map(id => flatCategories.find(cat => cat.id === id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+  }, [categoryIds, flatCategories]);
+
+  // Get selected offices for chip display
+  const selectedOffices = useMemo(() => {
+    if (officeIds.length === 0 || !officesData?.offices) return [];
+    return officeIds
+      .map(id => officesData.offices.find(o => o.id === id))
+      .filter((o): o is NonNullable<typeof o> => o !== undefined);
+  }, [officeIds, officesData]);
 
   // All MSIs from infinite query pages
   const allMsis = useMemo(() => {
@@ -410,7 +423,15 @@ export function CatalogPage(): React.ReactElement {
 
   // Link picker items
   const linkPickerItems: LinkableItem[] = useMemo(() => {
-    if (linkPickerType === 'option') {
+    if (linkPickerType === 'office') {
+      if (!officesData?.offices) return [];
+      return officesData.offices.map(office => ({
+        id: office.id,
+        name: office.name,
+        subtitle: null,
+        usageCount: 0, // Offices don't have usage counts in this context
+      }));
+    } else if (linkPickerType === 'option') {
       if (!optionsData?.pages) return [];
       return optionsData.pages.flatMap(page =>
         page.items.map(item => ({
@@ -430,29 +451,22 @@ export function CatalogPage(): React.ReactElement {
           usageCount: item.linkedMsiCount,
         })),
       );
-    } else {
-      if (!additionalDetailsData?.pages) return [];
-      return additionalDetailsData.pages.flatMap(page =>
-        page.items.map(item => ({
-          id: item.id,
-          name: item.title,
-          subtitle: item.inputType,
-          usageCount: item.linkedMsiCount,
-        })),
-      );
     }
-  }, [linkPickerType, optionsData, upchargesData, additionalDetailsData]);
+    return [];
+  }, [linkPickerType, officesData, optionsData, upchargesData]);
 
   // Get current MSI for determining already linked items
   const { data: currentMsiData } = useMsiDetail(linkPickerMsiId);
   const alreadyLinkedIds = useMemo(() => {
     if (!currentMsiData?.item) return [];
-    if (linkPickerType === 'option') {
+    if (linkPickerType === 'office') {
+      return currentMsiData.item.offices.map(o => o.id);
+    } else if (linkPickerType === 'option') {
       return currentMsiData.item.options.map(o => o.optionId);
     } else if (linkPickerType === 'upcharge') {
       return currentMsiData.item.upcharges.map(u => u.upchargeId);
     }
-    return currentMsiData.item.additionalDetails.map(d => d.fieldId);
+    return [];
   }, [currentMsiData, linkPickerType]);
 
   // Toggle expanded
@@ -471,11 +485,11 @@ export function CatalogPage(): React.ReactElement {
   // Clear filters
   const clearFilters = useCallback(() => {
     setSearch('');
-    setCategoryId('');
-    setOfficeId('');
+    setCategoryIds([]);
+    setOfficeIds([]);
   }, []);
 
-  const hasFilters = search || categoryId || officeId;
+  const hasFilters = search || categoryIds.length > 0 || officeIds.length > 0;
 
   // Infinite scroll observer
   useEffect(() => {
@@ -506,12 +520,16 @@ export function CatalogPage(): React.ReactElement {
     setSearch(e.target.value);
   };
 
-  const handleCategoryChange = (e: SelectChangeEvent) => {
-    setCategoryId(e.target.value);
+  const handleCategoryChange = (e: SelectChangeEvent<string[]>) => {
+    const value = e.target.value;
+    // Handle both string and array (MUI Select can return either)
+    setCategoryIds(typeof value === 'string' ? value.split(',') : value);
   };
 
-  const handleOfficeChange = (e: SelectChangeEvent) => {
-    setOfficeId(e.target.value);
+  const handleOfficeChange = (e: SelectChangeEvent<string[]>) => {
+    const value = e.target.value;
+    // Handle both string and array (MUI Select can return either)
+    setOfficeIds(typeof value === 'string' ? value.split(',') : value);
   };
 
   const handleView = useCallback(
@@ -598,7 +616,7 @@ export function CatalogPage(): React.ReactElement {
 
   // Link picker handlers
   const openLinkPicker = useCallback(
-    (type: 'option' | 'upcharge' | 'additionalDetail', msiId: string) => {
+    (type: 'office' | 'option' | 'upcharge', msiId: string) => {
       setLinkPickerType(type);
       setLinkPickerMsiId(msiId);
       setLinkPickerSearch('');
@@ -610,7 +628,17 @@ export function CatalogPage(): React.ReactElement {
   const handleLink = useCallback(
     async (itemIds: string[]) => {
       try {
-        if (linkPickerType === 'option') {
+        if (linkPickerType === 'office') {
+          // For offices, we need to sync ALL selected offices (existing + new)
+          const existingOfficeIds =
+            currentMsiData?.item.offices.map(o => o.id) ?? [];
+          const allOfficeIds = [...new Set([...existingOfficeIds, ...itemIds])];
+          await syncOfficesMutation.mutateAsync({
+            msiId: linkPickerMsiId,
+            officeIds: allOfficeIds,
+            version: currentMsiData?.item.version ?? 1,
+          });
+        } else if (linkPickerType === 'option') {
           await linkOptionsMutation.mutateAsync({
             msiId: linkPickerMsiId,
             optionIds: itemIds,
@@ -619,11 +647,6 @@ export function CatalogPage(): React.ReactElement {
           await linkUpchargesMutation.mutateAsync({
             msiId: linkPickerMsiId,
             upchargeIds: itemIds,
-          });
-        } else {
-          await linkAdditionalDetailsMutation.mutateAsync({
-            msiId: linkPickerMsiId,
-            fieldIds: itemIds,
           });
         }
         setLinkPickerOpen(false);
@@ -634,21 +657,26 @@ export function CatalogPage(): React.ReactElement {
     [
       linkPickerType,
       linkPickerMsiId,
+      currentMsiData,
       linkOptionsMutation,
       linkUpchargesMutation,
-      linkAdditionalDetailsMutation,
+      syncOfficesMutation,
     ],
   );
 
   // Unlink handlers
   const openUnlinkDialog = useCallback(
     (
-      type: 'option' | 'upcharge',
+      type: 'office' | 'option' | 'upcharge',
       msiId: string,
       msiName: string,
       itemId: string,
       itemName: string,
     ) => {
+      // For offices, we need to set linkPickerMsiId so currentMsiData has the right MSI
+      if (type === 'office') {
+        setLinkPickerMsiId(msiId);
+      }
       setUnlinkItem({ type, msiId, msiName, itemId, itemName });
       setUnlinkDialogOpen(true);
     },
@@ -658,7 +686,19 @@ export function CatalogPage(): React.ReactElement {
   const handleUnlink = useCallback(async () => {
     if (!unlinkItem) return;
     try {
-      if (unlinkItem.type === 'option') {
+      if (unlinkItem.type === 'office') {
+        // For offices, we need to sync with the office removed
+        const currentOfficeIds =
+          currentMsiData?.item.offices.map(o => o.id) ?? [];
+        const newOfficeIds = currentOfficeIds.filter(
+          id => id !== unlinkItem.itemId,
+        );
+        await syncOfficesMutation.mutateAsync({
+          msiId: unlinkItem.msiId,
+          officeIds: newOfficeIds,
+          version: currentMsiData?.item.version ?? 1,
+        });
+      } else if (unlinkItem.type === 'option') {
         await unlinkOptionMutation.mutateAsync({
           msiId: unlinkItem.msiId,
           optionId: unlinkItem.itemId,
@@ -674,7 +714,13 @@ export function CatalogPage(): React.ReactElement {
     } catch (err) {
       console.error('Failed to unlink item:', err);
     }
-  }, [unlinkItem, unlinkOptionMutation, unlinkUpchargeMutation]);
+  }, [
+    unlinkItem,
+    currentMsiData,
+    unlinkOptionMutation,
+    unlinkUpchargeMutation,
+    syncOfficesMutation,
+  ]);
 
   // Selection handlers
   const toggleSelect = useCallback((id: string) => {
@@ -838,20 +884,22 @@ export function CatalogPage(): React.ReactElement {
               }}
             />
 
-            {/* Category Filter */}
+            {/* Category Filter (Multi-Select) */}
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>
-                <CategoryIcon
-                  sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }}
-                />
-                Category
-              </InputLabel>
+              <InputLabel>Categories</InputLabel>
               <Select
-                value={categoryId}
+                multiple
+                value={categoryIds}
                 onChange={handleCategoryChange}
-                label="Category"
+                label="Categories"
+                renderValue={selected =>
+                  selected.length === 0
+                    ? ''
+                    : selected.length === 1
+                      ? (selectedCategories[0]?.name ?? '')
+                      : `${selected.length} categories`
+                }
               >
-                <MenuItem value="">All Categories</MenuItem>
                 {flatCategories.map(cat => (
                   <MenuItem
                     key={cat.id}
@@ -864,15 +912,22 @@ export function CatalogPage(): React.ReactElement {
               </Select>
             </FormControl>
 
-            {/* Office Filter */}
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Office</InputLabel>
+            {/* Office Filter (Multi-Select) */}
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel>Offices</InputLabel>
               <Select
-                value={officeId}
+                multiple
+                value={officeIds}
                 onChange={handleOfficeChange}
-                label="Office"
+                label="Offices"
+                renderValue={selected =>
+                  selected.length === 0
+                    ? ''
+                    : selected.length === 1
+                      ? (selectedOffices[0]?.name ?? '')
+                      : `${selected.length} offices`
+                }
               >
-                <MenuItem value="">All Offices</MenuItem>
                 {officesData?.offices.map(office => (
                   <MenuItem key={office.id} value={office.id}>
                     {office.name}
@@ -880,19 +935,60 @@ export function CatalogPage(): React.ReactElement {
                 ))}
               </Select>
             </FormControl>
-
-            {/* Clear Filters */}
-            {hasFilters && (
-              <Button
-                variant="text"
-                startIcon={<FilterListIcon />}
-                onClick={clearFilters}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                Clear Filters
-              </Button>
-            )}
           </Stack>
+
+          {/* Active Filter Chips */}
+          {hasFilters && (
+            <Box
+              sx={{
+                mt: 2,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
+              <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                Active filters:
+              </Typography>
+              {search && (
+                <Chip
+                  label={`Search: "${search}"`}
+                  onDelete={() => setSearch('')}
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+              {selectedCategories.map(category => (
+                <Chip
+                  key={category.id}
+                  icon={<CategoryIcon sx={{ fontSize: 16 }} />}
+                  label={category.name}
+                  onDelete={() =>
+                    setCategoryIds(prev =>
+                      prev.filter(id => id !== category.id),
+                    )
+                  }
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
+              {selectedOffices.map(office => (
+                <Chip
+                  key={office.id}
+                  label={office.name}
+                  onDelete={() =>
+                    setOfficeIds(prev => prev.filter(id => id !== office.id))
+                  }
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
+              <Button size="small" onClick={clearFilters} sx={{ ml: 1 }}>
+                Clear All
+              </Button>
+            </Box>
+          )}
         </CardContent>
       </Card>
 
@@ -974,9 +1070,18 @@ export function CatalogPage(): React.ReactElement {
               isThumbnailLoading={
                 thumbnailUploading && thumbnailMsiId === msi.id
               }
+              onLinkOffices={() => openLinkPicker('office', msi.id)}
               onLinkOptions={() => openLinkPicker('option', msi.id)}
               onLinkUpcharges={() => openLinkPicker('upcharge', msi.id)}
-              onLinkDetails={() => openLinkPicker('additionalDetail', msi.id)}
+              onUnlinkOffice={(officeId, officeName) =>
+                openUnlinkDialog(
+                  'office',
+                  msi.id,
+                  msi.name,
+                  officeId,
+                  officeName,
+                )
+              }
               onUnlinkOption={(optionId, optionName) =>
                 openUnlinkDialog(
                   'option',
@@ -1039,40 +1144,41 @@ export function CatalogPage(): React.ReactElement {
         items={linkPickerItems}
         alreadyLinkedIds={alreadyLinkedIds}
         isLoading={
-          linkPickerType === 'option'
-            ? isLoadingOptions
-            : linkPickerType === 'upcharge'
-              ? isLoadingUpcharges
-              : isLoadingAdditionalDetails
+          linkPickerType === 'office'
+            ? false // Offices are loaded synchronously
+            : linkPickerType === 'option'
+              ? isLoadingOptions
+              : isLoadingUpcharges
         }
         hasMore={
-          linkPickerType === 'option'
-            ? hasMoreOptions
-            : linkPickerType === 'upcharge'
-              ? hasMoreUpcharges
-              : hasMoreAdditionalDetails
+          linkPickerType === 'office'
+            ? false // Offices don't have pagination
+            : linkPickerType === 'option'
+              ? hasMoreOptions
+              : hasMoreUpcharges
         }
         onLoadMore={() => {
-          void (linkPickerType === 'option'
-            ? fetchMoreOptions()
-            : linkPickerType === 'upcharge'
-              ? fetchMoreUpcharges()
-              : fetchMoreAdditionalDetails());
+          if (linkPickerType === 'option') {
+            void fetchMoreOptions();
+          } else if (linkPickerType === 'upcharge') {
+            void fetchMoreUpcharges();
+          }
+          // Offices don't need load more
         }}
         isLoadingMore={
-          linkPickerType === 'option'
-            ? isFetchingMoreOptions
-            : linkPickerType === 'upcharge'
-              ? isFetchingMoreUpcharges
-              : isFetchingMoreAdditionalDetails
+          linkPickerType === 'office'
+            ? false
+            : linkPickerType === 'option'
+              ? isFetchingMoreOptions
+              : isFetchingMoreUpcharges
         }
-        onSearch={setLinkPickerSearch}
+        onSearch={linkPickerType === 'office' ? undefined : setLinkPickerSearch}
         onClose={() => setLinkPickerOpen(false)}
         onLink={itemIds => void handleLink(itemIds)}
         isLinking={
           linkOptionsMutation.isPending ||
           linkUpchargesMutation.isPending ||
-          linkAdditionalDetailsMutation.isPending
+          syncOfficesMutation.isPending
         }
       />
 
@@ -1088,7 +1194,9 @@ export function CatalogPage(): React.ReactElement {
         }}
         onConfirm={() => void handleUnlink()}
         isLoading={
-          unlinkOptionMutation.isPending || unlinkUpchargeMutation.isPending
+          syncOfficesMutation.isPending ||
+          unlinkOptionMutation.isPending ||
+          unlinkUpchargeMutation.isPending
         }
       />
 

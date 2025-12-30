@@ -14,6 +14,7 @@ import {
   UpChargePrice,
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
+  MeasureSheetItemOffice,
 } from '../../entities';
 import { AdditionalDetailInputType } from '../../entities/price-guide/types';
 
@@ -351,6 +352,21 @@ export async function linkUpChargeToMeasureSheetItem(
     measureSheetItem: msi,
     upCharge,
     sortOrder,
+  });
+  em.persist(link);
+  await em.flush();
+  return link;
+}
+
+export async function linkMeasureSheetItemToOffice(
+  em: EntityManager,
+  msi: MeasureSheetItem,
+  office: Office,
+): Promise<MeasureSheetItemOffice> {
+  const link = em.create(MeasureSheetItemOffice, {
+    id: uuid(),
+    measureSheetItem: msi,
+    office,
   });
   em.persist(link);
   await em.flush();

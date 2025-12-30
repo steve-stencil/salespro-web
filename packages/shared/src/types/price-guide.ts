@@ -506,8 +506,8 @@ export type CursorPaginationParams = {
 
 /** MSI list query params */
 export type MsiListParams = CursorPaginationParams & {
-  categoryId?: string;
-  officeId?: string;
+  categoryIds?: string[];
+  officeIds?: string[];
 };
 
 /** Library list query params */

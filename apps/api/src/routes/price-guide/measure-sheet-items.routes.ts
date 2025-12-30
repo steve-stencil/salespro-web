@@ -37,8 +37,22 @@ const listQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   search: z.string().optional(),
-  categoryId: z.string().uuid().optional(),
-  officeId: z.string().uuid().optional(),
+  categoryIds: z
+    .string()
+    .optional()
+    .transform(val => {
+      if (!val) return undefined;
+      // Parse comma-separated UUIDs
+      return val.split(',').filter(id => id.trim().length > 0);
+    }),
+  officeIds: z
+    .string()
+    .optional()
+    .transform(val => {
+      if (!val) return undefined;
+      // Parse comma-separated UUIDs
+      return val.split(',').filter(id => id.trim().length > 0);
+    }),
 });
 
 /**
@@ -272,7 +286,8 @@ router.get(
         return;
       }
 
-      const { cursor, limit, search, categoryId, officeId } = parseResult.data;
+      const { cursor, limit, search, categoryIds, officeIds } =
+        parseResult.data;
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
@@ -282,30 +297,38 @@ router.get(
         .select('*')
         .where({ company: company.id, isActive: true });
 
-      // Category filter - include items in subcategories
-      let categoryIds: string[] = [];
-      if (categoryId) {
-        categoryIds = await getDescendantCategoryIds(
-          em,
-          categoryId,
-          company.id,
-        );
-        if (categoryIds.length > 0) {
-          qb.andWhere({ category: { $in: categoryIds } });
-        } else {
-          // Category not found or has no descendants, filter by original ID
-          qb.andWhere({ category: categoryId });
+      // Category filter - include items in subcategories (supports multiple categories)
+      let allCategoryIds: string[] = [];
+      if (categoryIds && categoryIds.length > 0) {
+        // Get descendants for each selected category
+        for (const catId of categoryIds) {
+          const descendants = await getDescendantCategoryIds(
+            em,
+            catId,
+            company.id,
+          );
+          if (descendants.length > 0) {
+            allCategoryIds.push(...descendants);
+          } else {
+            // Category not found or has no descendants, include original ID
+            allCategoryIds.push(catId);
+          }
+        }
+        // Remove duplicates
+        allCategoryIds = [...new Set(allCategoryIds)];
+        if (allCategoryIds.length > 0) {
+          qb.andWhere({ category: { $in: allCategoryIds } });
         }
       }
 
-      // Office filter via junction table
-      if (officeId) {
+      // Office filter via junction table (supports multiple offices)
+      if (officeIds && officeIds.length > 0) {
         qb.andWhere({
           id: {
             $in: em
               .createQueryBuilder(MeasureSheetItemOffice, 'msio')
               .select('msio.measure_sheet_item_id')
-              .where({ office: officeId })
+              .where({ office: { $in: officeIds } })
               .getKnexQuery(),
           },
         });
@@ -454,11 +477,21 @@ router.get(
         .createQueryBuilder(MeasureSheetItem, 'msi')
         .count()
         .where({ company: company.id, isActive: true });
-      // Use the same categoryIds for total count (includes subcategories)
-      if (categoryId && categoryIds.length > 0) {
-        totalQb.andWhere({ category: { $in: categoryIds } });
-      } else if (categoryId) {
-        totalQb.andWhere({ category: categoryId });
+      // Use the same allCategoryIds for total count (includes subcategories)
+      if (allCategoryIds.length > 0) {
+        totalQb.andWhere({ category: { $in: allCategoryIds } });
+      }
+      // Office filter for total count
+      if (officeIds && officeIds.length > 0) {
+        totalQb.andWhere({
+          id: {
+            $in: em
+              .createQueryBuilder(MeasureSheetItemOffice, 'msio')
+              .select('msio.measure_sheet_item_id')
+              .where({ office: { $in: officeIds } })
+              .getKnexQuery(),
+          },
+        });
       }
       if (search) {
         totalQb.andWhere({

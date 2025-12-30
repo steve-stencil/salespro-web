@@ -9,6 +9,7 @@ import {
   createTestUpCharge,
   linkOptionToMeasureSheetItem,
   linkUpChargeToMeasureSheetItem,
+  linkMeasureSheetItemToOffice,
 } from '../factories/price-guide';
 
 import {
@@ -489,7 +490,7 @@ describe('Price Guide Core Routes', () => {
 
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: category.id })
+          .query({ categoryIds: category.id })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -507,14 +508,14 @@ describe('Price Guide Core Routes', () => {
 
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: category.id, search: 'Double' })
+          .query({ categoryIds: category.id, search: 'Double' })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
         expect(response.body.items).toHaveLength(1);
       });
 
-      it('should list all MSIs when no categoryId', async () => {
+      it('should list all MSIs when no categoryIds', async () => {
         const category = await createTestCategory(em, setup.company);
         await createTestMeasureSheetItem(em, setup.company, category, {
           name: 'MSI 1',
@@ -729,7 +730,7 @@ describe('Price Guide Core Routes', () => {
         // Filter by parent category (Roofing) - should include both items
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: roofing.id })
+          .query({ categoryIds: roofing.id })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -765,7 +766,7 @@ describe('Price Guide Core Routes', () => {
         // Filter by subcategory (Shingles) - should only include the shingle item
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: shingles.id })
+          .query({ categoryIds: shingles.id })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -802,7 +803,7 @@ describe('Price Guide Core Routes', () => {
         // Filter by top-level category - should include all 3 items
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: level1.id })
+          .query({ categoryIds: level1.id })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -849,7 +850,7 @@ describe('Price Guide Core Routes', () => {
         // Filter by parent category - should include all 3 items from children
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: parent.id })
+          .query({ categoryIds: parent.id })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -881,7 +882,7 @@ describe('Price Guide Core Routes', () => {
         // Filter by Roofing category AND search for "Premium"
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: roofing.id, search: 'Premium' })
+          .query({ categoryIds: roofing.id, search: 'Premium' })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -908,7 +909,7 @@ describe('Price Guide Core Routes', () => {
 
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: emptyParent.id })
+          .query({ categoryIds: emptyParent.id })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -944,7 +945,7 @@ describe('Price Guide Core Routes', () => {
         // Filter by Tree 1 Parent - should NOT include Tree 2 items
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: tree1Parent.id })
+          .query({ categoryIds: tree1Parent.id })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
@@ -964,12 +965,267 @@ describe('Price Guide Core Routes', () => {
 
         const response = await makeRequest()
           .get('/api/price-guide/measure-sheet-items')
-          .query({ categoryId: fakeId })
+          .query({ categoryIds: fakeId })
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
         expect(response.body.items).toHaveLength(0);
         expect(response.body.total).toBe(0);
+      });
+    });
+
+    describe('Multi-select category filter', () => {
+      it('should filter by multiple categories (comma-separated)', async () => {
+        // Create separate category trees
+        const windows = await createTestCategory(em, setup.company, {
+          name: 'Windows',
+        });
+        const doors = await createTestCategory(em, setup.company, {
+          name: 'Doors',
+        });
+        const siding = await createTestCategory(em, setup.company, {
+          name: 'Siding',
+        });
+
+        // Create MSIs in each category
+        await createTestMeasureSheetItem(em, setup.company, windows, {
+          name: 'Double Hung Window',
+        });
+        await createTestMeasureSheetItem(em, setup.company, doors, {
+          name: 'Entry Door',
+        });
+        await createTestMeasureSheetItem(em, setup.company, siding, {
+          name: 'Vinyl Siding',
+        });
+
+        // Filter by Windows and Doors (not Siding)
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryIds: `${windows.id},${doors.id}` })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(2);
+        expect(response.body.total).toBe(2);
+
+        const names = response.body.items.map(
+          (item: { name: string }) => item.name,
+        );
+        expect(names).toContain('Double Hung Window');
+        expect(names).toContain('Entry Door');
+        expect(names).not.toContain('Vinyl Siding');
+      });
+
+      it('should include subcategories for each selected category', async () => {
+        // Create two category trees with children
+        const windows = await createTestCategory(em, setup.company, {
+          name: 'Windows',
+        });
+        const casement = await createTestCategory(em, setup.company, {
+          name: 'Casement',
+          parent: windows,
+        });
+        const doors = await createTestCategory(em, setup.company, {
+          name: 'Doors',
+        });
+        const entryDoors = await createTestCategory(em, setup.company, {
+          name: 'Entry Doors',
+          parent: doors,
+        });
+
+        // Create MSIs
+        await createTestMeasureSheetItem(em, setup.company, windows, {
+          name: 'Window Parent Item',
+        });
+        await createTestMeasureSheetItem(em, setup.company, casement, {
+          name: 'Casement Window',
+        });
+        await createTestMeasureSheetItem(em, setup.company, doors, {
+          name: 'Door Parent Item',
+        });
+        await createTestMeasureSheetItem(em, setup.company, entryDoors, {
+          name: 'Entry Door',
+        });
+
+        // Filter by both parent categories - should include all 4 items
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryIds: `${windows.id},${doors.id}` })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(4);
+        expect(response.body.total).toBe(4);
+      });
+
+      it('should deduplicate when categories overlap', async () => {
+        // Create hierarchy: Parent > Child
+        const parent = await createTestCategory(em, setup.company, {
+          name: 'Parent',
+        });
+        const child = await createTestCategory(em, setup.company, {
+          name: 'Child',
+          parent,
+        });
+
+        // Create MSIs
+        await createTestMeasureSheetItem(em, setup.company, parent, {
+          name: 'Parent Item',
+        });
+        await createTestMeasureSheetItem(em, setup.company, child, {
+          name: 'Child Item',
+        });
+
+        // Filter by both parent and child - should not duplicate
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ categoryIds: `${parent.id},${child.id}` })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(2);
+        expect(response.body.total).toBe(2);
+      });
+    });
+
+    describe('Multi-select office filter', () => {
+      it('should filter by a single office', async () => {
+        const category = await createTestCategory(em, setup.company);
+
+        // Create MSIs
+        const msi1 = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          category,
+          {
+            name: 'MSI in Office 1',
+          },
+        );
+        // MSI not linked to any office (for testing filter excludes it)
+        await createTestMeasureSheetItem(em, setup.company, category, {
+          name: 'MSI not in any office',
+        });
+
+        // Link MSI to office
+        await linkMeasureSheetItemToOffice(em, msi1, setup.office!);
+
+        // Filter by office
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ officeIds: setup.office!.id })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(1);
+        expect(response.body.items[0].name).toBe('MSI in Office 1');
+      });
+
+      it('should filter by multiple offices (comma-separated)', async () => {
+        // Create a second office
+        const orm = await import('../../lib/db').then(m => m.getORM());
+        const em2 = orm.em.fork();
+        const { Office } = await import('../../entities');
+        const { v4: uuid } = await import('uuid');
+
+        const office2 = em2.create(Office, {
+          id: uuid(),
+          company: setup.company,
+          name: 'Second Office',
+          isActive: true,
+        });
+        em2.persist(office2);
+        await em2.flush();
+
+        const category = await createTestCategory(em, setup.company);
+
+        // Create MSIs linked to different offices
+        const msi1 = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          category,
+          {
+            name: 'MSI in Office 1',
+          },
+        );
+        const msi2 = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          category,
+          {
+            name: 'MSI in Office 2',
+          },
+        );
+        // MSI not linked to any office (for testing filter excludes it)
+        await createTestMeasureSheetItem(em, setup.company, category, {
+          name: 'MSI not linked',
+        });
+
+        await linkMeasureSheetItemToOffice(em, msi1, setup.office!);
+        await linkMeasureSheetItemToOffice(em, msi2, office2);
+
+        // Filter by both offices
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({ officeIds: `${setup.office!.id},${office2.id}` })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(2);
+        expect(response.body.total).toBe(2);
+
+        const names = response.body.items.map(
+          (item: { name: string }) => item.name,
+        );
+        expect(names).toContain('MSI in Office 1');
+        expect(names).toContain('MSI in Office 2');
+        expect(names).not.toContain('MSI not linked');
+      });
+
+      it('should combine category and office filters', async () => {
+        const windows = await createTestCategory(em, setup.company, {
+          name: 'Windows',
+        });
+        const doors = await createTestCategory(em, setup.company, {
+          name: 'Doors',
+        });
+
+        // Create MSIs
+        const windowMsi = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          windows,
+          {
+            name: 'Window in Office',
+          },
+        );
+        const doorMsi = await createTestMeasureSheetItem(
+          em,
+          setup.company,
+          doors,
+          {
+            name: 'Door in Office',
+          },
+        );
+        await createTestMeasureSheetItem(em, setup.company, windows, {
+          name: 'Window not in Office',
+        });
+
+        // Link some to office
+        await linkMeasureSheetItemToOffice(em, windowMsi, setup.office!);
+        await linkMeasureSheetItemToOffice(em, doorMsi, setup.office!);
+
+        // Filter by Windows category AND office - should only return window in office
+        const response = await makeRequest()
+          .get('/api/price-guide/measure-sheet-items')
+          .query({
+            categoryIds: windows.id,
+            officeIds: setup.office!.id,
+          })
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.items).toHaveLength(1);
+        expect(response.body.items[0].name).toBe('Window in Office');
       });
     });
 
