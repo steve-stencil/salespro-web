@@ -185,7 +185,13 @@ function CategoryNode({
         </Typography>
 
         {/* MSI Count */}
-        <Tooltip title={`${node.msiCount} items in this category`}>
+        <Tooltip
+          title={
+            hasChildren
+              ? `${node.msiCount} total items (including subcategories)`
+              : `${node.msiCount} items in this category`
+          }
+        >
           <Chip
             label={node.msiCount}
             size="small"

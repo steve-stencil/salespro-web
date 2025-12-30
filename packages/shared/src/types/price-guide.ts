@@ -41,6 +41,9 @@ export type CategoryTreeNode = {
   depth: number;
   sortOrder: number;
   parentId: string | null;
+  /** Direct MSI count for this category only */
+  directMsiCount: number;
+  /** Total MSI count including all descendant categories */
   msiCount: number;
   children: CategoryTreeNode[];
 };

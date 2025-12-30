@@ -133,14 +133,14 @@ export function getCategoryPath(
 }
 
 /**
- * Count total MSIs in a category tree (including children)
+ * Count total MSIs in a category tree (including children).
+ * Note: If using CategoryTreeNode from the API, you can simply use node.msiCount
+ * which already includes the cascading total.
  */
 export function countMsisInCategory(node: CategoryTreeNode): number {
-  let count = node.msiCount;
-  for (const child of node.children) {
-    count += countMsisInCategory(child);
-  }
-  return count;
+  // msiCount from the API already includes cascading counts,
+  // so we can return it directly
+  return node.msiCount;
 }
 
 /**

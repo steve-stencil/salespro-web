@@ -303,6 +303,172 @@ describe('Price Guide Core Routes', () => {
 
         expect(response.status).toBe(400);
       });
+
+      it('should reorder categories with sortOrder', async () => {
+        // Create categories in specific order
+        await createTestCategory(em, setup.company, {
+          name: 'Category A',
+          sortOrder: 0,
+        });
+        await createTestCategory(em, setup.company, {
+          name: 'Category B',
+          sortOrder: 1,
+        });
+        const cat3 = await createTestCategory(em, setup.company, {
+          name: 'Category C',
+          sortOrder: 2,
+        });
+
+        // Move cat3 to be first (before cat1)
+        const response = await makeRequest()
+          .put(`/api/price-guide/categories/${cat3.id}/move`)
+          .set('Cookie', setup.adminCookie)
+          .send({
+            newParentId: null,
+            sortOrder: -1, // Before cat1's sortOrder of 0
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.category.sortOrder).toBe(-1);
+
+        // Verify order in tree response
+        const treeResponse = await makeRequest()
+          .get('/api/price-guide/categories')
+          .set('Cookie', setup.adminCookie);
+
+        expect(treeResponse.status).toBe(200);
+        const names = treeResponse.body.categories.map(
+          (c: { name: string }) => c.name,
+        );
+        expect(names).toEqual(['Category C', 'Category A', 'Category B']);
+      });
+    });
+
+    describe('Cascading MSI counts', () => {
+      it('should include MSI counts from child categories in parent count', async () => {
+        // Create category hierarchy: Parent > Child > Grandchild
+        const parent = await createTestCategory(em, setup.company, {
+          name: 'Parent',
+        });
+        const child = await createTestCategory(em, setup.company, {
+          name: 'Child',
+          parent,
+        });
+        const grandchild = await createTestCategory(em, setup.company, {
+          name: 'Grandchild',
+          parent: child,
+        });
+
+        // Create MSIs in different levels
+        await createTestMeasureSheetItem(em, setup.company, parent, {
+          name: 'Parent MSI',
+        });
+        await createTestMeasureSheetItem(em, setup.company, child, {
+          name: 'Child MSI 1',
+        });
+        await createTestMeasureSheetItem(em, setup.company, child, {
+          name: 'Child MSI 2',
+        });
+        await createTestMeasureSheetItem(em, setup.company, grandchild, {
+          name: 'Grandchild MSI',
+        });
+
+        const response = await makeRequest()
+          .get('/api/price-guide/categories')
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+
+        const parentNode = response.body.categories.find(
+          (c: { name: string }) => c.name === 'Parent',
+        );
+        expect(parentNode).toBeDefined();
+        // Parent should have: 1 (direct) + 2 (child) + 1 (grandchild) = 4
+        expect(parentNode.msiCount).toBe(4);
+        expect(parentNode.directMsiCount).toBe(1);
+
+        // Child should have: 2 (direct) + 1 (grandchild) = 3
+        const childNode = parentNode.children.find(
+          (c: { name: string }) => c.name === 'Child',
+        );
+        expect(childNode.msiCount).toBe(3);
+        expect(childNode.directMsiCount).toBe(2);
+
+        // Grandchild should have: 1 (direct only)
+        const grandchildNode = childNode.children.find(
+          (c: { name: string }) => c.name === 'Grandchild',
+        );
+        expect(grandchildNode.msiCount).toBe(1);
+        expect(grandchildNode.directMsiCount).toBe(1);
+      });
+
+      it('should show 0 count for categories with no MSIs', async () => {
+        await createTestCategory(em, setup.company, {
+          name: 'Empty Category',
+        });
+
+        const response = await makeRequest()
+          .get('/api/price-guide/categories')
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+
+        const emptyCategory = response.body.categories.find(
+          (c: { name: string }) => c.name === 'Empty Category',
+        );
+        expect(emptyCategory.msiCount).toBe(0);
+        expect(emptyCategory.directMsiCount).toBe(0);
+      });
+
+      it('should update counts when MSI is moved to different category', async () => {
+        const cat1 = await createTestCategory(em, setup.company, {
+          name: 'Category 1',
+        });
+        const cat2 = await createTestCategory(em, setup.company, {
+          name: 'Category 2',
+        });
+
+        const msi = await createTestMeasureSheetItem(em, setup.company, cat1, {
+          name: 'Movable MSI',
+        });
+
+        // Initially cat1 should have 1, cat2 should have 0
+        let response = await makeRequest()
+          .get('/api/price-guide/categories')
+          .set('Cookie', setup.adminCookie);
+
+        let cat1Node = response.body.categories.find(
+          (c: { name: string }) => c.name === 'Category 1',
+        );
+        let cat2Node = response.body.categories.find(
+          (c: { name: string }) => c.name === 'Category 2',
+        );
+        expect(cat1Node.msiCount).toBe(1);
+        expect(cat2Node.msiCount).toBe(0);
+
+        // Move MSI to cat2
+        await makeRequest()
+          .put(`/api/price-guide/measure-sheet-items/${msi.id}`)
+          .set('Cookie', setup.adminCookie)
+          .send({
+            categoryId: cat2.id,
+            version: msi.version,
+          });
+
+        // Now cat1 should have 0, cat2 should have 1
+        response = await makeRequest()
+          .get('/api/price-guide/categories')
+          .set('Cookie', setup.adminCookie);
+
+        cat1Node = response.body.categories.find(
+          (c: { name: string }) => c.name === 'Category 1',
+        );
+        cat2Node = response.body.categories.find(
+          (c: { name: string }) => c.name === 'Category 2',
+        );
+        expect(cat1Node.msiCount).toBe(0);
+        expect(cat2Node.msiCount).toBe(1);
+      });
     });
   });
 

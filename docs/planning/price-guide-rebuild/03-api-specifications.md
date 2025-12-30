@@ -297,9 +297,16 @@ type CategoryNodeDTO = {
   depth: number;
   sortOrder: number;
   children: CategoryNodeDTO[];
+  /** Direct MSI count for this category only */
+  directMsiCount: number;
+  /** Total MSI count including all descendant categories (cascading) */
   msiCount: number;
 };
 ```
+
+> **Note**: The `msiCount` field includes items from all descendant categories
+> (children, grandchildren, etc.), making it useful for displaying totals in tree views.
+> Use `directMsiCount` if you need only the items directly in that category.
 
 ---
 
@@ -359,10 +366,40 @@ PUT /api/price-guide/categories/:id/move
 
 ```typescript
 type MoveCategoryRequest = {
-  newParentId?: string;
+  /** New parent category ID. Use null to move to root level. */
+  newParentId?: string | null;
+  /** New sort order position among siblings */
   sortOrder: number;
 };
 ```
+
+**Use Cases**:
+
+- **Change parent**: Set `newParentId` to move category into another category
+- **Move to root**: Set `newParentId: null` to make it a top-level category
+- **Reorder siblings**: Keep same `newParentId`, change `sortOrder`
+
+**Response** (200 OK):
+
+```typescript
+type MoveCategoryResponse = {
+  message: string;
+  category: {
+    id: string;
+    name: string;
+    depth: number;
+    sortOrder: number;
+    parentId: string | null;
+    version: number;
+  };
+};
+```
+
+**Errors**:
+
+- `400` - Cannot move category to itself or its own descendant (circular reference)
+- `404` - Category or new parent not found
+- `409` - Category with same name exists at target level
 
 ---
 
