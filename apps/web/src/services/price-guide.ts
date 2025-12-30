@@ -72,6 +72,26 @@ export const priceGuideApi = {
     return apiClient.delete(`/price-guide/categories/${categoryId}`);
   },
 
+  /**
+   * Move a category to a new parent and/or reorder it.
+   */
+  moveCategory: async (
+    categoryId: string,
+    data: { newParentId?: string | null; sortOrder: number },
+  ): Promise<{
+    message: string;
+    category: {
+      id: string;
+      name: string;
+      depth: number;
+      sortOrder: number;
+      parentId: string | null;
+      version: number;
+    };
+  }> => {
+    return apiClient.put(`/price-guide/categories/${categoryId}/move`, data);
+  },
+
   // ==========================================================================
   // Measure Sheet Items
   // ==========================================================================

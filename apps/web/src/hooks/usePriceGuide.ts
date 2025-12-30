@@ -147,6 +147,28 @@ export function useDeleteCategory() {
   });
 }
 
+/**
+ * Hook to move a category to a new parent and/or reorder it.
+ */
+export function useMoveCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      categoryId,
+      data,
+    }: {
+      categoryId: string;
+      data: { newParentId?: string | null; sortOrder: number };
+    }) => priceGuideApi.moveCategory(categoryId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.categories(),
+      });
+    },
+  });
+}
+
 // ============================================================================
 // MSI Hooks
 // ============================================================================

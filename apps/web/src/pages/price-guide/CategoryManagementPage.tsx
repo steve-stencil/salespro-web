@@ -37,6 +37,7 @@ import {
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
+  useMoveCategory,
 } from '../../hooks/usePriceGuide';
 
 import type { CategoryTreeNode } from '@shared/types';
@@ -48,26 +49,49 @@ import type { CategoryTreeNode } from '@shared/types';
 const MAX_DEPTH = 5;
 const INDENT_PX = 24;
 
+// Drop position: above (sibling before), into (child), below (sibling after)
+type DropPosition = 'above' | 'into' | 'below';
+
+type DropTarget = {
+  nodeId: string;
+  position: DropPosition;
+};
+
 // ============================================================================
 // Category Tree Node Component
 // ============================================================================
 
 type CategoryNodeProps = {
   node: CategoryTreeNode;
+  parentId: string | null;
+  siblings: CategoryTreeNode[];
   expandedIds: Set<string>;
   onToggleExpand: (id: string) => void;
   onEdit: (node: CategoryTreeNode) => void;
   onAddChild: (parentId: string) => void;
   onDelete: (node: CategoryTreeNode) => void;
   onDragStart: (node: CategoryTreeNode) => void;
-  onDragOver: (e: React.DragEvent, node: CategoryTreeNode) => void;
-  onDrop: (e: React.DragEvent, node: CategoryTreeNode) => void;
+  onDragOver: (
+    e: React.DragEvent,
+    node: CategoryTreeNode,
+    parentId: string | null,
+    siblings: CategoryTreeNode[],
+  ) => void;
+  onDrop: (
+    e: React.DragEvent,
+    node: CategoryTreeNode,
+    parentId: string | null,
+    siblings: CategoryTreeNode[],
+  ) => void;
+  onDragLeave: () => void;
   isDragging: boolean;
-  dragOverId: string | null;
+  dropTarget: DropTarget | null;
 };
 
 function CategoryNode({
   node,
+  parentId,
+  siblings,
   expandedIds,
   onToggleExpand,
   onEdit,
@@ -76,22 +100,46 @@ function CategoryNode({
   onDragStart,
   onDragOver,
   onDrop,
+  onDragLeave,
   isDragging,
-  dragOverId,
+  dropTarget,
 }: CategoryNodeProps): React.ReactElement {
   const isExpanded = expandedIds.has(node.id);
   const hasChildren = node.children.length > 0;
   const isOverDepthLimit = node.depth >= MAX_DEPTH;
-  const isDragOver = dragOverId === node.id;
+
+  const isDropAbove =
+    dropTarget?.nodeId === node.id && dropTarget.position === 'above';
+  const isDropInto =
+    dropTarget?.nodeId === node.id && dropTarget.position === 'into';
+  const isDropBelow =
+    dropTarget?.nodeId === node.id && dropTarget.position === 'below';
 
   return (
     <Box>
+      {/* Drop indicator above */}
+      {isDropAbove && (
+        <Box
+          sx={{
+            height: 2,
+            bgcolor: 'primary.main',
+            ml: 1 + node.depth * (INDENT_PX / 8),
+            mr: 1,
+            borderRadius: 1,
+          }}
+        />
+      )}
+
       {/* Node Row */}
       <Box
         draggable
-        onDragStart={() => onDragStart(node)}
-        onDragOver={e => onDragOver(e, node)}
-        onDrop={e => onDrop(e, node)}
+        onDragStart={e => {
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart(node);
+        }}
+        onDragOver={e => onDragOver(e, node, parentId, siblings)}
+        onDrop={e => onDrop(e, node, parentId, siblings)}
+        onDragLeave={onDragLeave}
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -100,14 +148,14 @@ function CategoryNode({
           pl: 1 + node.depth * (INDENT_PX / 8),
           borderRadius: 1,
           cursor: 'grab',
-          bgcolor: isDragOver ? 'action.hover' : 'transparent',
-          borderTop: isDragOver ? '2px solid' : '2px solid transparent',
-          borderColor: isDragOver ? 'primary.main' : 'transparent',
+          bgcolor: isDropInto ? 'action.selected' : 'transparent',
+          outline: isDropInto ? '2px solid' : 'none',
+          outlineColor: isDropInto ? 'primary.main' : 'transparent',
           opacity: isDragging ? 0.5 : 1,
           '&:hover': {
-            bgcolor: 'action.hover',
+            bgcolor: isDropInto ? 'action.selected' : 'action.hover',
           },
-          transition: 'background-color 0.15s, border-color 0.15s',
+          transition: 'background-color 0.15s, outline-color 0.15s',
         }}
       >
         {/* Drag Handle */}
@@ -195,6 +243,19 @@ function CategoryNode({
         </Stack>
       </Box>
 
+      {/* Drop indicator below (only if no children or collapsed) */}
+      {isDropBelow && (!hasChildren || !isExpanded) && (
+        <Box
+          sx={{
+            height: 2,
+            bgcolor: 'primary.main',
+            ml: 1 + node.depth * (INDENT_PX / 8),
+            mr: 1,
+            borderRadius: 1,
+          }}
+        />
+      )}
+
       {/* Children */}
       {isExpanded && hasChildren && (
         <Box>
@@ -202,6 +263,8 @@ function CategoryNode({
             <CategoryNode
               key={child.id}
               node={child}
+              parentId={node.id}
+              siblings={node.children}
               expandedIds={expandedIds}
               onToggleExpand={onToggleExpand}
               onEdit={onEdit}
@@ -210,11 +273,25 @@ function CategoryNode({
               onDragStart={onDragStart}
               onDragOver={onDragOver}
               onDrop={onDrop}
+              onDragLeave={onDragLeave}
               isDragging={isDragging}
-              dragOverId={dragOverId}
+              dropTarget={dropTarget}
             />
           ))}
         </Box>
+      )}
+
+      {/* Drop indicator below children (if expanded with children) */}
+      {isDropBelow && hasChildren && isExpanded && (
+        <Box
+          sx={{
+            height: 2,
+            bgcolor: 'primary.main',
+            ml: 1 + node.depth * (INDENT_PX / 8),
+            mr: 1,
+            borderRadius: 1,
+          }}
+        />
       )}
     </Box>
   );
@@ -442,13 +519,14 @@ export function CategoryManagementPage(): React.ReactElement {
     null,
   );
   const [dragNode, setDragNode] = useState<CategoryTreeNode | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
 
   // Queries & Mutations
   const { data: categoryData, isLoading, error } = useCategoryTree();
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
+  const moveMutation = useMoveCategory();
 
   // Expand all by default
   useMemo(() => {
@@ -563,34 +641,170 @@ export function CategoryManagementPage(): React.ReactElement {
     setDragNode(node);
   }, []);
 
+  const handleDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
   const handleDragOver = useCallback(
-    (e: React.DragEvent, node: CategoryTreeNode) => {
+    (
+      e: React.DragEvent,
+      node: CategoryTreeNode,
+      _parentId: string | null,
+      _siblings: CategoryTreeNode[],
+    ) => {
       e.preventDefault();
-      setDragOverId(node.id);
-    },
-    [],
-  );
+      e.dataTransfer.dropEffect = 'move';
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent, targetNode: CategoryTreeNode) => {
-      e.preventDefault();
-      setDragOverId(null);
-
-      if (!dragNode || dragNode.id === targetNode.id) {
-        setDragNode(null);
+      if (!dragNode || dragNode.id === node.id) {
+        setDropTarget(null);
         return;
       }
 
-      // TODO: Implement move category API call
-      // For now, just log the intended move
-      console.log('Move category:', {
+      // Prevent dropping onto own descendants
+      const isDescendant = (
+        parent: CategoryTreeNode,
+        childId: string,
+      ): boolean => {
+        for (const child of parent.children) {
+          if (child.id === childId || isDescendant(child, childId)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      if (isDescendant(dragNode, node.id)) {
+        setDropTarget(null);
+        return;
+      }
+
+      // Determine drop position based on mouse position within the element
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const height = rect.height;
+
+      // Divide element into 3 zones: top 25% = above, middle 50% = into, bottom 25% = below
+      let position: DropPosition;
+      if (y < height * 0.25) {
+        position = 'above';
+      } else if (y > height * 0.75) {
+        position = 'below';
+      } else {
+        // Don't allow nesting if it would exceed max depth
+        if (node.depth >= MAX_DEPTH) {
+          position = y < height * 0.5 ? 'above' : 'below';
+        } else {
+          position = 'into';
+        }
+      }
+
+      setDropTarget({ nodeId: node.id, position });
+    },
+    [dragNode],
+  );
+
+  const handleDrop = useCallback(
+    (
+      e: React.DragEvent,
+      targetNode: CategoryTreeNode,
+      targetParentId: string | null,
+      siblings: CategoryTreeNode[],
+    ) => {
+      e.preventDefault();
+
+      if (!dragNode || !dropTarget || dragNode.id === targetNode.id) {
+        setDragNode(null);
+        setDropTarget(null);
+        return;
+      }
+
+      // Prevent dropping onto own descendants
+      const isDescendant = (
+        parent: CategoryTreeNode,
+        childId: string,
+      ): boolean => {
+        for (const child of parent.children) {
+          if (child.id === childId || isDescendant(child, childId)) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      if (isDescendant(dragNode, targetNode.id)) {
+        setDragNode(null);
+        setDropTarget(null);
+        return;
+      }
+
+      let newParentId: string | null;
+      let sortOrder: number;
+
+      if (dropTarget.position === 'into') {
+        // Make it a child of the target node
+        newParentId = targetNode.id;
+        sortOrder =
+          targetNode.children.length > 0
+            ? Math.max(...targetNode.children.map(c => c.sortOrder)) + 1
+            : 0;
+      } else {
+        // Make it a sibling of the target node
+        newParentId = targetParentId;
+
+        // Find target's position among siblings
+        const targetIndex = siblings.findIndex(s => s.id === targetNode.id);
+
+        if (dropTarget.position === 'above') {
+          // Insert before target
+          const prevSibling =
+            targetIndex > 0 ? siblings[targetIndex - 1] : null;
+          if (!prevSibling) {
+            // First position - use sortOrder less than target
+            sortOrder = Math.max(0, targetNode.sortOrder - 1);
+          } else {
+            // Between previous sibling and target
+            sortOrder = Math.floor(
+              (prevSibling.sortOrder + targetNode.sortOrder) / 2,
+            );
+            // If sortOrders are adjacent, we'll need to use a fractional value
+            if (sortOrder === prevSibling.sortOrder) {
+              sortOrder = targetNode.sortOrder;
+            }
+          }
+        } else {
+          // Insert after target (below)
+          const nextSibling =
+            targetIndex < siblings.length - 1
+              ? siblings[targetIndex + 1]
+              : null;
+          if (!nextSibling) {
+            // Last position
+            sortOrder = targetNode.sortOrder + 1;
+          } else {
+            // Between target and next sibling
+            sortOrder = Math.floor(
+              (targetNode.sortOrder + nextSibling.sortOrder) / 2,
+            );
+            // If sortOrders are adjacent, place after target
+            if (sortOrder === targetNode.sortOrder) {
+              sortOrder = nextSibling.sortOrder;
+            }
+          }
+        }
+      }
+
+      moveMutation.mutate({
         categoryId: dragNode.id,
-        newParentId: targetNode.id,
+        data: {
+          newParentId,
+          sortOrder,
+        },
       });
 
       setDragNode(null);
+      setDropTarget(null);
     },
-    [dragNode],
+    [dragNode, dropTarget, moveMutation],
   );
 
   // Total category count
@@ -702,13 +916,15 @@ export function CategoryManagementPage(): React.ReactElement {
             <Box
               onDragEnd={() => {
                 setDragNode(null);
-                setDragOverId(null);
+                setDropTarget(null);
               }}
             >
               {categoryData.categories.map(node => (
                 <CategoryNode
                   key={node.id}
                   node={node}
+                  parentId={null}
+                  siblings={categoryData.categories}
                   expandedIds={expandedIds}
                   onToggleExpand={handleToggleExpand}
                   onEdit={handleEdit}
@@ -717,8 +933,9 @@ export function CategoryManagementPage(): React.ReactElement {
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
+                  onDragLeave={handleDragLeave}
                   isDragging={dragNode?.id === node.id}
-                  dragOverId={dragOverId}
+                  dropTarget={dropTarget}
                 />
               ))}
             </Box>
