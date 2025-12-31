@@ -37,7 +37,6 @@ import type {
   TaggableEntityType,
   PriceGuideImageSummary,
   PriceGuideImageDetail,
-  LinkedImage,
 } from '@shared/types';
 
 /** Response type for image list endpoint */
@@ -305,17 +304,23 @@ export const priceGuideApi = {
   },
 
   /**
-   * Sync images for an MSI (add/remove from library images).
+   * Set thumbnail image for an MSI.
+   * @param msiId - MSI ID
+   * @param imageId - Image ID (null to clear)
+   * @param version - Current MSI version for optimistic locking
    */
-  syncMsiImages: async (
+  setMsiThumbnail: async (
     msiId: string,
-    imageIds: string[],
+    imageId: string | null,
     version: number,
-  ): Promise<{ success: boolean; images: LinkedImage[] }> => {
-    return apiClient.put(`/price-guide/measure-sheet-items/${msiId}/images`, {
-      imageIds,
-      version,
-    });
+  ): Promise<{ message: string; imageId: string | null }> => {
+    return apiClient.put(
+      `/price-guide/measure-sheet-items/${msiId}/thumbnail`,
+      {
+        imageId,
+        version,
+      },
+    );
   },
 
   // ==========================================================================
@@ -472,20 +477,19 @@ export const priceGuideApi = {
   },
 
   /**
-   * Sync images for an upcharge from the shared image library.
-   * Replaces all current image links with the provided list.
+   * Set thumbnail image for an upcharge.
+   * @param upchargeId - UpCharge ID
+   * @param imageId - Image ID (null to clear)
+   * @param version - Current upcharge version for optimistic locking
    */
-  syncUpchargeImages: async (
+  setUpchargeThumbnail: async (
     upchargeId: string,
-    imageIds: string[],
+    imageId: string | null,
     version: number,
-  ): Promise<{
-    message: string;
-    images: LinkedImage[];
-  }> => {
+  ): Promise<{ message: string; imageId: string | null }> => {
     return apiClient.put(
-      `/price-guide/library/upcharges/${upchargeId}/images`,
-      { imageIds, version },
+      `/price-guide/library/upcharges/${upchargeId}/thumbnail`,
+      { imageId, version },
     );
   },
 
@@ -612,6 +616,9 @@ export const priceGuideApi = {
     if (params?.cursor) searchParams.set('cursor', params.cursor);
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', params.tags.join(','));
+    }
 
     const queryString = searchParams.toString();
     const url = queryString

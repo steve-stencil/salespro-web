@@ -288,6 +288,10 @@ export function useLinkOptions() {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiLists(),
       });
+      // Invalidate option lists to update linkedMsiCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.optionLists(),
+      });
     },
   });
 }
@@ -308,6 +312,10 @@ export function useUnlinkOption() {
       // Also invalidate list to update counts
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiLists(),
+      });
+      // Invalidate option lists to update linkedMsiCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.optionLists(),
       });
     },
   });
@@ -335,6 +343,10 @@ export function useLinkUpcharges() {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiLists(),
       });
+      // Invalidate upcharge lists to update linkedMsiCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeLists(),
+      });
     },
   });
 }
@@ -360,6 +372,10 @@ export function useUnlinkUpcharge() {
       // Also invalidate list to update counts
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiLists(),
+      });
+      // Invalidate upcharge lists to update linkedMsiCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeLists(),
       });
     },
   });
@@ -409,6 +425,10 @@ export function useLinkAdditionalDetails() {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiLists(),
       });
+      // Invalidate additional detail lists to update linkedMsiCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
     },
   });
 }
@@ -430,27 +450,33 @@ export function useUnlinkAdditionalDetail() {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiLists(),
       });
+      // Invalidate additional detail lists to update linkedMsiCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
     },
   });
 }
 
 /**
- * Hook to sync images for an MSI.
- * Replaces all linked images with the provided image IDs.
+ * Hook to set thumbnail image for an MSI.
+ * @param msiId - MSI ID
+ * @param imageId - Image ID (null to clear)
+ * @param version - Current MSI version for optimistic locking
  */
-export function useSyncMsiImages() {
+export function useSetMsiThumbnail() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
       msiId,
-      imageIds,
+      imageId,
       version,
     }: {
       msiId: string;
-      imageIds: string[];
+      imageId: string | null;
       version: number;
-    }) => priceGuideApi.syncMsiImages(msiId, imageIds, version),
+    }) => priceGuideApi.setMsiThumbnail(msiId, imageId, version),
     onSuccess: (_, { msiId }) => {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.msiDetail(msiId),

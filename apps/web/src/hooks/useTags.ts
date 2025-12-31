@@ -192,6 +192,15 @@ export function useSetItemTags() {
             queryKey: priceGuideKeys.msiDetail(variables.entityId),
           });
           break;
+        case 'PRICE_GUIDE_IMAGE':
+          void queryClient.invalidateQueries({
+            queryKey: priceGuideKeys.imageLists(),
+          });
+          // Also invalidate the specific image detail
+          void queryClient.invalidateQueries({
+            queryKey: priceGuideKeys.imageDetail(variables.entityId),
+          });
+          break;
       }
     },
   });
