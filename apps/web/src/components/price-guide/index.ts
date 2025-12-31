@@ -115,6 +115,15 @@ export type { TagAutocompleteProps } from './TagAutocomplete';
 export type { TagFilterSelectProps } from './TagFilterSelect';
 export type { ItemTagEditorProps } from './ItemTagEditor';
 
+// Image Library
+export { ImageLibraryTab } from './ImageLibraryTab';
+export { ImagePicker, SelectedImagesDisplay } from './ImagePicker';
+export type {
+  ImagePickerProps,
+  SelectedImagesDisplayProps,
+  SelectedImageData,
+} from './ImagePicker';
+
 // Toast Notifications
 export { PriceGuideToastProvider, usePriceGuideToast } from './PriceGuideToast';
 
