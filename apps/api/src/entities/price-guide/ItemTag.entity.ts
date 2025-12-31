@@ -31,7 +31,6 @@ import type { Tag } from './Tag.entity';
 @Entity()
 @Unique({ properties: ['tag', 'entityType', 'entityId'] })
 @Index({ properties: ['entityType', 'entityId'] })
-@Index({ properties: ['tag'] })
 export class ItemTag {
   @PrimaryKey({ type: 'uuid' })
   id: Opt<string> = uuid();

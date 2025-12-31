@@ -17,17 +17,17 @@ import {
   MeasureSheetItemOffice,
   Tag,
   ItemTag,
+  File,
+  PriceGuideImage,
+  MeasureSheetItemImage,
+  Company,
+  User,
 } from '../../entities';
-import {
-  AdditionalDetailInputType
-  
-} from '../../entities/price-guide/types';
+import { AdditionalDetailInputType } from '../../entities/price-guide/types';
+import { FileVisibility, FileStatus } from '../../entities/types';
 
-
-import type { Company } from '../../entities';
 import type { Office } from '../../entities';
-import type { User } from '../../entities';
-import type {TaggableEntityType} from '../../entities/price-guide/types';
+import type { TaggableEntityType } from '../../entities/price-guide/types';
 import type { EntityManager } from '@mikro-orm/core';
 
 // ============================================================================
@@ -515,4 +515,113 @@ export async function createPriceGuideSetup(
     msi,
     priceTypes,
   };
+}
+
+// ============================================================================
+// File Factory (for PriceGuideImage support)
+// ============================================================================
+
+export type CreateFileOptions = {
+  filename?: string;
+  mimeType?: string;
+  size?: number;
+  storageKey?: string;
+  thumbnailKey?: string;
+  visibility?: FileVisibility;
+  status?: FileStatus;
+};
+
+/**
+ * Create a test File entity (mock file without actual S3 upload)
+ */
+export async function createTestFile(
+  em: EntityManager,
+  company: Company,
+  uploadedBy: User,
+  options: CreateFileOptions = {},
+): Promise<File> {
+  const fileId = uuid();
+  // Get references in current EM context to avoid cross-EM issues
+  const companyRef = em.getReference(Company, company.id);
+  const userRef = em.getReference(User, uploadedBy.id);
+
+  const file = em.create(File, {
+    id: fileId,
+    company: companyRef,
+    uploadedBy: userRef,
+    filename: options.filename ?? `test-image-${Date.now()}.jpg`,
+    mimeType: options.mimeType ?? 'image/jpeg',
+    size: options.size ?? 1024,
+    storageKey: options.storageKey ?? `${company.id}/files/${fileId}.jpg`,
+    thumbnailKey:
+      options.thumbnailKey ?? `${company.id}/thumbnails/${fileId}_thumb.jpg`,
+    visibility: options.visibility ?? FileVisibility.COMPANY,
+    status: options.status ?? FileStatus.ACTIVE,
+  });
+  em.persist(file);
+  await em.flush();
+  return file;
+}
+
+// ============================================================================
+// PriceGuideImage Factory
+// ============================================================================
+
+export type CreatePriceGuideImageOptions = {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  lastModifiedBy?: User;
+};
+
+/**
+ * Create a test PriceGuideImage with an associated File entity
+ */
+export async function createTestPriceGuideImage(
+  em: EntityManager,
+  company: Company,
+  uploadedBy: User,
+  options: CreatePriceGuideImageOptions = {},
+): Promise<PriceGuideImage> {
+  // First create the underlying file
+  const file = await createTestFile(em, company, uploadedBy);
+
+  const name = options.name ?? `Test Image ${Date.now()}`;
+  const image = em.create(PriceGuideImage, {
+    id: uuid(),
+    company,
+    file,
+    name,
+    description: options.description,
+    searchVector: [name, options.description].filter(Boolean).join(' '),
+    isActive: options.isActive ?? true,
+    lastModifiedBy: options.lastModifiedBy,
+  });
+  em.persist(image);
+  await em.flush();
+  return image;
+}
+
+// ============================================================================
+// Image Link Factory
+// ============================================================================
+
+/**
+ * Link a PriceGuideImage to a MeasureSheetItem
+ */
+export async function linkImageToMeasureSheetItem(
+  em: EntityManager,
+  msi: MeasureSheetItem,
+  image: PriceGuideImage,
+  sortOrder: number = 0,
+): Promise<MeasureSheetItemImage> {
+  const link = em.create(MeasureSheetItemImage, {
+    id: uuid(),
+    measureSheetItem: msi,
+    priceGuideImage: image,
+    sortOrder,
+  });
+  em.persist(link);
+  await em.flush();
+  return link;
 }
