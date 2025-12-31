@@ -48,7 +48,7 @@ import {
   ImportDialog,
   LinkPickerDialog,
   LinkedItemsList,
-  TagChip,
+  TagDots,
   TagFilterSelect,
   UnlinkConfirmation,
 } from '../../components/price-guide';
@@ -260,18 +260,8 @@ function MsiCardWrapper({
         items={msi.upchargeNames}
       />
       {msi.tags && msi.tags.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: 1 }}>
-          {msi.tags.slice(0, 3).map(tag => (
-            <TagChip key={tag.id} tag={tag} size="small" />
-          ))}
-          {msi.tags.length > 3 && (
-            <Chip
-              label={`+${msi.tags.length - 3}`}
-              size="small"
-              variant="outlined"
-              sx={{ height: 20, fontSize: '0.7rem' }}
-            />
-          )}
+        <Box sx={{ ml: 1 }}>
+          <TagDots tags={msi.tags} maxDots={5} />
         </Box>
       )}
     </>
