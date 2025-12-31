@@ -239,11 +239,48 @@ PUT /api/price-guide/tags/items/OPTION/550e8400-e29b-41d4-a716-446655440000
 }
 ```
 
-**Tag Filtering:** Library routes (`/price-guide/library/options`, `/upcharges`, `/additional-details`) accept a `tags` query parameter for filtering:
+**Tag Filtering:** Library routes (`/price-guide/library/options`, `/upcharges`, `/additional-details`, `/images`) accept a `tags` query parameter for filtering:
 
 ```bash
 GET /api/price-guide/library/options?tags=tag-uuid-1,tag-uuid-2
 ```
+
+### Price Guide Images (`/api/price-guide/library/images`)
+
+Image library for price guide items (MSIs and UpCharges).
+
+| Method | Endpoint                                     | Description                         |
+| ------ | -------------------------------------------- | ----------------------------------- |
+| GET    | `/price-guide/library/images`                | List images (paginated, filtered)   |
+| GET    | `/price-guide/library/images/:id`            | Get image details                   |
+| POST   | `/price-guide/library/images`                | Upload new image                    |
+| PUT    | `/price-guide/library/images/:id`            | Update image metadata               |
+| DELETE | `/price-guide/library/images/:id`            | Delete image (force=true to unlink) |
+| GET    | `/price-guide/library/images/:id/where-used` | Get MSIs/UpCharges using image      |
+
+**Thumbnail Management:**
+
+| Method | Endpoint                                         | Description                  |
+| ------ | ------------------------------------------------ | ---------------------------- |
+| PUT    | `/price-guide/measure-sheet-items/:id/thumbnail` | Set MSI thumbnail image      |
+| PUT    | `/price-guide/library/upcharges/:id/thumbnail`   | Set UpCharge thumbnail image |
+
+**Example - Set MSI thumbnail:**
+
+```bash
+PUT /api/price-guide/measure-sheet-items/:id/thumbnail
+{
+  "imageId": "image-uuid-or-null",
+  "version": 1
+}
+```
+
+**Query Parameters for Image Listing:**
+
+- `search` - Text search in image names
+- `tags` - Comma-separated tag IDs for filtering
+- `cursor` - Pagination cursor
+- `limit` - Page size (default 50, max 100)
 
 ## Patterns
 
