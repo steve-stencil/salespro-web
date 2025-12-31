@@ -2807,7 +2807,6 @@ function AdditionalDetailsTab({
               <TableCell>Title</TableCell>
               <TableCell>Input Type</TableCell>
               <TableCell>Tags</TableCell>
-              <TableCell align="center">Required</TableCell>
               <TableCell align="center">Used By</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -2815,11 +2814,11 @@ function AdditionalDetailsTab({
           <TableBody>
             {isLoading ? (
               [...Array(5)].map((_, i) => (
-                <TableRowSkeleton key={i} columns={6} />
+                <TableRowSkeleton key={i} columns={5} />
               ))
             ) : allItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
                     {search
                       ? 'No additional details match your search.'
@@ -2862,15 +2861,6 @@ function AdditionalDetailsTab({
                           />
                         )}
                       </Stack>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        -
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    {detail.isRequired ? (
-                      <Chip label="Required" size="small" color="warning" />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         -
@@ -3376,7 +3366,7 @@ export function LibraryPage(): React.ReactElement {
             />
           </TabPanel>
           <TabPanel value={activeTab} index={3}>
-            <ImageLibraryTab search={search} />
+            <ImageLibraryTab search={search} tags={selectedTags} />
           </TabPanel>
         </CardContent>
       </Card>

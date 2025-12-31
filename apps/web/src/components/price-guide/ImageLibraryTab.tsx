@@ -55,6 +55,8 @@ import type { PriceGuideImageSummary, TagSummary } from '@shared/types';
 type ImageLibraryTabProps = {
   /** Initial search query */
   search?: string;
+  /** Tag IDs to filter by */
+  tags?: string[];
 };
 
 // ============================================================================
@@ -720,6 +722,7 @@ function ImageCard({
 
 export function ImageLibraryTab({
   search: externalSearch,
+  tags,
 }: ImageLibraryTabProps): React.ReactElement {
   // Use external search from parent (already debounced there)
   const debouncedSearch = useDebouncedValue(externalSearch ?? '', 300);
@@ -742,6 +745,7 @@ export function ImageLibraryTab({
     isFetchingNextPage,
   } = useImageList({
     search: debouncedSearch || undefined,
+    tags: tags && tags.length > 0 ? tags : undefined,
     limit: 24,
   });
 
