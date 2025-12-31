@@ -779,9 +779,13 @@ export function useUpdateAdditionalDetail() {
         version: number;
       };
     }) => priceGuideApi.updateAdditionalDetail(fieldId, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Invalidate both the list and the specific detail query
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailDetail(variables.fieldId),
       });
     },
   });
