@@ -188,6 +188,7 @@ export function UpChargePricingConfig({
                       handleFixedAmountsChange(priceType.id, amounts)
                     }
                     disabled={disabled}
+                    enabledOfficeIds={priceType.enabledOfficeIds}
                   />
                 </Collapse>
 

@@ -81,13 +81,24 @@ type CellDisplayProps = {
   config: UpChargePriceTypeConfig;
   office: Office;
   samplePrices?: Record<string, number>;
+  isDisabled?: boolean;
 };
 
 function CellDisplay({
   config,
   office,
   samplePrices,
+  isDisabled = false,
 }: CellDisplayProps): React.ReactElement {
+  // Show disabled state for offices where price type is not enabled
+  if (isDisabled) {
+    return (
+      <Typography variant="body2" color="text.disabled">
+        —
+      </Typography>
+    );
+  }
+
   if (config.mode === 'fixed') {
     const amount = config.fixedAmounts?.[office.id] ?? 0;
     return <Typography variant="body2">${amount.toFixed(2)}</Typography>;
@@ -329,6 +340,14 @@ export function DefaultPricingGrid({
     [configs],
   );
 
+  // Check if a price type is enabled for an office (row exists = enabled)
+  const isPriceTypeEnabledForOffice = useCallback(
+    (priceType: PriceType, officeId: string): boolean => {
+      return priceType.enabledOfficeIds.includes(officeId);
+    },
+    [],
+  );
+
   const handleCellClick = useCallback(
     (
       priceTypeId: string,
@@ -336,9 +355,13 @@ export function DefaultPricingGrid({
       event: React.MouseEvent<HTMLElement>,
     ) => {
       if (disabled) return;
+      // Don't allow editing if price type is not enabled for this office
+      const priceType = priceTypes.find(pt => pt.id === priceTypeId);
+      if (priceType && !isPriceTypeEnabledForOffice(priceType, officeId))
+        return;
       setEditingCell({ priceTypeId, officeId, anchorEl: event.currentTarget });
     },
-    [disabled],
+    [disabled, priceTypes, isPriceTypeEnabledForOffice],
   );
 
   // Handle column header click for bulk edit
@@ -364,18 +387,28 @@ export function DefaultPricingGrid({
     [disabled, getConfig, activePriceTypes],
   );
 
-  // Apply bulk settings to all offices for a price type
+  // Apply bulk settings to all offices for a price type (only where enabled)
   const handleBulkApply = useCallback(() => {
     if (!bulkEditColumn) return;
+
+    // Find the price type to check which offices have it enabled
+    const priceType = priceTypes.find(
+      pt => pt.id === bulkEditColumn.priceTypeId,
+    );
+    const enabledOfficeIds =
+      priceType?.enabledOfficeIds ?? offices.map(o => o.id);
 
     const newConfigs = configs.map(config => {
       if (config.priceTypeId !== bulkEditColumn.priceTypeId) return config;
 
       if (bulkMode === 'fixed') {
         const amount = parseFloat(bulkAmount) || 0;
-        const newAmounts: Record<string, number> = {};
+        const newAmounts: Record<string, number> = { ...config.fixedAmounts };
+        // Only update offices where this price type is enabled
         for (const office of offices) {
-          newAmounts[office.id] = amount;
+          if (enabledOfficeIds.includes(office.id)) {
+            newAmounts[office.id] = amount;
+          }
         }
         return {
           ...config,
@@ -413,6 +446,7 @@ export function DefaultPricingGrid({
     bulkBases,
     configs,
     offices,
+    priceTypes,
     onChange,
     activePriceTypes,
   ]);
@@ -564,14 +598,23 @@ export function DefaultPricingGrid({
                   const config = getConfig(pt.id);
                   if (!config) return <TableCell key={pt.id} />;
 
+                  const isEnabledForOffice = isPriceTypeEnabledForOffice(
+                    pt,
+                    office.id,
+                  );
+                  const isCellDisabled = disabled || !isEnabledForOffice;
+
                   return (
                     <TableCell
                       key={pt.id}
                       align="center"
                       onClick={e => handleCellClick(pt.id, office.id, e)}
                       sx={{
-                        cursor: disabled ? 'default' : 'pointer',
-                        '&:hover': disabled
+                        cursor: isCellDisabled ? 'default' : 'pointer',
+                        bgcolor: !isEnabledForOffice
+                          ? 'action.disabledBackground'
+                          : undefined,
+                        '&:hover': isCellDisabled
                           ? {}
                           : {
                               bgcolor: 'action.hover',
@@ -583,6 +626,7 @@ export function DefaultPricingGrid({
                         config={config}
                         office={office}
                         samplePrices={samplePrices}
+                        isDisabled={!isEnabledForOffice}
                       />
                     </TableCell>
                   );

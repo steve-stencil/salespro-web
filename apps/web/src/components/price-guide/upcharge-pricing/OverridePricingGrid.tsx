@@ -100,6 +100,7 @@ type CellDisplayProps = {
   office: Office;
   samplePrices?: Record<string, number>;
   isCustom: boolean;
+  isDisabled?: boolean;
 };
 
 function CellDisplay({
@@ -109,7 +110,16 @@ function CellDisplay({
   office,
   samplePrices,
   isCustom,
+  isDisabled = false,
 }: CellDisplayProps): React.ReactElement {
+  // Show disabled state for offices where price type is not enabled
+  if (isDisabled) {
+    return (
+      <Typography variant="body2" color="text.disabled">
+        —
+      </Typography>
+    );
+  }
   // Calculate the effective amount to display
   const getDisplayAmount = (): {
     amount: number;
@@ -390,6 +400,14 @@ export function OverridePricingGrid({
 
   const activePriceTypes = priceTypes.filter(pt => pt.isActive);
 
+  // Check if a price type is enabled for an office
+  const isPriceTypeEnabledForOffice = useCallback(
+    (priceType: PriceType, officeId: string): boolean => {
+      return priceType.enabledOfficeIds.includes(officeId);
+    },
+    [],
+  );
+
   const handleCellClick = useCallback(
     (
       priceTypeId: string,
@@ -397,9 +415,13 @@ export function OverridePricingGrid({
       event: React.MouseEvent<HTMLElement>,
     ) => {
       if (disabled) return;
+      // Don't allow editing if price type is not enabled for this office
+      const priceType = priceTypes.find(pt => pt.id === priceTypeId);
+      if (priceType && !isPriceTypeEnabledForOffice(priceType, officeId))
+        return;
       setEditingCell({ priceTypeId, officeId, anchorEl: event.currentTarget });
     },
-    [disabled],
+    [disabled, priceTypes, isPriceTypeEnabledForOffice],
   );
 
   const handleCellChange = useCallback(
@@ -430,14 +452,25 @@ export function OverridePricingGrid({
     [disabled, activePriceTypes],
   );
 
-  // Apply bulk settings to all offices for a price type
+  // Apply bulk settings to all offices for a price type (only where enabled)
   const handleBulkApply = useCallback(() => {
     if (!bulkEditColumn) return;
+
+    // Find the price type to check which offices have it enabled
+    const priceType = priceTypes.find(
+      pt => pt.id === bulkEditColumn.priceTypeId,
+    );
+    const enabledOfficeIds =
+      priceType?.enabledOfficeIds ?? offices.map(o => o.id);
+
     const newData = { ...data };
     const priceTypeData: Record<string, OfficeOverrideConfig> =
       newData[bulkEditColumn.priceTypeId] ?? {};
 
     for (const office of offices) {
+      // Only update offices where this price type is enabled
+      if (!enabledOfficeIds.includes(office.id)) continue;
+
       if (bulkMode === 'fixed') {
         const amount = parseFloat(bulkAmount) || 0;
         priceTypeData[office.id] = {
@@ -476,6 +509,7 @@ export function OverridePricingGrid({
     bulkBases,
     data,
     offices,
+    priceTypes,
     onChange,
     activePriceTypes,
   ]);
@@ -605,6 +639,11 @@ export function OverridePricingGrid({
                   const config = getConfig(pt.id, office.id);
                   const defaultConfig = getDefaultConfig(pt.id);
                   const isCustom = config.mode !== 'use_default';
+                  const isEnabledForOffice = isPriceTypeEnabledForOffice(
+                    pt,
+                    office.id,
+                  );
+                  const isCellDisabled = disabled || !isEnabledForOffice;
 
                   return (
                     <TableCell
@@ -612,8 +651,11 @@ export function OverridePricingGrid({
                       align="center"
                       onClick={e => handleCellClick(pt.id, office.id, e)}
                       sx={{
-                        cursor: disabled ? 'default' : 'pointer',
-                        '&:hover': disabled
+                        cursor: isCellDisabled ? 'default' : 'pointer',
+                        bgcolor: !isEnabledForOffice
+                          ? 'action.disabledBackground'
+                          : undefined,
+                        '&:hover': isCellDisabled
                           ? {}
                           : {
                               bgcolor: 'action.hover',
@@ -628,6 +670,7 @@ export function OverridePricingGrid({
                         office={office}
                         samplePrices={samplePrices}
                         isCustom={isCustom}
+                        isDisabled={!isEnabledForOffice}
                       />
                     </TableCell>
                   );

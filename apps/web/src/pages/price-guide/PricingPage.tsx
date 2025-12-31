@@ -126,22 +126,32 @@ function OptionPricingCard({
     [],
   );
 
-  // Handle bulk price change (all offices for one price type)
+  // Handle bulk price change (only for offices where this price type is enabled)
   const handleBulkPriceChange = useCallback(
     (priceTypeId: string, amount: number) => {
+      // Find the price type to check which offices have it enabled
+      const priceType = priceTypes.find(pt => pt.id === priceTypeId);
+      const enabledOfficeIds = priceType?.enabledOfficeIds ?? [];
+
       setLocalPricing(prev => {
         const updated = { ...prev };
         for (const office of offices) {
-          updated[office.id] = {
-            ...updated[office.id],
-            [priceTypeId]: amount,
-          };
+          // Only update if this price type is enabled for this office
+          if (
+            enabledOfficeIds.length === 0 ||
+            enabledOfficeIds.includes(office.id)
+          ) {
+            updated[office.id] = {
+              ...updated[office.id],
+              [priceTypeId]: amount,
+            };
+          }
         }
         return updated;
       });
       setHasChanges(true);
     },
-    [offices],
+    [offices, priceTypes],
   );
 
   // Handle save

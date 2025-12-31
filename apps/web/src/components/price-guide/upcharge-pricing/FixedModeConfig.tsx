@@ -29,6 +29,8 @@ type FixedModeConfigProps = {
   onChange: (amounts: Record<string, number>) => void;
   /** Disable editing */
   disabled?: boolean;
+  /** Office IDs where this price type is enabled (if not provided, all offices are enabled) */
+  enabledOfficeIds?: string[];
 };
 
 // ============================================================================
@@ -40,8 +42,18 @@ export function FixedModeConfig({
   amounts,
   onChange,
   disabled = false,
+  enabledOfficeIds,
 }: FixedModeConfigProps): React.ReactElement {
   const [fillValue, setFillValue] = useState('');
+
+  // Check if an office is enabled for this price type
+  const isOfficeEnabled = useCallback(
+    (officeId: string): boolean => {
+      if (!enabledOfficeIds) return true;
+      return enabledOfficeIds.includes(officeId);
+    },
+    [enabledOfficeIds],
+  );
 
   const handleAmountChange = useCallback(
     (officeId: string, value: string) => {
@@ -59,14 +71,17 @@ export function FixedModeConfig({
   const handleFillAll = useCallback(() => {
     const numValue = parseFloat(fillValue);
     if (!isNaN(numValue) && numValue >= 0) {
-      const newAmounts: Record<string, number> = {};
+      const newAmounts: Record<string, number> = { ...amounts };
       for (const office of offices) {
-        newAmounts[office.id] = numValue;
+        // Only fill enabled offices
+        if (isOfficeEnabled(office.id)) {
+          newAmounts[office.id] = numValue;
+        }
       }
       onChange(newAmounts);
       setFillValue('');
     }
-  }, [fillValue, offices, onChange]);
+  }, [fillValue, offices, amounts, onChange, isOfficeEnabled]);
 
   const formatAmount = (value: number | undefined): string => {
     if (value === undefined || value === 0) return '';
@@ -80,46 +95,60 @@ export function FixedModeConfig({
       </Typography>
 
       <Stack spacing={1.5}>
-        {offices.map(office => (
-          <Box
-            key={office.id}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-            }}
-          >
-            <Typography
-              variant="body2"
+        {offices.map(office => {
+          const isEnabled = isOfficeEnabled(office.id);
+          return (
+            <Box
+              key={office.id}
               sx={{
-                width: 120,
-                flexShrink: 0,
-                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
               }}
             >
-              {office.name}
-            </Typography>
-            <TextField
-              size="small"
-              type="number"
-              disabled={disabled}
-              value={formatAmount(amounts[office.id])}
-              onChange={e => handleAmountChange(office.id, e.target.value)}
-              placeholder="0.00"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">$</InputAdornment>
-                ),
-              }}
-              inputProps={{
-                min: 0,
-                step: 0.01,
-                style: { textAlign: 'right' },
-              }}
-              sx={{ width: 140 }}
-            />
-          </Box>
-        ))}
+              <Typography
+                variant="body2"
+                color={isEnabled ? 'text.primary' : 'text.disabled'}
+                sx={{
+                  width: 120,
+                  flexShrink: 0,
+                  fontWeight: 500,
+                }}
+              >
+                {office.name}
+              </Typography>
+              {isEnabled ? (
+                <TextField
+                  size="small"
+                  type="number"
+                  disabled={disabled}
+                  value={formatAmount(amounts[office.id])}
+                  onChange={e => handleAmountChange(office.id, e.target.value)}
+                  placeholder="0.00"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">$</InputAdornment>
+                    ),
+                  }}
+                  inputProps={{
+                    min: 0,
+                    step: 0.01,
+                    style: { textAlign: 'right' },
+                  }}
+                  sx={{ width: 140 }}
+                />
+              ) : (
+                <Typography
+                  variant="body2"
+                  color="text.disabled"
+                  sx={{ width: 140, textAlign: 'right' }}
+                >
+                  —
+                </Typography>
+              )}
+            </Box>
+          );
+        })}
       </Stack>
 
       {/* Quick Fill */}

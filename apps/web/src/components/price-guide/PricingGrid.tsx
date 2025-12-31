@@ -175,6 +175,14 @@ export function PricingGrid({
     [pricing],
   );
 
+  // Check if a price type is enabled for an office
+  const isPriceTypeEnabledForOffice = useCallback(
+    (priceType: PriceType, officeId: string): boolean => {
+      return priceType.enabledOfficeIds.includes(officeId);
+    },
+    [],
+  );
+
   // Handle column header click for quick add
   const handleColumnHeaderClick = useCallback(
     (event: React.MouseEvent<HTMLTableCellElement>, priceType: PriceType) => {
@@ -308,40 +316,73 @@ export function PricingGrid({
                 >
                   {office.name}
                 </TableCell>
-                {priceTypes.map(priceType => (
-                  <TableCell key={priceType.id} align="right" sx={{ p: 0.5 }}>
-                    {readOnly ? (
-                      <Typography variant="body2">
-                        {getPriceValue(office.id, priceType.id) || '—'}
-                      </Typography>
-                    ) : (
-                      <TextField
-                        size="small"
-                        type="number"
-                        inputProps={{
-                          min: 0,
-                          step: 0.01,
-                          style: { textAlign: 'right' },
-                        }}
-                        value={getPriceValue(office.id, priceType.id)}
-                        onChange={e =>
-                          handlePriceChange(
-                            office.id,
-                            priceType.id,
-                            e.target.value,
-                          )
-                        }
-                        placeholder="0.00"
-                        sx={{
-                          width: '100%',
-                          '& .MuiOutlinedInput-root': {
-                            '& fieldset': { borderColor: 'divider' },
-                          },
-                        }}
-                      />
-                    )}
-                  </TableCell>
-                ))}
+                {priceTypes.map(priceType => {
+                  const isEnabled = isPriceTypeEnabledForOffice(
+                    priceType,
+                    office.id,
+                  );
+                  return (
+                    <TableCell
+                      key={priceType.id}
+                      align="right"
+                      sx={{
+                        p: 0.5,
+                        bgcolor: isEnabled
+                          ? 'inherit'
+                          : 'action.disabledBackground',
+                      }}
+                    >
+                      {!isEnabled ? (
+                        // Price type not enabled for this office - show disabled state
+                        <Box
+                          sx={{
+                            height: 40,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            color="text.disabled"
+                            sx={{ fontStyle: 'italic' }}
+                          >
+                            —
+                          </Typography>
+                        </Box>
+                      ) : readOnly ? (
+                        <Typography variant="body2">
+                          {getPriceValue(office.id, priceType.id) || '—'}
+                        </Typography>
+                      ) : (
+                        <TextField
+                          size="small"
+                          type="number"
+                          inputProps={{
+                            min: 0,
+                            step: 0.01,
+                            style: { textAlign: 'right' },
+                          }}
+                          value={getPriceValue(office.id, priceType.id)}
+                          onChange={e =>
+                            handlePriceChange(
+                              office.id,
+                              priceType.id,
+                              e.target.value,
+                            )
+                          }
+                          placeholder="0.00"
+                          sx={{
+                            width: '100%',
+                            '& .MuiOutlinedInput-root': {
+                              '& fieldset': { borderColor: 'divider' },
+                            },
+                          }}
+                        />
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>

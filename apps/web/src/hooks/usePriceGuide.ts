@@ -17,6 +17,10 @@ import type {
   UpdateMsiRequest,
   UpdateUpChargeDefaultPricesRequest,
   UpdateUpChargeOverridePricesRequest,
+  CreatePriceTypeRequest,
+  UpdatePriceTypeRequest,
+  GeneratePriceTypesRequest,
+  OfficePriceTypeAssignmentRequest,
 } from '@shared/types';
 
 // ============================================================================
@@ -80,6 +84,10 @@ export const priceGuideKeys = {
 
   // Price Types
   priceTypes: () => [...priceGuideKeys.all, 'price-types'] as const,
+  priceTypeDetail: (id: string) =>
+    [...priceGuideKeys.priceTypes(), 'detail', id] as const,
+  officePriceTypes: (officeId: string) =>
+    [...priceGuideKeys.priceTypes(), 'office', officeId] as const,
 
   // UpCharge Pricing
   upchargePricing: () => [...priceGuideKeys.all, 'upcharge-pricing'] as const,
@@ -1001,16 +1009,207 @@ export function useDeleteImage() {
 }
 
 // ============================================================================
-// Price Types Hook
+// Price Types Hooks
 // ============================================================================
 
 /**
- * Hook to fetch price types.
+ * Hook to fetch price types for the company.
  */
 export function usePriceTypes() {
   return useQuery({
     queryKey: priceGuideKeys.priceTypes(),
     queryFn: () => priceGuideApi.getPriceTypes(),
+  });
+}
+
+/**
+ * Hook to fetch a specific price type with office assignments.
+ */
+export function usePriceType(priceTypeId: string) {
+  return useQuery({
+    queryKey: priceGuideKeys.priceTypeDetail(priceTypeId),
+    queryFn: () => priceGuideApi.getPriceType(priceTypeId),
+    enabled: !!priceTypeId,
+  });
+}
+
+/**
+ * Hook to create a new price type.
+ */
+export function useCreatePriceType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreatePriceTypeRequest) =>
+      priceGuideApi.createPriceType(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypes(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update a price type.
+ */
+export function useUpdatePriceType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      priceTypeId,
+      data,
+    }: {
+      priceTypeId: string;
+      data: UpdatePriceTypeRequest;
+    }) => priceGuideApi.updatePriceType(priceTypeId, data),
+    onSuccess: (_, { priceTypeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypes(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypeDetail(priceTypeId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete a price type.
+ */
+export function useDeletePriceType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (priceTypeId: string) =>
+      priceGuideApi.deletePriceType(priceTypeId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypes(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to generate default price types and assign to offices.
+ */
+export function useGeneratePriceTypes() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: GeneratePriceTypesRequest) =>
+      priceGuideApi.generatePriceTypes(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypes(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to fetch price types for a specific office with assignment status.
+ */
+export function useOfficePriceTypes(officeId: string) {
+  return useQuery({
+    queryKey: priceGuideKeys.officePriceTypes(officeId),
+    queryFn: () => priceGuideApi.getOfficePriceTypes(officeId),
+    enabled: !!officeId,
+  });
+}
+
+/**
+ * Hook to assign a price type to an office.
+ */
+export function useAssignPriceTypeToOffice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      priceTypeId,
+      officeId,
+      data,
+    }: {
+      priceTypeId: string;
+      officeId: string;
+      data?: OfficePriceTypeAssignmentRequest;
+    }) => priceGuideApi.assignPriceTypeToOffice(priceTypeId, officeId, data),
+    onSuccess: (_, { priceTypeId, officeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypes(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypeDetail(priceTypeId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.officePriceTypes(officeId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update a price type office assignment.
+ */
+export function useUpdatePriceTypeOfficeAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      priceTypeId,
+      officeId,
+      data,
+    }: {
+      priceTypeId: string;
+      officeId: string;
+      data: OfficePriceTypeAssignmentRequest;
+    }) =>
+      priceGuideApi.updatePriceTypeOfficeAssignment(
+        priceTypeId,
+        officeId,
+        data,
+      ),
+    onSuccess: (_, { priceTypeId, officeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypes(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypeDetail(priceTypeId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.officePriceTypes(officeId),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to remove a price type from an office.
+ */
+export function useRemovePriceTypeFromOffice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      priceTypeId,
+      officeId,
+    }: {
+      priceTypeId: string;
+      officeId: string;
+    }) => priceGuideApi.removePriceTypeFromOffice(priceTypeId, officeId),
+    onSuccess: (_, { priceTypeId, officeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypes(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.priceTypeDetail(priceTypeId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.officePriceTypes(officeId),
+      });
+    },
   });
 }
 

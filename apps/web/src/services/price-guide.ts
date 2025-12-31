@@ -21,6 +21,14 @@ import type {
   LinkResult,
   SuccessResponse,
   PriceTypesResponse,
+  PriceTypeDetailResponse,
+  OfficePriceTypesResponse,
+  CreatePriceTypeRequest,
+  UpdatePriceTypeRequest,
+  GeneratePriceTypesRequest,
+  GeneratePriceTypesResponse,
+  OfficePriceTypeAssignmentRequest,
+  OfficePriceTypeAssignmentResponse,
   UpChargePricingDetail,
   UpdateUpChargeDefaultPricesRequest,
   UpdateUpChargeOverridePricesRequest,
@@ -750,6 +758,112 @@ export const priceGuideApi = {
   getPriceTypes: async (): Promise<PriceTypesResponse> => {
     return apiClient.get<PriceTypesResponse>(
       '/price-guide/pricing/price-types',
+    );
+  },
+
+  /**
+   * Get a specific price type with office assignments.
+   */
+  getPriceType: async (
+    priceTypeId: string,
+  ): Promise<PriceTypeDetailResponse> => {
+    return apiClient.get<PriceTypeDetailResponse>(
+      `/price-guide/pricing/price-types/${priceTypeId}`,
+    );
+  },
+
+  /**
+   * Create a new price type.
+   */
+  createPriceType: async (
+    data: CreatePriceTypeRequest,
+  ): Promise<{
+    message: string;
+    priceType: { id: string; code: string; name: string };
+  }> => {
+    return apiClient.post('/price-guide/pricing/price-types', data);
+  },
+
+  /**
+   * Update a price type.
+   */
+  updatePriceType: async (
+    priceTypeId: string,
+    data: UpdatePriceTypeRequest,
+  ): Promise<{
+    message: string;
+    priceType: { id: string; code: string; name: string };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/price-types/${priceTypeId}`,
+      data,
+    );
+  },
+
+  /**
+   * Delete (soft delete) a price type.
+   */
+  deletePriceType: async (priceTypeId: string): Promise<SuccessResponse> => {
+    return apiClient.delete(`/price-guide/pricing/price-types/${priceTypeId}`);
+  },
+
+  /**
+   * Generate default price types and assign to offices.
+   */
+  generatePriceTypes: async (
+    data: GeneratePriceTypesRequest,
+  ): Promise<GeneratePriceTypesResponse> => {
+    return apiClient.post('/price-guide/pricing/price-types/generate', data);
+  },
+
+  /**
+   * Get price types for a specific office with assignment status.
+   */
+  getOfficePriceTypes: async (
+    officeId: string,
+  ): Promise<OfficePriceTypesResponse> => {
+    return apiClient.get<OfficePriceTypesResponse>(
+      `/price-guide/pricing/price-types/offices/${officeId}`,
+    );
+  },
+
+  /**
+   * Assign a price type to an office.
+   */
+  assignPriceTypeToOffice: async (
+    priceTypeId: string,
+    officeId: string,
+    data?: OfficePriceTypeAssignmentRequest,
+  ): Promise<OfficePriceTypeAssignmentResponse> => {
+    return apiClient.post(
+      `/price-guide/pricing/price-types/${priceTypeId}/offices/${officeId}`,
+      data ?? {},
+    );
+  },
+
+  /**
+   * Update a price type office assignment.
+   */
+  updatePriceTypeOfficeAssignment: async (
+    priceTypeId: string,
+    officeId: string,
+    data: OfficePriceTypeAssignmentRequest,
+  ): Promise<OfficePriceTypeAssignmentResponse> => {
+    return apiClient.put(
+      `/price-guide/pricing/price-types/${priceTypeId}/offices/${officeId}`,
+      data,
+    );
+  },
+
+  /**
+   * Remove a price type office assignment.
+   */
+  removePriceTypeFromOffice: async (
+    priceTypeId: string,
+    officeId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/pricing/price-types/${priceTypeId}/offices/${officeId}`,
     );
   },
 
