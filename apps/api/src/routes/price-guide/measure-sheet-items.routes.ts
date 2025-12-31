@@ -16,6 +16,8 @@ import {
   Company,
   User,
   File,
+  ItemTag,
+  TaggableEntityType,
 } from '../../entities';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -51,6 +53,14 @@ const listQuerySchema = z.object({
     .transform(val => {
       if (!val) return undefined;
       // Parse comma-separated UUIDs
+      return val.split(',').filter(id => id.trim().length > 0);
+    }),
+  tags: z
+    .string()
+    .optional()
+    .transform(val => {
+      if (!val) return undefined;
+      // Parse comma-separated tag UUIDs
       return val.split(',').filter(id => id.trim().length > 0);
     }),
 });
@@ -286,7 +296,7 @@ router.get(
         return;
       }
 
-      const { cursor, limit, search, categoryIds, officeIds } =
+      const { cursor, limit, search, categoryIds, officeIds, tags } =
         parseResult.data;
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
@@ -329,6 +339,23 @@ router.get(
               .createQueryBuilder(MeasureSheetItemOffice, 'msio')
               .select('msio.measure_sheet_item_id')
               .where({ office: { $in: officeIds } })
+              .getKnexQuery(),
+          },
+        });
+      }
+
+      // Tag filter via polymorphic ItemTag junction table
+      if (tags && tags.length > 0) {
+        qb.andWhere({
+          id: {
+            $in: em
+               
+              .createQueryBuilder(ItemTag, 'it')
+              .select('it.entity_id')
+              .where({
+                entityType: TaggableEntityType.MEASURE_SHEET_ITEM,
+                tag: { $in: tags },
+              })
               .getKnexQuery(),
           },
         });
@@ -437,12 +464,47 @@ router.get(
         ]),
       );
 
+      // Fetch tags for all MSIs
+      const tagData = await knex.raw<{
+        rows: {
+          entity_id: string;
+          tag_id: string;
+          name: string;
+          color: string;
+        }[];
+      }>(
+        `SELECT 
+          it.entity_id,
+          t.id as tag_id,
+          t.name,
+          t.color
+        FROM item_tag it
+        JOIN tag t ON t.id = it.tag_id
+        WHERE it.entity_type = ?
+        AND it.entity_id = ANY(?)
+        AND t.is_active = true
+        ORDER BY t.name`,
+        [TaggableEntityType.MEASURE_SHEET_ITEM, msiIds],
+      );
+
+      // Group tags by MSI ID
+      const tagsMap = new Map<
+        string,
+        Array<{ id: string; name: string; color: string }>
+      >();
+      for (const row of tagData.rows) {
+        const existing = tagsMap.get(row.entity_id) ?? [];
+        existing.push({ id: row.tag_id, name: row.name, color: row.color });
+        tagsMap.set(row.entity_id, existing);
+      }
+
       // Build response
       const responseItems = await Promise.all(
         items.map(async msi => {
           const office = officeMap.get(msi.id);
           const option = optionMap.get(msi.id);
           const upcharge = upchargeMap.get(msi.id);
+          const tags = tagsMap.get(msi.id) ?? [];
           const { imageUrl, thumbnailUrl } = await getImageUrls(msi.image);
           return {
             id: msi.id,
@@ -462,6 +524,7 @@ router.get(
             imageUrl,
             thumbnailUrl,
             sortOrder: msi.sortOrder,
+            tags,
           };
         }),
       );
@@ -489,6 +552,22 @@ router.get(
               .createQueryBuilder(MeasureSheetItemOffice, 'msio')
               .select('msio.measure_sheet_item_id')
               .where({ office: { $in: officeIds } })
+              .getKnexQuery(),
+          },
+        });
+      }
+      // Tag filter for total count
+      if (tags && tags.length > 0) {
+        totalQb.andWhere({
+          id: {
+            $in: em
+               
+              .createQueryBuilder(ItemTag, 'it')
+              .select('it.entity_id')
+              .where({
+                entityType: TaggableEntityType.MEASURE_SHEET_ITEM,
+                tag: { $in: tags },
+              })
               .getKnexQuery(),
           },
         });
@@ -554,7 +633,7 @@ router.get(
       }
 
       // Load linked entities
-      const [offices, options, upcharges, additionalDetails] =
+      const [offices, options, upcharges, additionalDetails, itemTags] =
         await Promise.all([
           em.find(
             MeasureSheetItemOffice,
@@ -578,6 +657,15 @@ router.get(
               populate: ['additionalDetailField'],
               orderBy: { sortOrder: 'ASC' },
             },
+          ),
+          em.find(
+             
+            ItemTag,
+            {
+              entityType: TaggableEntityType.MEASURE_SHEET_ITEM,
+              entityId: msi.id,
+            },
+            { populate: ['tag'] },
           ),
         ]);
 
@@ -637,6 +725,13 @@ router.get(
             isRequired: a.additionalDetailField.isRequired,
             sortOrder: a.sortOrder,
           })),
+          tags: itemTags
+            .filter(it => it.tag.isActive)
+            .map(it => ({
+              id: it.tag.id,
+              name: it.tag.name,
+              color: it.tag.color,
+            })),
           isActive: msi.isActive,
           version: msi.version,
           updatedAt: msi.updatedAt,
