@@ -6,6 +6,7 @@ import optionsLibraryRoutes from './library/options.routes';
 import upchargesLibraryRoutes from './library/upcharges.routes';
 import measureSheetItemRoutes from './measure-sheet-items.routes';
 import pricingRoutes from './pricing';
+import tagsRoutes from './tags.routes';
 
 import type { Router as ExpressRouter } from 'express';
 
@@ -21,6 +22,9 @@ router.use('/measure-sheet-items', measureSheetItemRoutes);
 router.use('/library/options', optionsLibraryRoutes);
 router.use('/library/upcharges', upchargesLibraryRoutes);
 router.use('/library/additional-details', additionalDetailsLibraryRoutes);
+
+// Tag management
+router.use('/tags', tagsRoutes);
 
 // Pricing routes
 router.use('/pricing', pricingRoutes);

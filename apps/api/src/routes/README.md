@@ -214,6 +214,37 @@ Office-level settings and integrations:
 | POST   | `/internal-users/:id/companies`            | Add company restriction          |
 | DELETE | `/internal-users/:id/companies/:companyId` | Remove company restriction       |
 
+### Tags (`/api/price-guide/tags`)
+
+Tag management for organizing price guide items (Options, UpCharges, Additional Details).
+
+| Method | Endpoint                                  | Description                          |
+| ------ | ----------------------------------------- | ------------------------------------ |
+| GET    | `/price-guide/tags`                       | List all tags (with optional search) |
+| GET    | `/price-guide/tags/:id`                   | Get tag details                      |
+| POST   | `/price-guide/tags`                       | Create a new tag                     |
+| PUT    | `/price-guide/tags/:id`                   | Update a tag (name, color)           |
+| DELETE | `/price-guide/tags/:id`                   | Soft delete a tag                    |
+| GET    | `/price-guide/tags/items/:entityType/:id` | Get tags for a specific item         |
+| PUT    | `/price-guide/tags/items/:entityType/:id` | Set tags for an item (replaces all)  |
+
+**Entity Types:** `OPTION`, `UPCHARGE`, `ADDITIONAL_DETAIL`
+
+**Example - Set tags for an option:**
+
+```bash
+PUT /api/price-guide/tags/items/OPTION/550e8400-e29b-41d4-a716-446655440000
+{
+  "tagIds": ["tag-uuid-1", "tag-uuid-2"]
+}
+```
+
+**Tag Filtering:** Library routes (`/price-guide/library/options`, `/upcharges`, `/additional-details`) accept a `tags` query parameter for filtering:
+
+```bash
+GET /api/price-guide/library/options?tags=tag-uuid-1,tag-uuid-2
+```
+
 ## Patterns
 
 ### Route Handler Structure
