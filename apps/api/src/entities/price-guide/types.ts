@@ -57,6 +57,7 @@ export enum TaggableEntityType {
   UPCHARGE = 'UPCHARGE',
   ADDITIONAL_DETAIL = 'ADDITIONAL_DETAIL',
   MEASURE_SHEET_ITEM = 'MEASURE_SHEET_ITEM',
+  PRICE_GUIDE_IMAGE = 'PRICE_GUIDE_IMAGE',
 }
 
 /** Size picker configuration for 2D/3D size pickers */

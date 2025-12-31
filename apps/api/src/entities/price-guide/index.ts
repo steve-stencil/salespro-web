@@ -9,6 +9,7 @@
  * - AdditionalDetailField: Shared custom input fields library
  * - PriceObjectType: TypeCodes for pricing breakdown (Materials, Labor, etc.)
  * - Tag: Reusable labels for organizing library items
+ * - PriceGuideImage: Shared product image library (referenced by MSI.thumbnailImage / UpCharge.thumbnailImage)
  *
  * Junction Tables:
  * - MeasureSheetItemOffice: Office visibility for MSIs
@@ -40,6 +41,7 @@ export { UpCharge } from './UpCharge.entity';
 export { AdditionalDetailField } from './AdditionalDetailField.entity';
 export { PriceObjectType, DEFAULT_PRICE_TYPES } from './PriceObjectType.entity';
 export { Tag } from './Tag.entity';
+export { PriceGuideImage } from './PriceGuideImage.entity';
 
 // Junction tables
 export { MeasureSheetItemOffice } from './MeasureSheetItemOffice.entity';

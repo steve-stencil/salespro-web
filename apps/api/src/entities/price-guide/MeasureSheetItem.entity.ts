@@ -11,13 +11,13 @@ import {
 import { v4 as uuid } from 'uuid';
 
 import type { Company } from '../Company.entity';
-import type { File } from '../File.entity';
 import type { User } from '../User.entity';
 import type { MeasureSheetItemAdditionalDetailField } from './MeasureSheetItemAdditionalDetailField.entity';
 import type { MeasureSheetItemOffice } from './MeasureSheetItemOffice.entity';
 import type { MeasureSheetItemOption } from './MeasureSheetItemOption.entity';
 import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
 import type { PriceGuideCategory } from './PriceGuideCategory.entity';
+import type { PriceGuideImage } from './PriceGuideImage.entity';
 
 /**
  * MeasureSheetItem entity - the main line item that sales reps add to estimates.
@@ -54,13 +54,6 @@ export class MeasureSheetItem {
   /** Measurement type - user-defined string (e.g., "sqft", "linft", "each") */
   @Property({ type: 'string', length: 50 })
   measurementType!: string;
-
-  /**
-   * Product thumbnail image from company's file library.
-   * References a File entity for proper S3 key storage and presigned URL generation.
-   */
-  @ManyToOne('File', { nullable: true })
-  image?: File;
 
   /** Quantity formula identifier */
   @Property({ type: 'string', nullable: true })
@@ -150,4 +143,9 @@ export class MeasureSheetItem {
   @OneToMany('MeasureSheetItemAdditionalDetailField', 'measureSheetItem')
   additionalDetailFields =
     new Collection<MeasureSheetItemAdditionalDetailField>(this);
+
+  /** Thumbnail image from shared image library */
+  @ManyToOne('PriceGuideImage', { nullable: true })
+  @Index()
+  thumbnailImage?: PriceGuideImage;
 }
