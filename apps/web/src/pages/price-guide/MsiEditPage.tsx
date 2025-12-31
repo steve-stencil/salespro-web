@@ -39,12 +39,13 @@ import {
   useUnlinkUpcharge,
   useLinkAdditionalDetails,
   useUnlinkAdditionalDetail,
+  useSetMsiThumbnail,
 } from '../../hooks/usePriceGuide';
 import { ApiClientError } from '../../lib/api-client';
-import { filesApi } from '../../services/files';
 
 import { AdditionalDetailsSection } from './sections/AdditionalDetailsSection';
 import { BasicInfoSection } from './sections/BasicInfoSection';
+import { ImagesSection } from './sections/ImagesSection';
 import { OfficesSection } from './sections/OfficesSection';
 import { OptionsSection } from './sections/OptionsSection';
 import { TagsSection } from './sections/TagsSection';
@@ -219,6 +220,7 @@ export function MsiEditPage(): React.ReactElement {
   const [expandedSections, setExpandedSections] = useState<string[]>([
     'basic-info',
     'tags',
+    'images',
     'offices',
     'options',
     'upcharges',
@@ -235,12 +237,16 @@ export function MsiEditPage(): React.ReactElement {
   const unlinkUpchargeMutation = useUnlinkUpcharge();
   const linkDetailsMutation = useLinkAdditionalDetails();
   const unlinkDetailMutation = useUnlinkAdditionalDetail();
+  const setThumbnailMutation = useSetMsiThumbnail();
 
   // Track original state for diffing on save
   const [originalState, setOriginalState] = useState<WizardState | null>(null);
 
-  // Track image IDs that should be deleted on save (when removing existing images)
-  const [imageIdsToDelete, setImageIdsToDelete] = useState<string[]>([]);
+  // Track thumbnail image ID for the ImagesSection
+  const [thumbnailImageId, setThumbnailImageId] = useState<string | null>(null);
+  const [originalThumbnailId, setOriginalThumbnailId] = useState<string | null>(
+    null,
+  );
 
   // Load MSI data into state
   useEffect(() => {
@@ -258,15 +264,8 @@ export function MsiEditPage(): React.ReactElement {
         tagRequired: msi.tagRequired,
         tagPickerOptions: (msi.tagPickerOptions ?? []) as string[],
         officeIds: msi.offices.map(o => o.id),
-        // Load image from API response (existing image)
-        image: msi.imageId
-          ? {
-              type: 'existing' as const,
-              id: msi.imageId,
-              url: msi.imageUrl ?? '',
-              thumbnailUrl: msi.thumbnailUrl ?? null,
-            }
-          : null,
+        // Image is now handled via images array, not single image
+        image: null,
         options: msi.options.map((o: SharedLinkedOption) => ({
           id: o.optionId,
           name: o.name,
@@ -289,6 +288,11 @@ export function MsiEditPage(): React.ReactElement {
       };
       dispatch({ type: 'LOAD_MSI', payload: loadedState });
       setOriginalState(loadedState);
+
+      // Load thumbnail image
+      const thumbId = msi.thumbnailImage?.id ?? null;
+      setThumbnailImageId(thumbId);
+      setOriginalThumbnailId(thumbId);
     }
   }, [msiData, state.isLoaded]);
 
@@ -390,7 +394,8 @@ export function MsiEditPage(): React.ReactElement {
     linkUpchargesMutation.isPending ||
     unlinkUpchargeMutation.isPending ||
     linkDetailsMutation.isPending ||
-    unlinkDetailMutation.isPending;
+    unlinkDetailMutation.isPending ||
+    setThumbnailMutation.isPending;
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -398,30 +403,7 @@ export function MsiEditPage(): React.ReactElement {
       return;
 
     try {
-      // 1. Upload pending image if present
-      let imageId: string | null | undefined;
-      const originalImageId =
-        originalState.image?.type === 'existing'
-          ? originalState.image.id
-          : null;
-
-      if (state.image?.type === 'pending') {
-        // Upload the pending image
-        const uploadResponse = await filesApi.uploadImage(state.image.file, {
-          visibility: 'company',
-          description: 'MSI product thumbnail',
-        });
-        imageId = uploadResponse.file.id;
-      } else if (state.image?.type === 'existing') {
-        // Keep existing image, but only send if changed
-        imageId =
-          state.image.id !== originalImageId ? state.image.id : undefined;
-      } else {
-        // No image - if there was one before, send null to remove
-        imageId = originalImageId ? null : undefined;
-      }
-
-      // 2. Update basic fields (including image)
+      // 1. Update basic fields
       await updateMutation.mutateAsync({
         msiId,
         data: {
@@ -435,8 +417,6 @@ export function MsiEditPage(): React.ReactElement {
           tagTitle: state.tagTitle || undefined,
           tagRequired: state.tagRequired,
           tagPickerOptions: state.tagPickerOptions,
-          // Include imageId from upload or existing
-          imageId,
           version: state.version,
         },
       });
@@ -523,19 +503,13 @@ export function MsiEditPage(): React.ReactElement {
         await unlinkDetailMutation.mutateAsync({ msiId, fieldId });
       }
 
-      // 6. Delete removed images (fire and forget - don't block save)
-      // We do this after save so if save fails, we don't lose the images
-      for (const fileId of imageIdsToDelete) {
-        void filesApi.deleteFile(fileId).catch(() => {
-          // Silently ignore delete errors - the file will be orphaned but not critical
+      // 6. Set thumbnail if changed
+      if (thumbnailImageId !== originalThumbnailId) {
+        await setThumbnailMutation.mutateAsync({
+          msiId,
+          imageId: thumbnailImageId,
+          version: state.version,
         });
-      }
-      // Clear the deletion queue
-      setImageIdsToDelete([]);
-
-      // Clean up preview URL if we just uploaded a pending image
-      if (state.image?.type === 'pending') {
-        URL.revokeObjectURL(state.image.previewUrl);
       }
 
       void navigate('/price-guide');
@@ -547,6 +521,8 @@ export function MsiEditPage(): React.ReactElement {
     isValid,
     state,
     originalState,
+    thumbnailImageId,
+    originalThumbnailId,
     updateMutation,
     syncOfficesMutation,
     linkOptionsMutation,
@@ -555,7 +531,7 @@ export function MsiEditPage(): React.ReactElement {
     unlinkUpchargeMutation,
     linkDetailsMutation,
     unlinkDetailMutation,
-    imageIdsToDelete,
+    setThumbnailMutation,
     navigate,
   ]);
 
@@ -685,6 +661,28 @@ export function MsiEditPage(): React.ReactElement {
             </AccordionSummary>
             <AccordionDetails>
               {msiId && <TagsSection msiId={msiId} />}
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Images */}
+          <Accordion
+            expanded={expandedSections.includes('images')}
+            onChange={() => handleSectionToggle('images')}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6">Thumbnail Image</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {thumbnailImageId ? '(set)' : '(not set)'}
+                </Typography>
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              <ImagesSection
+                thumbnailImage={msiData?.item.thumbnailImage ?? null}
+                thumbnailImageId={thumbnailImageId}
+                onThumbnailChange={setThumbnailImageId}
+              />
             </AccordionDetails>
           </Accordion>
 

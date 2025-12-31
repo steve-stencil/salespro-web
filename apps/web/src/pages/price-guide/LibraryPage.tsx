@@ -40,7 +40,6 @@ import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -48,6 +47,7 @@ import {
   TagChip,
   TagFilterSelect,
   ItemTagEditor,
+  ImageLibraryTab,
 } from '../../components/price-guide';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
@@ -65,8 +65,6 @@ import {
   useUpdateAdditionalDetail,
 } from '../../hooks/usePriceGuide';
 import { useTagList } from '../../hooks/useTags';
-import { filesApi } from '../../services/files';
-import { priceGuideApi } from '../../services/price-guide';
 
 import type {
   OptionSummary,
@@ -1055,15 +1053,7 @@ function UpChargesTab({
   onDelete,
 }: UpChargesTabProps): React.ReactElement {
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const debouncedSearch = useDebouncedValue(search, 300);
-  const queryClient = useQueryClient();
-
-  // Thumbnail upload state
-  const [thumbnailUpchargeId, setThumbnailUpchargeId] = useState<string | null>(
-    null,
-  );
-  const [thumbnailUploading, setThumbnailUploading] = useState(false);
 
   const {
     data,
@@ -1104,61 +1094,6 @@ function UpChargesTab({
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Thumbnail upload handlers
-  const handleThumbnailClick = useCallback((upchargeId: string) => {
-    setThumbnailUpchargeId(upchargeId);
-    thumbnailInputRef.current?.click();
-  }, []);
-
-  const handleThumbnailFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file || !thumbnailUpchargeId) return;
-
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        console.error('File must be an image');
-        return;
-      }
-
-      // Validate file size (5MB max)
-      if (file.size > 5 * 1024 * 1024) {
-        console.error('File must be less than 5MB');
-        return;
-      }
-
-      setThumbnailUploading(true);
-      try {
-        // Upload the file
-        const uploadResponse = await filesApi.uploadImage(file, {
-          visibility: 'company',
-          description: 'Upcharge product thumbnail',
-        });
-
-        // Update the upcharge thumbnail using the dedicated endpoint
-        await priceGuideApi.updateUpchargeThumbnail(
-          thumbnailUpchargeId,
-          uploadResponse.file.id,
-        );
-
-        // Invalidate upcharge list to refresh thumbnails
-        void queryClient.invalidateQueries({
-          queryKey: ['price-guide', 'upcharges', 'list'],
-        });
-      } catch (err) {
-        console.error('Failed to upload thumbnail:', err);
-      } finally {
-        setThumbnailUploading(false);
-        setThumbnailUpchargeId(null);
-        // Reset the input
-        if (thumbnailInputRef.current) {
-          thumbnailInputRef.current.value = '';
-        }
-      }
-    },
-    [thumbnailUpchargeId, queryClient],
-  );
-
   if (error) {
     return (
       <Alert severity="error" sx={{ mt: 2 }}>
@@ -1169,15 +1104,6 @@ function UpChargesTab({
 
   return (
     <Box>
-      {/* Hidden file input for thumbnail upload */}
-      <input
-        ref={thumbnailInputRef}
-        type="file"
-        accept="image/*"
-        onChange={e => void handleThumbnailFileChange(e)}
-        style={{ display: 'none' }}
-      />
-
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {isLoading ? (
           <Skeleton width={100} />
@@ -1217,63 +1143,43 @@ function UpChargesTab({
               allItems.map((upcharge: UpChargeSummary) => (
                 <TableRow key={upcharge.id} hover>
                   <TableCell>
-                    <Box
-                      onClick={() => handleThumbnailClick(upcharge.id)}
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 1,
-                        bgcolor: 'grey.100',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        border: 1,
-                        borderColor: 'divider',
-                        transition: 'all 0.2s',
-                        position: 'relative',
-                        '&:hover': {
-                          borderColor: 'primary.main',
-                          '& .thumbnail-overlay': {
-                            opacity: 1,
-                          },
-                        },
-                      }}
+                    <Tooltip
+                      title={
+                        upcharge.images?.length
+                          ? `${upcharge.images.length} image(s)`
+                          : 'No images'
+                      }
                     >
-                      {thumbnailUploading &&
-                      thumbnailUpchargeId === upcharge.id ? (
-                        <CircularProgress size={20} color="primary" />
-                      ) : upcharge.thumbnailUrl ? (
-                        <Box
-                          component="img"
-                          src={upcharge.thumbnailUrl}
-                          alt="Thumbnail"
-                          sx={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
-                      ) : (
-                        <ImageIcon sx={{ color: 'grey.400', fontSize: 24 }} />
-                      )}
                       <Box
-                        className="thumbnail-overlay"
                         sx={{
-                          position: 'absolute',
-                          inset: 0,
-                          bgcolor: 'rgba(0, 0, 0, 0.5)',
+                          width: 40,
+                          height: 40,
+                          borderRadius: 1,
+                          bgcolor: 'grey.100',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          opacity: 0,
-                          transition: 'opacity 0.2s',
+                          overflow: 'hidden',
+                          border: 1,
+                          borderColor: 'divider',
                         }}
                       >
-                        <ImageIcon sx={{ color: 'white', fontSize: 20 }} />
+                        {upcharge.images?.[0]?.thumbnailUrl ? (
+                          <Box
+                            component="img"
+                            src={upcharge.images[0].thumbnailUrl}
+                            alt="Thumbnail"
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                        ) : (
+                          <ImageIcon sx={{ color: 'grey.400', fontSize: 24 }} />
+                        )}
                       </Box>
-                    </Box>
+                    </Tooltip>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight={500}>
@@ -1602,8 +1508,9 @@ const TAB_MAP: Record<string, number> = {
   options: 0,
   upcharges: 1,
   details: 2,
+  images: 3,
 };
-const TAB_NAMES = ['options', 'upcharges', 'details'];
+const TAB_NAMES = ['options', 'upcharges', 'details', 'images'];
 
 export function LibraryPage(): React.ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1795,6 +1702,8 @@ export function LibraryPage(): React.ReactElement {
         return 'New UpCharge';
       case 2:
         return 'New Detail';
+      case 3:
+        return null; // Images tab has its own upload button
       default:
         return 'New';
     }
@@ -1822,13 +1731,15 @@ export function LibraryPage(): React.ReactElement {
             </Typography>
           </Box>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddClick}
-        >
-          {getAddButtonLabel()}
-        </Button>
+        {getAddButtonLabel() && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddClick}
+          >
+            {getAddButtonLabel()}
+          </Button>
+        )}
       </Box>
 
       {/* Content Card */}
@@ -1840,6 +1751,7 @@ export function LibraryPage(): React.ReactElement {
               <Tab label="Options" />
               <Tab label="UpCharges" />
               <Tab label="Additional Details" />
+              <Tab label="Images" />
             </Tabs>
           </Box>
 
@@ -1848,7 +1760,7 @@ export function LibraryPage(): React.ReactElement {
             sx={{ mt: 2, mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}
           >
             <TextField
-              placeholder={`Search ${activeTab === 0 ? 'options' : activeTab === 1 ? 'upcharges' : 'additional details'}...`}
+              placeholder={`Search ${activeTab === 0 ? 'options' : activeTab === 1 ? 'upcharges' : activeTab === 2 ? 'additional details' : 'images'}...`}
               value={search}
               onChange={handleSearchChange}
               size="small"
@@ -1954,6 +1866,9 @@ export function LibraryPage(): React.ReactElement {
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
+          </TabPanel>
+          <TabPanel value={activeTab} index={3}>
+            <ImageLibraryTab search={search} />
           </TabPanel>
         </CardContent>
       </Card>

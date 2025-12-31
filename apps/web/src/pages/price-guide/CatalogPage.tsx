@@ -44,6 +44,7 @@ import {
   EntityCard,
   EntityCardSkeleton,
   ExportDialog,
+  ImagePicker,
   ImportDialog,
   LinkPicker,
   LinkedItemsList,
@@ -64,9 +65,9 @@ import {
   useSyncOffices,
   useUnlinkOption,
   useUnlinkUpcharge,
+  priceGuideKeys,
 } from '../../hooks/usePriceGuide';
 import { useTagList } from '../../hooks/useTags';
-import { filesApi } from '../../services/files';
 import { priceGuideApi } from '../../services/price-guide';
 
 import type {
@@ -77,6 +78,7 @@ import type {
   BulkEditResult,
   LinkableItem,
   MenuAction,
+  SelectedImageData,
 } from '../../components/price-guide';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { MeasureSheetItemSummary } from '@shared/types';
@@ -277,12 +279,16 @@ function MsiCardWrapper({
     </>
   );
 
+  // Use the thumbnail image (if set)
+  const thumbnailUrl =
+    msi.thumbnailImage?.thumbnailUrl ?? msi.thumbnailImage?.imageUrl ?? null;
+
   return (
     <EntityCard
       entityType="msi"
       name={msi.name}
       subtitle={msi.category.fullPath}
-      thumbnailUrl={msi.thumbnailUrl}
+      thumbnailUrl={thumbnailUrl}
       onThumbnailClick={onThumbnailClick}
       isThumbnailLoading={isThumbnailLoading}
       isExpanded={isExpanded}
@@ -350,9 +356,10 @@ export function CatalogPage(): React.ReactElement {
   } | null>(null);
 
   // Thumbnail upload state
-  const thumbnailInputRef = useRef<HTMLInputElement>(null);
-  const [thumbnailMsiId, setThumbnailMsiId] = useState<string | null>(null);
-  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  // Image picker state for thumbnail selection
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [imagePickerMsiId, setImagePickerMsiId] = useState<string | null>(null);
+  const [imagePickerSaving, setImagePickerSaving] = useState(false);
 
   // Debounced search
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -487,8 +494,11 @@ export function CatalogPage(): React.ReactElement {
     return [];
   }, [linkPickerType, officesData, optionsData, upchargesData]);
 
-  // Get current MSI for determining already linked items
+  // Get current MSI for determining already linked items (for LinkPicker)
   const { data: currentMsiData } = useMsiDetail(linkPickerMsiId);
+
+  // Get MSI detail for image picker (to get version for sync)
+  const { data: imagePickerMsiData } = useMsiDetail(imagePickerMsiId ?? '');
   const alreadyLinkedIds = useMemo(() => {
     if (!currentMsiData?.item) return [];
     if (linkPickerType === 'office') {
@@ -595,60 +605,63 @@ export function CatalogPage(): React.ReactElement {
     console.log('Delete MSI:', msiId);
   }, []);
 
-  // Thumbnail upload handlers
+  // Image picker handlers for thumbnail/images selection
   const handleThumbnailClick = useCallback((msiId: string) => {
-    setThumbnailMsiId(msiId);
-    thumbnailInputRef.current?.click();
+    setImagePickerMsiId(msiId);
+    setImagePickerOpen(true);
   }, []);
 
-  const handleThumbnailFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file || !thumbnailMsiId) return;
+  const handleImagePickerClose = useCallback(() => {
+    setImagePickerOpen(false);
+    setImagePickerMsiId(null);
+  }, []);
 
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        console.error('File must be an image');
-        return;
-      }
+  // Get current MSI's selected thumbnail image ID for the picker
+  const currentMsiSelectedImageIds = useMemo(() => {
+    if (!imagePickerMsiId) return [];
+    const msi = allMsis.find(m => m.id === imagePickerMsiId);
+    return msi?.thumbnailImage ? [msi.thumbnailImage.id] : [];
+  }, [imagePickerMsiId, allMsis]);
 
-      // Validate file size (5MB max)
-      if (file.size > 5 * 1024 * 1024) {
-        console.error('File must be less than 5MB');
-        return;
-      }
+  const handleImageSelectionChange = useCallback(
+    async (imageIds: string[], _images: SelectedImageData[]) => {
+      if (!imagePickerMsiId || !imagePickerMsiData?.item) return;
 
-      setThumbnailUploading(true);
+      setImagePickerSaving(true);
       try {
-        // Upload the file
-        const uploadResponse = await filesApi.uploadImage(file, {
-          visibility: 'company',
-          description: 'MSI product thumbnail',
-        });
-
-        // Update the MSI thumbnail using the dedicated endpoint
-        // This won't bump version and will delete the old image automatically
-        await priceGuideApi.updateMsiThumbnail(
-          thumbnailMsiId,
-          uploadResponse.file.id,
+        // Set thumbnail image for MSI (single image, or null to clear)
+        const imageId = imageIds.length > 0 ? imageIds[0]! : null;
+        await priceGuideApi.setMsiThumbnail(
+          imagePickerMsiId,
+          imageId,
+          imagePickerMsiData.item.version,
         );
 
-        // Invalidate MSI list to refresh thumbnails
+        // Invalidate MSI list to refresh thumbnail
         void queryClient.invalidateQueries({
           queryKey: ['price-guide', 'msis', 'list'],
         });
+
+        // Also invalidate the MSI detail to refresh for next edit
+        void queryClient.invalidateQueries({
+          queryKey: ['price-guide', 'msis', 'detail', imagePickerMsiId],
+        });
+
+        // Invalidate image lists to update linkedMsiCount in library
+        void queryClient.invalidateQueries({
+          queryKey: priceGuideKeys.imageLists(),
+        });
+
+        // Close picker
+        setImagePickerOpen(false);
+        setImagePickerMsiId(null);
       } catch (err) {
-        console.error('Failed to upload thumbnail:', err);
+        console.error('Failed to set thumbnail:', err);
       } finally {
-        setThumbnailUploading(false);
-        setThumbnailMsiId(null);
-        // Reset the input
-        if (thumbnailInputRef.current) {
-          thumbnailInputRef.current.value = '';
-        }
+        setImagePickerSaving(false);
       }
     },
-    [thumbnailMsiId, queryClient],
+    [imagePickerMsiId, imagePickerMsiData, queryClient],
   );
 
   // Link picker handlers
@@ -841,15 +854,6 @@ export function CatalogPage(): React.ReactElement {
 
   return (
     <Box>
-      {/* Hidden file input for thumbnail upload */}
-      <input
-        ref={thumbnailInputRef}
-        type="file"
-        accept="image/*"
-        onChange={e => void handleThumbnailFileChange(e)}
-        style={{ display: 'none' }}
-      />
-
       {/* Header */}
       <Box
         sx={{
@@ -1133,7 +1137,7 @@ export function CatalogPage(): React.ReactElement {
               onDelete={() => handleDelete(msi.id)}
               onThumbnailClick={() => handleThumbnailClick(msi.id)}
               isThumbnailLoading={
-                thumbnailUploading && thumbnailMsiId === msi.id
+                imagePickerSaving && imagePickerMsiId === msi.id
               }
               onLinkOffices={() => openLinkPicker('office', msi.id)}
               onLinkOptions={() => openLinkPicker('option', msi.id)}
@@ -1269,6 +1273,18 @@ export function CatalogPage(): React.ReactElement {
           unlinkOptionMutation.isPending ||
           unlinkUpchargeMutation.isPending
         }
+      />
+
+      {/* Image Picker Dialog for Thumbnail */}
+      <ImagePicker
+        open={imagePickerOpen}
+        onClose={handleImagePickerClose}
+        selectedImageIds={currentMsiSelectedImageIds}
+        onSelectionChange={(imageIds, images) =>
+          void handleImageSelectionChange(imageIds, images)
+        }
+        multiple={false}
+        title="Select Thumbnail Image"
       />
 
       {/* Export Dialog */}
