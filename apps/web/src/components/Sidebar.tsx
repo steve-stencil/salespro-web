@@ -81,6 +81,12 @@ const NAV_ITEMS: NavItem[] = [
 /** Price Guide navigation items - shown in expandable section */
 const PRICE_GUIDE_NAV_ITEMS: NavItem[] = [
   {
+    label: 'Categories',
+    path: '/price-guide/categories',
+    icon: <CategoryIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_READ,
+  },
+  {
     label: 'Catalog',
     path: '/price-guide',
     icon: <InventoryIcon />,
@@ -90,12 +96,6 @@ const PRICE_GUIDE_NAV_ITEMS: NavItem[] = [
     label: 'Library',
     path: '/price-guide/library',
     icon: <LibraryBooksIcon />,
-    permission: PERMISSIONS.PRICE_GUIDE_READ,
-  },
-  {
-    label: 'Categories',
-    path: '/price-guide/categories',
-    icon: <CategoryIcon />,
     permission: PERMISSIONS.PRICE_GUIDE_READ,
   },
   {
