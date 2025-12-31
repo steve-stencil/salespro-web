@@ -1,7 +1,6 @@
 ---
 description: Security & env guidance
-globs:
-  - '**/*'
+alwaysApply: true
 ---
 
 # Security
