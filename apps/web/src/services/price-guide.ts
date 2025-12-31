@@ -25,6 +25,16 @@ import type {
   UpdateUpChargeDefaultPricesRequest,
   UpdateUpChargeOverridePricesRequest,
   UpdateUpChargeMsiOverridePricesRequest,
+  TagListResponse,
+  TagDetailResponse,
+  CreateTagRequest,
+  CreateTagResponse,
+  UpdateTagRequest,
+  UpdateTagResponse,
+  ItemTagsResponse,
+  SetItemTagsRequest,
+  SetItemTagsResponse,
+  TaggableEntityType,
 } from '@shared/types';
 
 /**
@@ -111,6 +121,10 @@ export const priceGuideApi = {
     if (params?.officeIds && params.officeIds.length > 0) {
       const officeIdsStr = params.officeIds.join(',');
       searchParams.set('officeIds', officeIdsStr);
+    }
+    if (params?.tags && params.tags.length > 0) {
+      const tagsStr = params.tags.join(',');
+      searchParams.set('tags', tagsStr);
     }
 
     const queryString = searchParams.toString();
@@ -288,6 +302,9 @@ export const priceGuideApi = {
     if (params?.cursor) searchParams.set('cursor', params.cursor);
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', (params.tags).join(','));
+    }
 
     const queryString = searchParams.toString();
     const url = queryString
@@ -366,6 +383,9 @@ export const priceGuideApi = {
     if (params?.cursor) searchParams.set('cursor', params.cursor);
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', (params.tags).join(','));
+    }
 
     const queryString = searchParams.toString();
     const url = queryString
@@ -468,6 +488,9 @@ export const priceGuideApi = {
     if (params?.cursor) searchParams.set('cursor', params.cursor);
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', (params.tags).join(','));
+    }
 
     const queryString = searchParams.toString();
     const url = queryString
@@ -722,4 +745,78 @@ export const priceGuideApi = {
 
   // Note: All MSI pricing flows through OptionPrice entities.
   // MSIs require at least one option; see ADR-003.
+
+  // ==========================================================================
+  // Tags
+  // ==========================================================================
+
+  /**
+   * List all tags with optional search.
+   */
+  listTags: async (search?: string): Promise<TagListResponse> => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    const queryString = params.toString();
+    const url = queryString
+      ? `/price-guide/tags?${queryString}`
+      : '/price-guide/tags';
+    return apiClient.get<TagListResponse>(url);
+  },
+
+  /**
+   * Get tag details by ID.
+   */
+  getTag: async (tagId: string): Promise<TagDetailResponse> => {
+    return apiClient.get<TagDetailResponse>(`/price-guide/tags/${tagId}`);
+  },
+
+  /**
+   * Create a new tag.
+   */
+  createTag: async (data: CreateTagRequest): Promise<CreateTagResponse> => {
+    return apiClient.post('/price-guide/tags', data);
+  },
+
+  /**
+   * Update a tag.
+   */
+  updateTag: async (
+    tagId: string,
+    data: UpdateTagRequest,
+  ): Promise<UpdateTagResponse> => {
+    return apiClient.put(`/price-guide/tags/${tagId}`, data);
+  },
+
+  /**
+   * Delete a tag (soft delete).
+   */
+  deleteTag: async (tagId: string): Promise<SuccessResponse> => {
+    return apiClient.delete(`/price-guide/tags/${tagId}`);
+  },
+
+  /**
+   * Get tags for a specific item.
+   */
+  getItemTags: async (
+    entityType: TaggableEntityType,
+    entityId: string,
+  ): Promise<ItemTagsResponse> => {
+    return apiClient.get<ItemTagsResponse>(
+      `/price-guide/tags/items/${entityType}/${entityId}`,
+    );
+  },
+
+  /**
+   * Set tags for a specific item (replaces all existing tags).
+   */
+  setItemTags: async (
+    entityType: TaggableEntityType,
+    entityId: string,
+    data: SetItemTagsRequest,
+  ): Promise<SetItemTagsResponse> => {
+    return apiClient.put(
+      `/price-guide/tags/items/${entityType}/${entityId}`,
+      data,
+    );
+  },
 };

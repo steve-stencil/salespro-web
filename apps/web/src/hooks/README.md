@@ -17,6 +17,7 @@ This folder contains custom React hooks that encapsulate reusable stateful logic
 | `usePermissions.ts`    | Permission checking utilities           |
 | `usePlatform.ts`       | Platform/internal user data and actions |
 | `useRoles.ts`          | Role data fetching and mutations        |
+| `useTags.ts`           | Tag data fetching and mutations         |
 | `useUsers.ts`          | User data fetching and mutations        |
 
 ## Hook Reference
@@ -339,6 +340,53 @@ function CompanySelector() {
 - Uses `keepPreviousData` to maintain UI stability during search
 - Returns `isFetching` for subtle loading indicators during background updates
 - Automatically invalidates queries after company switch
+
+### useTags
+
+Fetch and manage tags for the price guide library.
+
+```tsx
+import {
+  useTagList,
+  useTagDetail,
+  useCreateTag,
+  useUpdateTag,
+  useDeleteTag,
+  useAssignTag,
+  useUnassignTag,
+} from '../hooks/useTags';
+
+function TagManager() {
+  // List tags with search
+  const { data, isLoading } = useTagList({ search: 'premium' });
+
+  // Create new tag
+  const createTag = useCreateTag();
+  await createTag.mutateAsync({ name: 'Premium', color: '#4CAF50' });
+
+  // Assign tag to an option
+  const assignTag = useAssignTag();
+  await assignTag.mutateAsync({
+    tagId: 'tag-uuid',
+    entityType: 'option',
+    entityId: 'option-uuid',
+  });
+
+  return <div>{/* Tag list UI */}</div>;
+}
+```
+
+**Available hooks:**
+
+| Hook             | Purpose                             |
+| ---------------- | ----------------------------------- |
+| `useTagList`     | Fetch paginated list of tags        |
+| `useTagDetail`   | Fetch single tag by ID              |
+| `useCreateTag`   | Create a new tag                    |
+| `useUpdateTag`   | Update tag name/color/active status |
+| `useDeleteTag`   | Delete a tag                        |
+| `useAssignTag`   | Assign tag to an entity             |
+| `useUnassignTag` | Remove tag from an entity           |
 
 ### useDebouncedValue
 
