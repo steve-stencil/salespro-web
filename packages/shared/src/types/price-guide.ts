@@ -421,15 +421,90 @@ export type MeasureSheetItemDetail = {
 // Price Types
 // ============================================================================
 
-/** Price object type (MATERIAL, LABOR, TAX, OTHER, custom) */
+/** Parent price type codes for cross-company aggregation */
+export const PARENT_PRICE_TYPE_CODES = [
+  'MATERIAL',
+  'LABOR',
+  'MATERIAL_LABOR',
+  'TAX',
+  'OTHER',
+] as const;
+
+export type ParentPriceTypeCode = (typeof PARENT_PRICE_TYPE_CODES)[number];
+
+/** Human-readable labels for parent price type codes */
+export const PARENT_PRICE_TYPE_LABELS: Record<ParentPriceTypeCode, string> = {
+  MATERIAL: 'Materials',
+  LABOR: 'Labor',
+  MATERIAL_LABOR: 'Materials & Labor',
+  TAX: 'Tax',
+  OTHER: 'Other',
+};
+
+/** Price object type (company-specific, maps to parent code) */
 export type PriceType = {
   id: string;
   code: string;
   name: string;
+  parentCode: ParentPriceTypeCode;
+  parentLabel: string;
   description: string | null;
   sortOrder: number;
-  isGlobal: boolean;
   isActive: boolean;
+  /** Number of offices this price type is assigned to */
+  officeCount: number;
+  /** Total number of offices in the company */
+  totalOffices: number;
+  /** Office IDs where this price type is enabled */
+  enabledOfficeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Price type detail with office assignments */
+export type PriceTypeDetail = {
+  id: string;
+  code: string;
+  name: string;
+  parentCode: ParentPriceTypeCode;
+  parentLabel: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  officeAssignments: OfficePriceTypeAssignment[];
+};
+
+/** Office assignment for a price type (row exists = enabled) */
+export type OfficePriceTypeAssignment = {
+  id: string;
+  officeId: string;
+  officeName: string;
+  sortOrder: number;
+};
+
+/** Price type for an office (with assignment status) */
+export type OfficePriceType = {
+  id: string;
+  code: string;
+  name: string;
+  parentCode: ParentPriceTypeCode;
+  parentLabel: string;
+  description: string | null;
+  sortOrder: number;
+  /** Whether this price type is assigned to the office */
+  isAssigned: boolean;
+  /** Whether the assignment is enabled (only meaningful if isAssigned) */
+  isEnabled: boolean;
+  /** Office-specific sort order */
+  officeSortOrder: number;
+};
+
+/** Parent code info for UI dropdowns */
+export type ParentCodeOption = {
+  code: ParentPriceTypeCode;
+  label: string;
 };
 
 /** Single price entry */
@@ -757,6 +832,73 @@ export type AdditionalDetailFieldDetailResponse = {
 /** Price types response */
 export type PriceTypesResponse = {
   priceTypes: PriceType[];
+  parentCodes: ParentCodeOption[];
+};
+
+/** Price type detail response */
+export type PriceTypeDetailResponse = {
+  priceType: PriceTypeDetail;
+};
+
+/** Office price types response */
+export type OfficePriceTypesResponse = {
+  office: {
+    id: string;
+    name: string;
+  };
+  priceTypes: OfficePriceType[];
+};
+
+/** Create price type request */
+export type CreatePriceTypeRequest = {
+  code: string;
+  name: string;
+  parentCode: ParentPriceTypeCode;
+  description?: string;
+  sortOrder?: number;
+};
+
+/** Update price type request */
+export type UpdatePriceTypeRequest = {
+  name?: string;
+  parentCode?: ParentPriceTypeCode;
+  description?: string | null;
+  sortOrder?: number;
+};
+
+/** Generate default price types request */
+export type GeneratePriceTypesRequest = {
+  parentCodes: ParentPriceTypeCode[];
+  officeIds: string[];
+};
+
+/** Generate price types response */
+export type GeneratePriceTypesResponse = {
+  message: string;
+  priceTypesCreated: number;
+  assignmentsCreated: number;
+  priceTypes: Array<{
+    id: string;
+    code: string;
+    name: string;
+    parentCode: ParentPriceTypeCode;
+  }>;
+};
+
+/** Office assignment request (row creation = enable, row deletion = disable) */
+export type OfficePriceTypeAssignmentRequest = {
+  sortOrder?: number;
+};
+
+/** Office assignment response */
+export type OfficePriceTypeAssignmentResponse = {
+  message: string;
+  assignment: {
+    id: string;
+    priceTypeId: string;
+    officeId: string;
+    sortOrder: number;
+  };
 };
 
 /** Option pricing response */

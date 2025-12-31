@@ -10,6 +10,7 @@ import {
   UpCharge,
   AdditionalDetailField,
   PriceObjectType,
+  OfficePriceType,
   OptionPrice,
   UpChargePrice,
   MeasureSheetItemOption,
@@ -24,11 +25,17 @@ import {
   Company,
   User,
 } from '../../entities';
-import { AdditionalDetailInputType } from '../../entities/price-guide/types';
+import {
+  AdditionalDetailInputType,
+  PARENT_PRICE_TYPE_LABELS,
+} from '../../entities/price-guide/types';
 import { FileVisibility, FileStatus } from '../../entities/types';
 
 import type { Office } from '../../entities';
-import type { TaggableEntityType } from '../../entities/price-guide/types';
+import type {
+  ParentPriceTypeCode,
+  TaggableEntityType,
+} from '../../entities/price-guide/types';
 import type { EntityManager } from '@mikro-orm/core';
 
 // ============================================================================
@@ -206,21 +213,26 @@ export async function createTestAdditionalDetailField(
 export type CreatePriceTypeOptions = {
   code?: string;
   name?: string;
+  parentCode?: ParentPriceTypeCode;
   description?: string;
   sortOrder?: number;
-  isGlobal?: boolean;
 };
 
+/**
+ * Create a company-specific price type
+ * All price types must belong to a company (no global types)
+ */
 export async function createTestPriceType(
   em: EntityManager,
-  company: Company | null,
+  company: Company,
   options: CreatePriceTypeOptions = {},
 ): Promise<PriceObjectType> {
   const priceType = em.create(PriceObjectType, {
     id: uuid(),
-    company: options.isGlobal ? undefined : (company ?? undefined),
+    company,
     code: options.code ?? `TYPE_${Date.now()}`,
     name: options.name ?? `Test Type ${Date.now()}`,
+    parentCode: options.parentCode ?? 'OTHER',
     description: options.description,
     sortOrder: options.sortOrder ?? 0,
     isActive: true,
@@ -231,32 +243,35 @@ export async function createTestPriceType(
 }
 
 /**
- * Create default global price types (MATERIAL, LABOR, TAX, OTHER)
+ * Create default price types for a company (MATERIAL, LABOR, TAX, OTHER)
  * Returns existing types if they already exist to avoid duplicates
  */
 export async function createDefaultPriceTypes(
   em: EntityManager,
+  company: Company,
 ): Promise<PriceObjectType[]> {
-  const types = [
-    { code: 'MATERIAL', name: 'Materials', sortOrder: 1 },
-    { code: 'LABOR', name: 'Labor', sortOrder: 2 },
-    { code: 'TAX', name: 'Tax', sortOrder: 3 },
-    { code: 'OTHER', name: 'Other', sortOrder: 4 },
+  const types: Array<{ code: ParentPriceTypeCode; sortOrder: number }> = [
+    { code: 'MATERIAL', sortOrder: 1 },
+    { code: 'LABOR', sortOrder: 2 },
+    { code: 'TAX', sortOrder: 3 },
+    { code: 'OTHER', sortOrder: 4 },
   ];
 
   const priceTypes: PriceObjectType[] = [];
   for (const t of types) {
-    // Check if this type already exists (global, company=null)
+    // Check if this type already exists for this company
     let pt = await em.findOne(PriceObjectType, {
       code: t.code,
-      company: null,
+      company: company.id,
     });
 
     if (!pt) {
       pt = em.create(PriceObjectType, {
         id: uuid(),
+        company,
         code: t.code,
-        name: t.name,
+        name: PARENT_PRICE_TYPE_LABELS[t.code],
+        parentCode: t.code,
         sortOrder: t.sortOrder,
         isActive: true,
       });
@@ -265,6 +280,44 @@ export async function createDefaultPriceTypes(
     priceTypes.push(pt);
   }
   await em.flush();
+  return priceTypes;
+}
+
+/**
+ * Assign a price type to an office (creates OfficePriceType junction row)
+ */
+export async function assignPriceTypeToOffice(
+  em: EntityManager,
+  priceType: PriceObjectType,
+  office: Office,
+  sortOrder: number = 0,
+): Promise<OfficePriceType> {
+  const assignment = em.create(OfficePriceType, {
+    id: uuid(),
+    office,
+    priceType,
+    sortOrder,
+  });
+  em.persist(assignment);
+  await em.flush();
+  return assignment;
+}
+
+/**
+ * Create default price types and assign them to an office
+ */
+export async function createDefaultPriceTypesWithOffice(
+  em: EntityManager,
+  company: Company,
+  office: Office,
+): Promise<PriceObjectType[]> {
+  const priceTypes = await createDefaultPriceTypes(em, company);
+
+  // Assign all price types to the office
+  for (const pt of priceTypes) {
+    await assignPriceTypeToOffice(em, pt, office, pt.sortOrder);
+  }
+
   return priceTypes;
 }
 
@@ -451,8 +504,12 @@ export async function createPriceGuideSetup(
   company: Company,
   office: Office,
 ): Promise<PriceGuideSetup> {
-  // Create price types
-  const priceTypes = await createDefaultPriceTypes(em);
+  // Create price types and assign to office
+  const priceTypes = await createDefaultPriceTypesWithOffice(
+    em,
+    company,
+    office,
+  );
 
   // Create category
   const category = await createTestCategory(em, company, {

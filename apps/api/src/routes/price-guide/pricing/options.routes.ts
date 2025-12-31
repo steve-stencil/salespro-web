@@ -98,10 +98,10 @@ router.get(
         },
       );
 
-      // Get all price types (global + company-specific)
+      // Get all active price types for this company
       const priceTypes = await em.find(
         PriceObjectType,
-        { $or: [{ company: null }, { company: company.id }], isActive: true },
+        { company: company.id, isActive: true },
         { orderBy: { sortOrder: 'ASC' } },
       );
 
@@ -154,6 +154,8 @@ router.get(
           sortOrder: pt.sortOrder,
         })),
         byOffice: pricesByOffice,
+        // Array format for easier iteration
+        pricing: Object.values(pricesByOffice),
       });
     } catch (err) {
       req.log.error({ err }, 'Get option prices error');

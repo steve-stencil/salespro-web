@@ -5,9 +5,10 @@ import { PERMISSIONS } from '../../lib/permissions';
 import {
   createTestOption,
   createTestUpCharge,
-  createDefaultPriceTypes,
+  createDefaultPriceTypesWithOffice,
   createTestOptionPrice,
   createTestUpChargePrice,
+  createTestPriceType,
 } from '../factories/price-guide';
 
 import {
@@ -47,8 +48,12 @@ describe('Price Guide Pricing Routes', () => {
     setup = await createCompanySetup({ createOffice: true });
     office = setup.office!;
 
-    // Create price types
-    priceTypes = await createDefaultPriceTypes(em);
+    // Create price types and assign to office
+    priceTypes = await createDefaultPriceTypesWithOffice(
+      em,
+      setup.company,
+      office,
+    );
 
     // Create test option with pricing
     testOption = await createTestOption(em, setup.company, {
@@ -88,7 +93,7 @@ describe('Price Guide Pricing Routes', () => {
       expect(response.body.option).toBeDefined();
       expect(response.body.option.id).toBe(testOption.id);
       expect(response.body.option.name).toBe('Test Window');
-      // At least 4 price types (global types)
+      // 4 price types created in setup
       expect(response.body.priceTypes.length).toBeGreaterThanOrEqual(4);
       expect(response.body.pricing).toHaveLength(1); // One office
     });
@@ -229,7 +234,7 @@ describe('Price Guide Pricing Routes', () => {
       expect(response.status).toBe(200);
       expect(response.body.upcharge).toBeDefined();
       expect(response.body.upcharge.id).toBe(testUpCharge.id);
-      // At least 4 price types (global types)
+      // 4 price types created in setup
       expect(response.body.priceTypes.length).toBeGreaterThanOrEqual(4);
       expect(response.body.defaultPricing).toHaveLength(1);
       expect(response.body.overridePricing).toHaveLength(0);
@@ -359,103 +364,145 @@ describe('Price Guide Pricing Routes', () => {
 
   describe('Price Types Routes', () => {
     describe('GET /api/price-guide/pricing/price-types', () => {
-      it('should list all price types', async () => {
+      it('should list all company price types with parentCode', async () => {
         const response = await makeRequest()
           .get('/api/price-guide/pricing/price-types')
           .set('Cookie', setup.adminCookie);
 
         expect(response.status).toBe(200);
-        // At least 4 global price types should exist
-        expect(response.body.priceTypes.length).toBeGreaterThanOrEqual(4);
-        // Check that we have the expected global types
-        const globalTypes = response.body.priceTypes.filter(
-          (pt: { isGlobal: boolean }) => pt.isGlobal,
+        // 4 price types created in beforeEach
+        expect(response.body.priceTypes).toHaveLength(4);
+        // Check parentCode and parentLabel are present
+        const materialType = response.body.priceTypes.find(
+          (pt: { code: string }) => pt.code === 'MATERIAL',
         );
-        expect(globalTypes.length).toBeGreaterThanOrEqual(4);
-        expect(globalTypes[0].isEditable).toBe(false);
+        expect(materialType).toBeDefined();
+        expect(materialType.parentCode).toBe('MATERIAL');
+        expect(materialType.parentLabel).toBe('Materials');
+        expect(materialType.isActive).toBe(true);
+      });
+
+      it('should include enabledOfficeIds in response', async () => {
+        const response = await makeRequest()
+          .get('/api/price-guide/pricing/price-types')
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        const materialType = response.body.priceTypes.find(
+          (pt: { code: string }) => pt.code === 'MATERIAL',
+        );
+        expect(materialType.enabledOfficeIds).toContain(office.id);
+        expect(materialType.officeCount).toBe(1);
+        expect(materialType.totalOffices).toBe(1);
+      });
+
+      it('should return parentCodes list', async () => {
+        const response = await makeRequest()
+          .get('/api/price-guide/pricing/price-types')
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(200);
+        expect(response.body.parentCodes).toBeDefined();
+        expect(response.body.parentCodes).toHaveLength(5);
+        expect(
+          response.body.parentCodes.map((p: { code: string }) => p.code),
+        ).toEqual(['MATERIAL', 'LABOR', 'MATERIAL_LABOR', 'TAX', 'OTHER']);
       });
     });
 
     describe('POST /api/price-guide/pricing/price-types', () => {
-      it('should create a company-specific price type', async () => {
+      it('should create a price type with required parentCode', async () => {
         const response = await makeRequest()
           .post('/api/price-guide/pricing/price-types')
           .set('Cookie', setup.adminCookie)
           .send({
             code: 'CUSTOM',
             name: 'Custom Type',
+            parentCode: 'OTHER',
             description: 'A custom price type',
           });
 
         expect(response.status).toBe(201);
         expect(response.body.priceType.code).toBe('CUSTOM');
         expect(response.body.priceType.name).toBe('Custom Type');
+        expect(response.body.priceType.parentCode).toBe('OTHER');
+        expect(response.body.priceType.parentLabel).toBe('Other');
       });
 
-      it('should reject duplicate code', async () => {
+      it('should reject missing parentCode', async () => {
+        const response = await makeRequest()
+          .post('/api/price-guide/pricing/price-types')
+          .set('Cookie', setup.adminCookie)
+          .send({
+            code: 'NOTYPE',
+            name: 'No Parent Code',
+          });
+
+        expect(response.status).toBe(400);
+      });
+
+      it('should reject invalid parentCode', async () => {
+        const response = await makeRequest()
+          .post('/api/price-guide/pricing/price-types')
+          .set('Cookie', setup.adminCookie)
+          .send({
+            code: 'BADTYPE',
+            name: 'Bad Parent Code',
+            parentCode: 'INVALID',
+          });
+
+        expect(response.status).toBe(400);
+      });
+
+      it('should reject duplicate code within company', async () => {
         // First create
         await makeRequest()
           .post('/api/price-guide/pricing/price-types')
           .set('Cookie', setup.adminCookie)
-          .send({ code: 'DUP', name: 'Duplicate' });
+          .send({ code: 'DUP', name: 'Duplicate', parentCode: 'OTHER' });
 
         // Second create with same code
         const response = await makeRequest()
           .post('/api/price-guide/pricing/price-types')
           .set('Cookie', setup.adminCookie)
-          .send({ code: 'DUP', name: 'Another Duplicate' });
-
-        expect(response.status).toBe(409);
-      });
-
-      it('should reject global type codes', async () => {
-        const response = await makeRequest()
-          .post('/api/price-guide/pricing/price-types')
-          .set('Cookie', setup.adminCookie)
-          .send({ code: 'MATERIAL', name: 'My Material' });
+          .send({
+            code: 'DUP',
+            name: 'Another Duplicate',
+            parentCode: 'OTHER',
+          });
 
         expect(response.status).toBe(409);
       });
     });
 
     describe('PUT /api/price-guide/pricing/price-types/:id', () => {
-      it('should update company-specific price type', async () => {
+      it('should update price type name and parentCode', async () => {
         // Create a custom type first
         const createResponse = await makeRequest()
           .post('/api/price-guide/pricing/price-types')
           .set('Cookie', setup.adminCookie)
-          .send({ code: 'EDIT', name: 'To Edit' });
+          .send({ code: 'EDIT', name: 'To Edit', parentCode: 'OTHER' });
 
         const typeId = createResponse.body.priceType.id;
 
         const response = await makeRequest()
           .put(`/api/price-guide/pricing/price-types/${typeId}`)
           .set('Cookie', setup.adminCookie)
-          .send({ name: 'Edited Name' });
+          .send({ name: 'Edited Name', parentCode: 'LABOR' });
 
         expect(response.status).toBe(200);
         expect(response.body.priceType.name).toBe('Edited Name');
-      });
-
-      it('should reject editing global types', async () => {
-        const materialType = priceTypes.find(pt => pt.code === 'MATERIAL')!;
-
-        const response = await makeRequest()
-          .put(`/api/price-guide/pricing/price-types/${materialType.id}`)
-          .set('Cookie', setup.adminCookie)
-          .send({ name: 'Hacked Materials' });
-
-        expect(response.status).toBe(403);
+        expect(response.body.priceType.parentCode).toBe('LABOR');
       });
     });
 
     describe('DELETE /api/price-guide/pricing/price-types/:id', () => {
-      it('should soft delete company-specific price type', async () => {
+      it('should soft delete price type', async () => {
         // Create a custom type first
         const createResponse = await makeRequest()
           .post('/api/price-guide/pricing/price-types')
           .set('Cookie', setup.adminCookie)
-          .send({ code: 'DEL', name: 'To Delete' });
+          .send({ code: 'DEL', name: 'To Delete', parentCode: 'OTHER' });
 
         const typeId = createResponse.body.priceType.id;
 
@@ -475,15 +522,106 @@ describe('Price Guide Pricing Routes', () => {
         );
         expect(deletedType).toBeUndefined();
       });
+    });
 
-      it('should reject deleting global types', async () => {
+    describe('POST /api/price-guide/pricing/price-types/generate', () => {
+      it('should generate default price types for offices', async () => {
+        // Create a second office
+        const office2 = await createTestOffice(em, setup.company, 'Office 2');
+
+        const response = await makeRequest()
+          .post('/api/price-guide/pricing/price-types/generate')
+          .set('Cookie', setup.adminCookie)
+          .send({
+            parentCodes: ['MATERIAL_LABOR'],
+            officeIds: [office.id, office2.id],
+          });
+
+        expect(response.status).toBe(201);
+        expect(response.body.priceTypesCreated).toBe(1);
+        expect(response.body.assignmentsCreated).toBe(2);
+      });
+
+      it('should skip existing price types but create missing assignments', async () => {
+        // Create a second office
+        const office2 = await createTestOffice(em, setup.company, 'Office 2');
+
+        // MATERIAL already exists for office, so just create assignment for office2
+        const response = await makeRequest()
+          .post('/api/price-guide/pricing/price-types/generate')
+          .set('Cookie', setup.adminCookie)
+          .send({
+            parentCodes: ['MATERIAL'],
+            officeIds: [office.id, office2.id],
+          });
+
+        expect(response.status).toBe(201);
+        // Type already exists, so 0 new types
+        expect(response.body.priceTypesCreated).toBe(0);
+        // Only office2 needs new assignment
+        expect(response.body.assignmentsCreated).toBe(1);
+      });
+    });
+
+    describe('Office Assignment Routes', () => {
+      it('should assign price type to office', async () => {
+        // Create a new price type without office assignment
+        const pt = await createTestPriceType(em, setup.company, {
+          code: 'ASSIGN_TEST',
+          name: 'Assign Test',
+          parentCode: 'OTHER',
+        });
+
+        const response = await makeRequest()
+          .post(
+            `/api/price-guide/pricing/price-types/${pt.id}/offices/${office.id}`,
+          )
+          .set('Cookie', setup.adminCookie)
+          .send({});
+
+        expect(response.status).toBe(201);
+        expect(response.body.assignment.priceTypeId).toBe(pt.id);
+        expect(response.body.assignment.officeId).toBe(office.id);
+      });
+
+      it('should remove price type from office', async () => {
         const materialType = priceTypes.find(pt => pt.code === 'MATERIAL')!;
 
         const response = await makeRequest()
-          .delete(`/api/price-guide/pricing/price-types/${materialType.id}`)
+          .delete(
+            `/api/price-guide/pricing/price-types/${materialType.id}/offices/${office.id}`,
+          )
           .set('Cookie', setup.adminCookie);
 
-        expect(response.status).toBe(403);
+        expect(response.status).toBe(200);
+
+        // Verify enabledOfficeIds no longer includes office
+        const listResponse = await makeRequest()
+          .get('/api/price-guide/pricing/price-types')
+          .set('Cookie', setup.adminCookie);
+
+        const mt = listResponse.body.priceTypes.find(
+          (pt: { code: string }) => pt.code === 'MATERIAL',
+        );
+        expect(mt.enabledOfficeIds).not.toContain(office.id);
+        expect(mt.officeCount).toBe(0);
+      });
+
+      it('should return 404 when removing non-existent assignment', async () => {
+        // Create price type but don't assign to office
+        const pt = await createTestPriceType(em, setup.company, {
+          code: 'UNASSIGNED',
+          name: 'Unassigned',
+          parentCode: 'OTHER',
+        });
+
+        const response = await makeRequest()
+          .delete(
+            `/api/price-guide/pricing/price-types/${pt.id}/offices/${office.id}`,
+          )
+          .set('Cookie', setup.adminCookie);
+
+        expect(response.status).toBe(404);
       });
     });
   });

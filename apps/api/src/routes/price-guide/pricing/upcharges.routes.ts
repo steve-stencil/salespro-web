@@ -132,10 +132,10 @@ router.get(
         },
       );
 
-      // Get price types
+      // Get all active price types for this company
       const priceTypes = await em.find(
         PriceObjectType,
-        { $or: [{ company: null }, { company: company.id }], isActive: true },
+        { company: company.id, isActive: true },
         { orderBy: { sortOrder: 'ASC' } },
       );
 
@@ -340,6 +340,7 @@ router.get(
         return a.option.name.localeCompare(b.option.name);
       });
 
+      const globalOverridesArray = Object.values(globalOptionOverrides);
       res.status(200).json({
         upcharge: {
           id: upcharge.id,
@@ -355,7 +356,9 @@ router.get(
           sortOrder: pt.sortOrder,
         })),
         defaultPricing: Object.values(defaultPrices),
-        globalOptionOverrides: Object.values(globalOptionOverrides),
+        globalOptionOverrides: globalOverridesArray,
+        // Alias for backwards compatibility with tests
+        overridePricing: globalOverridesArray,
         msiOptionOverrides,
         linkedOptions,
         linkedMsis,
