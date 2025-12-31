@@ -884,9 +884,13 @@ export function useUpdateImage() {
       imageId: string;
       data: { name?: string; description?: string | null; version: number };
     }) => priceGuideApi.updateImage(imageId, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Invalidate both the list and the specific detail query
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.imageLists(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.imageDetail(variables.imageId),
       });
     },
   });
