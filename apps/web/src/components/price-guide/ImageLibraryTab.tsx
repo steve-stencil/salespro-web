@@ -464,7 +464,6 @@ function EditImageDialog({
                     entityId={imageId}
                     label="Tags"
                     placeholder="Add tags..."
-                    size="small"
                   />
                 </Box>
               </>
@@ -820,7 +819,7 @@ export function ImageLibraryTab({
       {isLoading ? (
         <Grid container spacing={2}>
           {Array.from({ length: 8 }).map((_, i) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={i}>
+            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={i}>
               <Skeleton variant="rectangular" height={200} />
             </Grid>
           ))}
@@ -857,7 +856,7 @@ export function ImageLibraryTab({
         <>
           <Grid container spacing={2}>
             {images.map(image => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={image.id}>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={image.id}>
                 <ImageCard
                   image={image}
                   onEdit={handleEdit}

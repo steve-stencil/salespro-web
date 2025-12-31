@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
-import { TaggableEntityType } from '../../entities/price-guide/types';
+import {
+  TaggableEntityType,
+  AdditionalDetailInputType,
+} from '../../entities/price-guide/types';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 import {
@@ -26,6 +29,7 @@ import { makeRequest, getTestApp } from './helpers';
 
 import type { CompanySetup } from './auth-test-helpers';
 import type { EntityManager } from '@mikro-orm/core';
+import type { EntityManager as SqlEntityManager } from '@mikro-orm/postgresql';
 
 describe('Price Guide Library Routes', () => {
   let setup: CompanySetup;
@@ -896,12 +900,20 @@ describe('Price Guide Library Routes', () => {
           const field1 = await createTestAdditionalDetailField(
             em,
             setup.company,
-            { title: 'Room Name', inputType: 'text', isRequired: true },
+            {
+              title: 'Room Name',
+              inputType: AdditionalDetailInputType.TEXT,
+              isRequired: true,
+            },
           );
           const field2 = await createTestAdditionalDetailField(
             em,
             setup.company,
-            { title: 'Color Choice', inputType: 'picker', isRequired: false },
+            {
+              title: 'Color Choice',
+              inputType: AdditionalDetailInputType.PICKER,
+              isRequired: false,
+            },
           );
 
           await linkAdditionalDetailToUpCharge(em, upCharge, field1, 0);
@@ -1965,7 +1977,7 @@ describe('Price Guide Library Routes', () => {
       it('should return full field detail with configuration', async () => {
         const field = await createTestAdditionalDetailField(em, setup.company, {
           title: 'Color Choice',
-          inputType: 'picker',
+          inputType: AdditionalDetailInputType.PICKER,
           isRequired: true,
           pickerValues: ['White', 'Black', 'Bronze'],
         });
@@ -2068,7 +2080,7 @@ describe('Price Guide Library Routes', () => {
       it('should update various field properties', async () => {
         const field = await createTestAdditionalDetailField(em, setup.company, {
           title: 'Original',
-          inputType: 'text',
+          inputType: AdditionalDetailInputType.TEXT,
           isRequired: false,
         });
 
@@ -2125,7 +2137,7 @@ describe('Price Guide Library Routes', () => {
         await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
 
         // Manually update the usage count to simulate trigger behavior
-        const knex = em.getKnex();
+        const knex = (em as SqlEntityManager).getKnex();
         await knex('additional_detail_field')
           .where({ id: field.id })
           .update({ linked_msi_count: 1 });
@@ -2154,7 +2166,7 @@ describe('Price Guide Library Routes', () => {
         await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
 
         // Manually update the usage count to simulate trigger behavior
-        const knex = em.getKnex();
+        const knex = (em as SqlEntityManager).getKnex();
         await knex('additional_detail_field')
           .where({ id: field.id })
           .update({ linked_msi_count: 1 });

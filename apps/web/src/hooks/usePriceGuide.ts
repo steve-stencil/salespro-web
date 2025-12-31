@@ -1049,11 +1049,14 @@ export function useUpdateOptionPricingBulk() {
 /**
  * Hook to fetch upcharge pricing details (defaults and overrides).
  */
-export function useUpchargePricing(upchargeId: string) {
+export function useUpchargePricing(
+  upchargeId: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
     queryFn: () => priceGuideApi.getUpchargePricing(upchargeId),
-    enabled: !!upchargeId,
+    enabled: !!upchargeId && (options?.enabled ?? true),
   });
 }
 

@@ -138,7 +138,7 @@ export function TagAutocomplete({
 
   // Build options list, adding "Create" option if there's input and no exact match
   const getFilteredOptions = useCallback((): OptionType[] => {
-    const filtered = options.filter(
+    const filtered: OptionType[] = options.filter(
       opt =>
         opt.name.toLowerCase().includes(inputValue.toLowerCase()) &&
         !value.some(v => v.id === opt.id),

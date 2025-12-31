@@ -61,7 +61,7 @@ describe('TagAutocomplete', () => {
   it('should display selected tags as chips', () => {
     render(
       <TagAutocomplete
-        value={[mockTags[0], mockTags[1]]}
+        value={[mockTags[0]!, mockTags[1]!]}
         onChange={vi.fn()}
         options={mockTags}
       />,
@@ -123,7 +123,7 @@ describe('TagAutocomplete', () => {
     const handleChange = vi.fn();
     render(
       <TagAutocomplete
-        value={[mockTags[0]]}
+        value={[mockTags[0]!]}
         onChange={handleChange}
         options={mockTags}
       />,
@@ -140,7 +140,7 @@ describe('TagAutocomplete', () => {
     const user = userEvent.setup();
     render(
       <TagAutocomplete
-        value={[mockTags[0]]}
+        value={[mockTags[0]!]}
         onChange={vi.fn()}
         options={mockTags}
       />,

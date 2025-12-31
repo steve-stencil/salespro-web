@@ -34,6 +34,7 @@ import {
 } from '../../hooks/usePriceGuide';
 
 import type { PricingData } from '../../components/price-guide/PricingGrid';
+import type { PriceType } from '@shared/types';
 
 // ============================================================================
 // Tab Panel
@@ -74,13 +75,7 @@ type OptionPricingCardProps = {
     brand?: string | null;
   };
   offices: Array<{ id: string; name: string }>;
-  priceTypes: Array<{
-    id: string;
-    code: string;
-    name: string;
-    sortOrder: number;
-    isActive: boolean;
-  }>;
+  priceTypes: PriceType[];
   isLast: boolean;
 };
 

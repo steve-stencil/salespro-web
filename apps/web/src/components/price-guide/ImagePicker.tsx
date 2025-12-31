@@ -655,7 +655,7 @@ export function ImagePicker({
               {isLoading ? (
                 <Grid container spacing={1}>
                   {Array.from({ length: 12 }).map((_, i) => (
-                    <Grid item xs={6} sm={4} md={3} key={i}>
+                    <Grid size={{ xs: 6, sm: 4, md: 3 }} key={i}>
                       <Skeleton variant="rectangular" height={130} />
                     </Grid>
                   ))}
@@ -697,7 +697,7 @@ export function ImagePicker({
                 <>
                   <Grid container spacing={1}>
                     {images.map(image => (
-                      <Grid item xs={6} sm={4} md={3} key={image.id}>
+                      <Grid size={{ xs: 6, sm: 4, md: 3 }} key={image.id}>
                         <ImageSelectionCard
                           id={image.id}
                           name={image.name}
