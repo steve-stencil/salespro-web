@@ -54,8 +54,14 @@ import {
   TagFilterSelect,
   ItemTagEditor,
   ImageLibraryTab,
+  DefaultPricingGrid,
 } from '../../components/price-guide';
+import {
+  transformToConfig,
+  transformToApiRequest,
+} from '../../components/price-guide/upcharge-pricing/utils';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useOfficesList } from '../../hooks/useOffices';
 import {
   useOptionList,
   useUpchargeList,
@@ -71,6 +77,9 @@ import {
   useUpdateAdditionalDetail,
   useLinkUpchargeAdditionalDetails,
   useUnlinkUpchargeAdditionalDetail,
+  useUpchargePricing,
+  useUpdateUpchargeDefaultPrices,
+  usePriceTypes,
 } from '../../hooks/usePriceGuide';
 import { useTagList } from '../../hooks/useTags';
 
@@ -79,6 +88,7 @@ import type {
   UpChargeSummary,
   AdditionalDetailFieldSummary,
   TagSummary,
+  UpChargePriceTypeConfig,
 } from '@shared/types';
 
 // ============================================================================
@@ -853,7 +863,7 @@ function EditOptionDialog({
 }
 
 // ============================================================================
-// Edit UpCharge Dialog
+// Edit UpCharge Dialog (Unified View with Pricing)
 // ============================================================================
 
 /** Input type display labels */
@@ -891,6 +901,7 @@ function EditUpChargeDialog({
   onSave,
   isLoading,
 }: EditUpChargeDialogProps): React.ReactElement {
+  // Details state
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [version, setVersion] = useState(1);
@@ -900,9 +911,37 @@ function EditUpChargeDialog({
 
   const debouncedDetailSearch = useDebouncedValue(detailSearch, 300);
 
+  // Pricing state
+  const [defaultConfigs, setDefaultConfigs] = useState<
+    UpChargePriceTypeConfig[]
+  >([]);
+  const [hasPricingChanges, setHasPricingChanges] = useState(false);
+
+  // Queries
   const { data: upchargeData, isLoading: isLoadingDetail } = useUpchargeDetail(
     upchargeId ?? '',
   );
+  const { data: pricingData, isLoading: isLoadingPricing } = useUpchargePricing(
+    upchargeId ?? '',
+  );
+  const { data: priceTypesData, isLoading: isLoadingPriceTypes } =
+    usePriceTypes();
+  const { data: officesData, isLoading: isLoadingOffices } = useOfficesList();
+
+  // Mutations
+  const updateDefaultPricesMutation = useUpdateUpchargeDefaultPrices();
+
+  // Get offices
+  const offices = useMemo(() => {
+    if (!officesData?.offices) return [];
+    return officesData.offices.map(o => ({ id: o.id, name: o.name }));
+  }, [officesData]);
+
+  // Get price types
+  const priceTypes = useMemo(() => {
+    if (!priceTypesData?.priceTypes) return [];
+    return priceTypesData.priceTypes.filter(pt => pt.isActive);
+  }, [priceTypesData]);
 
   // Fetch tags for filtering
   const { data: tagsData } = useTagList();
@@ -985,25 +1024,95 @@ function EditUpChargeDialog({
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const handleSubmit = async () => {
-    if (!name.trim() || !upchargeId) return;
-    await onSave(
-      upchargeId,
-      {
-        name: name.trim(),
-        note: note.trim() || null,
-      },
-      version,
-    );
-  };
+  // Initialize pricing state from API data
+  useEffect(() => {
+    if (pricingData && priceTypes.length > 0) {
+      const transformedDefaults = transformToConfig(
+        pricingData.defaultPricing,
+        priceTypes,
+      );
+      setDefaultConfigs(transformedDefaults);
+      setHasPricingChanges(false);
+    }
+  }, [pricingData, priceTypes]);
 
-  const handleClose = () => {
+  // Handle pricing config changes
+  const handlePricingConfigChange = useCallback(
+    (newConfigs: UpChargePriceTypeConfig[]) => {
+      setDefaultConfigs(newConfigs);
+      setHasPricingChanges(true);
+    },
+    [],
+  );
+
+  // Save everything (details + pricing)
+  const handleSave = useCallback(async () => {
+    if (!name.trim() || !upchargeId) return;
+
+    try {
+      // Save details
+      await onSave(
+        upchargeId,
+        {
+          name: name.trim(),
+          note: note.trim() || null,
+        },
+        version,
+      );
+
+      // Save pricing if there are changes and we have data
+      if (hasPricingChanges && pricingData && offices.length > 0) {
+        for (const office of offices) {
+          const prices = transformToApiRequest(defaultConfigs, office.id);
+          await updateDefaultPricesMutation.mutateAsync({
+            upchargeId,
+            data: {
+              officeId: office.id,
+              prices,
+              version: pricingData.upcharge.version,
+            },
+          });
+        }
+        setHasPricingChanges(false);
+      }
+    } catch (err) {
+      console.error('Failed to save upcharge:', err);
+    }
+  }, [
+    name,
+    note,
+    version,
+    upchargeId,
+    onSave,
+    hasPricingChanges,
+    pricingData,
+    offices,
+    defaultConfigs,
+    updateDefaultPricesMutation,
+  ]);
+
+  // Handle close with unsaved changes check
+  const handleClose = useCallback(() => {
+    if (hasPricingChanges) {
+      const confirmed = window.confirm(
+        'You have unsaved pricing changes. Are you sure you want to close?',
+      );
+      if (!confirmed) return;
+    }
     setName('');
     setNote('');
     setDetailSearch('');
     setDetailTagFilter([]);
+    setHasPricingChanges(false);
     onClose();
-  };
+  }, [hasPricingChanges, onClose]);
+
+  const isLoadingContent =
+    isLoadingDetail ||
+    isLoadingPricing ||
+    isLoadingPriceTypes ||
+    isLoadingOffices;
+  const isSaving = isLoading || updateDefaultPricesMutation.isPending;
 
   const handleLinkDetail = useCallback(
     async (fieldId: string) => {
@@ -1042,7 +1151,7 @@ function EditUpChargeDialog({
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>Edit UpCharge</DialogTitle>
       <DialogContent dividers>
-        {isLoadingDetail ? (
+        {isLoadingContent ? (
           <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress />
           </Box>
@@ -1077,6 +1186,49 @@ function EditUpChargeDialog({
                   placeholder="Add tags..."
                 />
               </Stack>
+            </Box>
+
+            <Divider />
+
+            {/* Pricing Section */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                Default Pricing
+              </Typography>
+              {offices.length === 0 ? (
+                <Alert severity="warning">
+                  No offices found. Please create offices first to configure
+                  pricing.
+                </Alert>
+              ) : priceTypes.length === 0 ? (
+                <Alert severity="warning">
+                  No price types are configured. Please set up price types
+                  first.
+                </Alert>
+              ) : (
+                <>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1.5 }}
+                  >
+                    Click any cell to edit, or click a column header to set all
+                    offices at once.
+                  </Typography>
+                  <DefaultPricingGrid
+                    priceTypes={priceTypes}
+                    offices={offices}
+                    configs={defaultConfigs}
+                    onChange={handlePricingConfigChange}
+                    disabled={isSaving}
+                  />
+                  {updateDefaultPricesMutation.error && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      Failed to save pricing. Please try again.
+                    </Alert>
+                  )}
+                </>
+              )}
             </Box>
 
             <Divider />
@@ -1264,17 +1416,17 @@ function EditUpChargeDialog({
           </Stack>
         )}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={isLoading}>
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={handleClose} disabled={isSaving}>
           Cancel
         </Button>
         <Button
           variant="contained"
-          onClick={() => void handleSubmit()}
-          disabled={!name.trim() || isLoading || isLoadingDetail}
-          startIcon={isLoading ? <CircularProgress size={16} /> : <EditIcon />}
+          onClick={() => void handleSave()}
+          disabled={!name.trim() || isSaving || isLoadingContent}
+          startIcon={isSaving ? <CircularProgress size={16} /> : <EditIcon />}
         >
-          Save Changes
+          {isSaving ? 'Saving...' : 'Save Changes'}
         </Button>
       </DialogActions>
     </Dialog>
