@@ -79,6 +79,8 @@ export type OptionSummary = {
   measurementType: string | null;
   linkedMsiCount: number;
   isActive: boolean;
+  /** Tags assigned to this option */
+  tags?: TagSummary[];
 };
 
 /** Option detail response */
@@ -131,6 +133,8 @@ export type UpChargeSummary = {
   /** Presigned URL for product thumbnail (thumbnail size) */
   thumbnailUrl: string | null;
   isActive: boolean;
+  /** Tags assigned to this upcharge */
+  tags?: TagSummary[];
 };
 
 /** UpCharge detail response */
@@ -187,6 +191,8 @@ export type AdditionalDetailFieldSummary = {
   isRequired: boolean;
   linkedMsiCount: number;
   isActive: boolean;
+  /** Tags assigned to this additional detail field */
+  tags?: TagSummary[];
 };
 
 /** Additional detail field detail */
@@ -251,6 +257,8 @@ export type MeasureSheetItemSummary = {
   /** Presigned URL for product thumbnail (thumbnail size) */
   thumbnailUrl: string | null;
   sortOrder: number;
+  /** Tags assigned to this MSI */
+  tags?: TagSummary[];
 };
 
 /** MSI detail response */
@@ -282,6 +290,8 @@ export type MeasureSheetItemDetail = {
   options: LinkedOption[];
   upcharges: LinkedUpCharge[];
   additionalDetails: LinkedAdditionalDetail[];
+  /** Tags assigned to this MSI */
+  tags?: TagSummary[];
   isActive: boolean;
   version: number;
   lastModifiedBy?: {
@@ -508,11 +518,14 @@ export type CursorPaginationParams = {
 export type MsiListParams = CursorPaginationParams & {
   categoryIds?: string[];
   officeIds?: string[];
+  /** Filter by tag IDs (OR logic - matches any) */
+  tags?: string[];
 };
 
 /** Library list query params */
 export type LibraryListParams = CursorPaginationParams & {
-  // Additional filters can be added
+  /** Filter by tag IDs (OR logic - matches any) */
+  tags?: string[];
 };
 
 /** Create MSI request */
@@ -671,4 +684,102 @@ export type ConcurrentModificationError = {
     name: string;
   };
   lastModifiedAt?: string;
+};
+
+// ============================================================================
+// Tag Types (Polymorphic Tagging System)
+// ============================================================================
+
+/**
+ * Entity types that support tagging.
+ * Extensible - add new values as tagging is enabled for more entity types.
+ */
+export type TaggableEntityType =
+  | 'OPTION'
+  | 'UPCHARGE'
+  | 'ADDITIONAL_DETAIL'
+  | 'MEASURE_SHEET_ITEM';
+
+/** Tag summary for lists and autocomplete */
+export type TagSummary = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+/** Tag detail with metadata */
+export type TagDetail = {
+  id: string;
+  name: string;
+  color: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Item tag junction (polymorphic) */
+export type ItemTag = {
+  id: string;
+  tagId: string;
+  entityType: TaggableEntityType;
+  entityId: string;
+  createdAt: string;
+};
+
+// ============================================================================
+// Tag API Request Types
+// ============================================================================
+
+/** Create tag request */
+export type CreateTagRequest = {
+  name: string;
+  color: string;
+};
+
+/** Update tag request */
+export type UpdateTagRequest = {
+  name?: string;
+  color?: string;
+};
+
+/** Set tags for an item request */
+export type SetItemTagsRequest = {
+  tagIds: string[];
+};
+
+// ============================================================================
+// Tag API Response Types
+// ============================================================================
+
+/** Tag list response */
+export type TagListResponse = {
+  tags: TagSummary[];
+};
+
+/** Tag detail response */
+export type TagDetailResponse = {
+  tag: TagDetail;
+};
+
+/** Create tag response */
+export type CreateTagResponse = {
+  message: string;
+  tag: TagSummary;
+};
+
+/** Update tag response */
+export type UpdateTagResponse = {
+  message: string;
+  tag: TagSummary;
+};
+
+/** Item tags response */
+export type ItemTagsResponse = {
+  tags: TagSummary[];
+};
+
+/** Set item tags response */
+export type SetItemTagsResponse = {
+  message: string;
+  tags: TagSummary[];
 };
