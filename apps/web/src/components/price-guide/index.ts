@@ -83,6 +83,7 @@ export {
   FixedModeConfig,
   PercentageModeConfig,
   PricingPreview,
+  DefaultPricingGrid,
   transformToConfig,
   deriveDisplayMode,
   formatPercentageRate,
