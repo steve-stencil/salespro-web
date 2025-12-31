@@ -3,8 +3,8 @@ import { z } from 'zod';
 
 import {
   PriceGuideImage,
-  MeasureSheetItemImage,
-  UpChargeImage,
+  MeasureSheetItem,
+  UpCharge,
   User,
   ItemTag,
   TaggableEntityType,
@@ -192,7 +192,7 @@ router.get(
         const knex = em.getKnex();
         const taggedRows = await knex('item_tag')
           .select('entity_id')
-          .where('entity_type', TaggableEntityType.PRICE_GUIDE_IMAGE)
+          .where('entity_type', TaggableEntityType.PRICE_GUIDE_IMAGE as string)
           .whereIn('tag_id', tags);
 
         const filteredImageIds = taggedRows.map(
@@ -269,6 +269,43 @@ router.get(
         tagsByImageId.set(itemTag.entityId, tags);
       }
 
+      // Compute linked counts for each image
+      const linkedMsiCounts = new Map<string, number>();
+      const linkedUpchargeCounts = new Map<string, number>();
+
+      if (imageIds.length > 0) {
+        // Count MSIs using each image as thumbnail
+        const knex = em.getKnex();
+        const msiCounts = await knex('measure_sheet_item')
+          .select('thumbnail_image_id')
+          .count('* as count')
+          .whereIn('thumbnail_image_id', imageIds)
+          .where('is_active', true)
+          .groupBy('thumbnail_image_id');
+
+        for (const row of msiCounts as Array<Record<string, unknown>>) {
+          linkedMsiCounts.set(
+            row['thumbnail_image_id'] as string,
+            Number(row['count']),
+          );
+        }
+
+        // Count UpCharges using each image as thumbnail
+        const upchargeCounts = await knex('up_charge')
+          .select('thumbnail_image_id')
+          .count('* as count')
+          .whereIn('thumbnail_image_id', imageIds)
+          .where('is_active', true)
+          .groupBy('thumbnail_image_id');
+
+        for (const row of upchargeCounts as Array<Record<string, unknown>>) {
+          linkedUpchargeCounts.set(
+            row['thumbnail_image_id'] as string,
+            Number(row['count']),
+          );
+        }
+      }
+
       // Generate presigned URLs for all images
       const formattedItems = await Promise.all(
         items.map(async image => {
@@ -277,8 +314,8 @@ router.get(
             id: image.id,
             name: image.name,
             description: image.description ?? null,
-            linkedMsiCount: image.linkedMsiCount,
-            linkedUpchargeCount: image.linkedUpchargeCount,
+            linkedMsiCount: linkedMsiCounts.get(image.id) ?? 0,
+            linkedUpchargeCount: linkedUpchargeCounts.get(image.id) ?? 0,
             imageUrl: urls.imageUrl,
             thumbnailUrl: urls.thumbnailUrl,
             tags: tagsByImageId.get(image.id) ?? [],
@@ -288,12 +325,10 @@ router.get(
         }),
       );
 
+      const lastItem = items[items.length - 1];
       const nextCursor =
-        hasMore && items.length > 0
-          ? encodeCursor(
-              items[items.length - 1].name,
-              items[items.length - 1].id,
-            )
+        hasMore && lastItem
+          ? encodeCursor(lastItem.name, lastItem.id)
           : undefined;
 
       res.status(200).json({
@@ -346,18 +381,18 @@ router.get(
         return;
       }
 
-      // Load linked MSIs
-      const msiLinks = await em.find(
-        MeasureSheetItemImage,
-        { priceGuideImage: image.id },
-        { populate: ['measureSheetItem'], orderBy: { sortOrder: 'ASC' } },
+      // Find MSIs using this image as thumbnail
+      const linkedMsis = await em.find(
+        MeasureSheetItem,
+        { thumbnailImage: image.id, isActive: true },
+        { fields: ['id', 'name'], orderBy: { name: 'ASC' } },
       );
 
-      // Load linked UpCharges
-      const upchargeLinks = await em.find(
-        UpChargeImage,
-        { priceGuideImage: image.id },
-        { populate: ['upCharge'], orderBy: { sortOrder: 'ASC' } },
+      // Find UpCharges using this image as thumbnail
+      const linkedUpcharges = await em.find(
+        UpCharge,
+        { thumbnailImage: image.id, isActive: true },
+        { fields: ['id', 'name'], orderBy: { name: 'ASC' } },
       );
 
       const urls = await getImageUrls(image.file);
@@ -367,28 +402,26 @@ router.get(
           id: image.id,
           name: image.name,
           description: image.description ?? null,
-          linkedMsiCount: image.linkedMsiCount,
-          linkedUpchargeCount: image.linkedUpchargeCount,
+          linkedMsiCount: linkedMsis.length,
+          linkedUpchargeCount: linkedUpcharges.length,
           imageUrl: urls.imageUrl,
           thumbnailUrl: urls.thumbnailUrl,
           version: image.version,
           lastModifiedBy: image.lastModifiedBy
             ? {
                 id: image.lastModifiedBy.id,
-                name: `${image.lastModifiedBy.firstName ?? ''} ${image.lastModifiedBy.lastName ?? ''}`.trim(),
+                name: `${image.lastModifiedBy.nameFirst ?? ''} ${image.lastModifiedBy.nameLast ?? ''}`.trim(),
               }
             : null,
           createdAt: image.createdAt.toISOString(),
           updatedAt: image.updatedAt.toISOString(),
-          linkedMsis: msiLinks.map(link => ({
-            id: link.measureSheetItem.id,
-            name: link.measureSheetItem.name,
-            sortOrder: link.sortOrder,
+          linkedMsis: linkedMsis.map(msi => ({
+            id: msi.id,
+            name: msi.name,
           })),
-          linkedUpcharges: upchargeLinks.map(link => ({
-            id: link.upCharge.id,
-            name: link.upCharge.name,
-            sortOrder: link.sortOrder,
+          linkedUpcharges: linkedUpcharges.map(uc => ({
+            id: uc.id,
+            name: uc.name,
           })),
         },
       });
@@ -585,13 +618,23 @@ router.put(
         'Price guide image updated',
       );
 
+      // Compute linked counts
+      const linkedMsiCount = await em.count(MeasureSheetItem, {
+        thumbnailImage: image.id,
+        isActive: true,
+      });
+      const linkedUpchargeCount = await em.count(UpCharge, {
+        thumbnailImage: image.id,
+        isActive: true,
+      });
+
       res.status(200).json({
         item: {
           id: image.id,
           name: image.name,
           description: image.description ?? null,
-          linkedMsiCount: image.linkedMsiCount,
-          linkedUpchargeCount: image.linkedUpchargeCount,
+          linkedMsiCount,
+          linkedUpchargeCount,
           imageUrl: urls.imageUrl,
           thumbnailUrl: urls.thumbnailUrl,
           version: image.version,
@@ -624,7 +667,7 @@ router.delete(
 
       const { user, company } = context;
       const { id } = req.params;
-      const force = req.query.force === 'true';
+      const force = req.query['force'] === 'true';
 
       if (!id) {
         res.status(400).json({ error: 'Image ID is required' });
@@ -649,22 +692,40 @@ router.delete(
         return;
       }
 
+      // Compute linked counts
+      const linkedMsiCount = await em.count(MeasureSheetItem, {
+        thumbnailImage: image.id,
+        isActive: true,
+      });
+      const linkedUpchargeCount = await em.count(UpCharge, {
+        thumbnailImage: image.id,
+        isActive: true,
+      });
+      const totalLinked = linkedMsiCount + linkedUpchargeCount;
+
       // Check if linked and not forcing
-      const totalLinked = image.linkedMsiCount + image.linkedUpchargeCount;
       if (totalLinked > 0 && !force) {
         res.status(400).json({
           error: 'Cannot delete image that is linked to items',
-          linkedMsiCount: image.linkedMsiCount,
-          linkedUpchargeCount: image.linkedUpchargeCount,
-          message: `This image is linked to ${image.linkedMsiCount} MSI(s) and ${image.linkedUpchargeCount} UpCharge(s). Use force=true to delete anyway.`,
+          linkedMsiCount,
+          linkedUpchargeCount,
+          message: `This image is linked to ${linkedMsiCount} MSI(s) and ${linkedUpchargeCount} UpCharge(s). Use force=true to delete anyway.`,
         });
         return;
       }
 
-      // If force deleting, remove all links first
+      // If force deleting, remove all links first (set thumbnailImage to null)
       if (totalLinked > 0 && force) {
-        await em.nativeDelete(MeasureSheetItemImage, { priceGuideImage: id });
-        await em.nativeDelete(UpChargeImage, { priceGuideImage: id });
+        await em.nativeUpdate(
+          MeasureSheetItem,
+          { thumbnailImage: id },
+          { thumbnailImage: null },
+        );
+        await em.nativeUpdate(
+          UpCharge,
+          { thumbnailImage: id },
+          { thumbnailImage: null },
+        );
       }
 
       // Get the file ID before deleting the image
@@ -695,8 +756,8 @@ router.delete(
           fileId,
           userId: user.id,
           forced: force,
-          unlinkedMsis: force ? image.linkedMsiCount : 0,
-          unlinkedUpcharges: force ? image.linkedUpchargeCount : 0,
+          unlinkedMsis: force ? linkedMsiCount : 0,
+          unlinkedUpcharges: force ? linkedUpchargeCount : 0,
         },
         'Price guide image and file deleted',
       );
@@ -749,32 +810,32 @@ router.get(
         return;
       }
 
-      // Load linked MSIs with category info
-      const msiLinks = await em.find(
-        MeasureSheetItemImage,
-        { priceGuideImage: image.id },
-        { populate: ['measureSheetItem.category'] },
+      // Find MSIs using this image as thumbnail
+      const linkedMsis = await em.find(
+        MeasureSheetItem,
+        { thumbnailImage: image.id, isActive: true },
+        { populate: ['category'], orderBy: { name: 'ASC' } },
       );
 
-      // Load linked UpCharges
-      const upchargeLinks = await em.find(
-        UpChargeImage,
-        { priceGuideImage: image.id },
-        { populate: ['upCharge'] },
+      // Find UpCharges using this image as thumbnail
+      const linkedUpcharges = await em.find(
+        UpCharge,
+        { thumbnailImage: image.id, isActive: true },
+        { orderBy: { name: 'ASC' } },
       );
 
       res.status(200).json({
-        msis: msiLinks.map(link => ({
-          id: link.measureSheetItem.id,
-          name: link.measureSheetItem.name,
+        msis: linkedMsis.map(msi => ({
+          id: msi.id,
+          name: msi.name,
           category: {
-            id: link.measureSheetItem.category.id,
-            name: link.measureSheetItem.category.name,
+            id: msi.category.id,
+            name: msi.category.name,
           },
         })),
-        upcharges: upchargeLinks.map(link => ({
-          id: link.upCharge.id,
-          name: link.upCharge.name,
+        upcharges: linkedUpcharges.map(uc => ({
+          id: uc.id,
+          name: uc.name,
         })),
       });
     } catch (err) {

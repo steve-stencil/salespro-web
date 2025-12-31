@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import categoryRoutes from './categories.routes';
 import additionalDetailsLibraryRoutes from './library/additional-details.routes';
+import imagesLibraryRoutes from './library/images.routes';
 import optionsLibraryRoutes from './library/options.routes';
 import upchargesLibraryRoutes from './library/upcharges.routes';
 import measureSheetItemRoutes from './measure-sheet-items.routes';
@@ -22,6 +23,7 @@ router.use('/measure-sheet-items', measureSheetItemRoutes);
 router.use('/library/options', optionsLibraryRoutes);
 router.use('/library/upcharges', upchargesLibraryRoutes);
 router.use('/library/additional-details', additionalDetailsLibraryRoutes);
+router.use('/library/images', imagesLibraryRoutes);
 
 // Tag management
 router.use('/tags', tagsRoutes);

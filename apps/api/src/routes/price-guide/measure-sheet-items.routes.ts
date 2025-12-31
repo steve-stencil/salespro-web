@@ -12,10 +12,10 @@ import {
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
   MeasureSheetItemAdditionalDetailField,
+  PriceGuideImage,
   Office,
   Company,
   User,
-  File,
   ItemTag,
   TaggableEntityType,
 } from '../../entities';
@@ -23,7 +23,6 @@ import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 import { getStorageAdapter } from '../../lib/storage';
 import { requireAuth, requirePermission } from '../../middleware';
-import { FileService } from '../../services';
 
 import type { AuthenticatedRequest } from '../../middleware/requireAuth';
 import type { EntityManager } from '@mikro-orm/postgresql';
@@ -82,8 +81,8 @@ const createMsiSchema = z.object({
   tagRequired: z.boolean().default(false),
   tagPickerOptions: z.array(z.unknown()).optional(),
   tagParams: z.record(z.string(), z.unknown()).optional(),
-  /** File ID for product thumbnail image */
-  imageId: z.string().uuid().optional(),
+  /** Thumbnail image ID from shared library */
+  thumbnailImageId: z.string().uuid().optional(),
   officeIds: z
     .array(z.string().uuid())
     .min(1, 'At least one office is required'),
@@ -108,8 +107,6 @@ const updateMsiSchema = z.object({
   tagRequired: z.boolean().optional(),
   tagPickerOptions: z.array(z.unknown()).optional().nullable(),
   tagParams: z.record(z.string(), z.unknown()).optional().nullable(),
-  /** File ID for product thumbnail image (null to remove) */
-  imageId: z.string().uuid().optional().nullable(),
   version: z.number().int().min(1),
 });
 
@@ -134,6 +131,12 @@ const syncOfficesSchema = z.object({
 
 const reorderSchema = z.object({
   orderedIds: z.array(z.string().uuid()).min(1),
+});
+
+const setThumbnailSchema = z.object({
+  /** Image ID to set as thumbnail (null to clear) */
+  imageId: z.string().uuid().nullable(),
+  version: z.number().int().min(1),
 });
 
 // ============================================================================
@@ -349,7 +352,7 @@ router.get(
         qb.andWhere({
           id: {
             $in: em
-               
+
               .createQueryBuilder(ItemTag, 'it')
               .select('it.entity_id')
               .where({
@@ -394,8 +397,8 @@ router.get(
       const hasMore = items.length > limit;
       if (hasMore) items.pop();
 
-      // Load relationships (including image file for presigned URLs)
-      await em.populate(items, ['category', 'image']);
+      // Load relationships (including thumbnail image for presigned URLs)
+      await em.populate(items, ['category', 'thumbnailImage.file']);
 
       // Get counts and names for each MSI
       const msiIds = items.map(i => i.id);
@@ -505,7 +508,22 @@ router.get(
           const option = optionMap.get(msi.id);
           const upcharge = upchargeMap.get(msi.id);
           const tags = tagsMap.get(msi.id) ?? [];
-          const { imageUrl, thumbnailUrl } = await getImageUrls(msi.image);
+
+          // Get thumbnail image if set
+          let thumbnailImage = null;
+          if (msi.thumbnailImage) {
+            const { imageUrl, thumbnailUrl } = await getImageUrls(
+              msi.thumbnailImage.file,
+            );
+            thumbnailImage = {
+              id: msi.thumbnailImage.id,
+              name: msi.thumbnailImage.name,
+              description: msi.thumbnailImage.description ?? null,
+              imageUrl,
+              thumbnailUrl,
+            };
+          }
+
           return {
             id: msi.id,
             name: msi.name,
@@ -521,8 +539,7 @@ router.get(
             officeNames: office?.names ?? [],
             optionNames: option?.names ?? [],
             upchargeNames: upcharge?.names ?? [],
-            imageUrl,
-            thumbnailUrl,
+            thumbnailImage,
             sortOrder: msi.sortOrder,
             tags,
           };
@@ -561,7 +578,7 @@ router.get(
         totalQb.andWhere({
           id: {
             $in: em
-               
+
               .createQueryBuilder(ItemTag, 'it')
               .select('it.entity_id')
               .where({
@@ -624,7 +641,9 @@ router.get(
       const msi = await em.findOne(
         MeasureSheetItem,
         { id, company: company.id },
-        { populate: ['category', 'lastModifiedBy', 'image'] },
+        {
+          populate: ['category', 'lastModifiedBy', 'thumbnailImage.file'],
+        },
       );
 
       if (!msi) {
@@ -659,7 +678,6 @@ router.get(
             },
           ),
           em.find(
-             
             ItemTag,
             {
               entityType: TaggableEntityType.MEASURE_SHEET_ITEM,
@@ -669,8 +687,20 @@ router.get(
           ),
         ]);
 
-      // Generate presigned URLs for image
-      const { imageUrl, thumbnailUrl } = await getImageUrls(msi.image);
+      // Get thumbnail image if set
+      let thumbnailImage = null;
+      if (msi.thumbnailImage) {
+        const { imageUrl, thumbnailUrl } = await getImageUrls(
+          msi.thumbnailImage.file,
+        );
+        thumbnailImage = {
+          id: msi.thumbnailImage.id,
+          name: msi.thumbnailImage.name,
+          description: msi.thumbnailImage.description ?? null,
+          imageUrl,
+          thumbnailUrl,
+        };
+      }
 
       res.status(200).json({
         item: {
@@ -691,9 +721,6 @@ router.get(
           tagRequired: msi.tagRequired,
           tagPickerOptions: msi.tagPickerOptions,
           tagParams: msi.tagParams,
-          imageId: msi.image?.id ?? null,
-          imageUrl,
-          thumbnailUrl,
           sortOrder: msi.sortOrder,
           offices: offices.map(o => ({
             id: o.office.id,
@@ -725,6 +752,7 @@ router.get(
             isRequired: a.additionalDetailField.isRequired,
             sortOrder: a.sortOrder,
           })),
+          thumbnailImage,
           tags: itemTags
             .filter(it => it.tag.isActive)
             .map(it => ({
@@ -806,22 +834,17 @@ router.post(
         return;
       }
 
-      // Validate image file if provided
-      let imageFile: File | undefined;
-      if (data.imageId) {
-        const file = await em.findOne(File, {
-          id: data.imageId,
+      // Validate thumbnail image if provided
+      if (data.thumbnailImageId) {
+        const image = await em.findOne(PriceGuideImage, {
+          id: data.thumbnailImageId,
           company: company.id,
+          isActive: true,
         });
-        if (!file) {
-          res.status(400).json({ error: 'Image file not found' });
+        if (!image) {
+          res.status(400).json({ error: 'Thumbnail image not found' });
           return;
         }
-        if (!file.isImage) {
-          res.status(400).json({ error: 'File is not an image' });
-          return;
-        }
-        imageFile = file;
       }
 
       // Get next sort order
@@ -848,10 +871,15 @@ router.post(
       msi.tagRequired = data.tagRequired;
       msi.tagPickerOptions = data.tagPickerOptions;
       msi.tagParams = data.tagParams;
-      msi.image = imageFile;
       msi.sortOrder = sortOrder;
       msi.searchVector = `${data.name} ${data.note ?? ''}`.trim();
       msi.lastModifiedBy = em.getReference(User, user.id);
+      if (data.thumbnailImageId) {
+        msi.thumbnailImage = em.getReference(
+          PriceGuideImage,
+          data.thumbnailImageId,
+        );
+      }
 
       em.persist(msi);
 
@@ -1039,26 +1067,7 @@ router.put(
       if (data.tagParams !== undefined)
         msi.tagParams = data.tagParams ?? undefined;
 
-      // Update image (can be set to new file or removed with null)
-      if (data.imageId !== undefined) {
-        if (data.imageId === null) {
-          msi.image = undefined;
-        } else {
-          const file = await em.findOne(File, {
-            id: data.imageId,
-            company: company.id,
-          });
-          if (!file) {
-            res.status(400).json({ error: 'Image file not found' });
-            return;
-          }
-          if (!file.isImage) {
-            res.status(400).json({ error: 'File is not an image' });
-            return;
-          }
-          msi.image = file;
-        }
-      }
+      // Note: Images are now managed via PUT /:id/images endpoint
 
       // Update search vector
       msi.searchVector = `${msi.name} ${msi.note ?? ''}`.trim();
@@ -1079,119 +1088,8 @@ router.put(
   },
 );
 
-/**
- * PUT /price-guide/measure-sheet-items/:id/thumbnail
- * Update only the thumbnail for an MSI (quick inline update).
- *
- * This endpoint:
- * - Does NOT bump the version (won't disrupt other users editing the MSI)
- * - Deletes the old thumbnail when replaced
- * - Uses raw SQL to avoid MikroORM's automatic version increment
- */
-router.put(
-  '/:id/thumbnail',
-  requireAuth(),
-  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
-  async (req: Request, res: Response) => {
-    try {
-      const context = getCompanyContext(req);
-      if (!context) {
-        res.status(401).json({ error: 'Not authenticated' });
-        return;
-      }
-
-      const { user, company } = context;
-      const { id } = req.params;
-      if (!id) {
-        res.status(400).json({ error: 'MSI ID is required' });
-        return;
-      }
-
-      // Simple validation - only imageId is expected
-      const { imageId } = req.body as { imageId?: string | null };
-
-      const orm = getORM();
-      const em = orm.em.fork() as EntityManager;
-
-      // Get current MSI with its image to capture old image ID
-      const msi = await em.findOne(
-        MeasureSheetItem,
-        { id, company: company.id },
-        { populate: ['image'] },
-      );
-
-      if (!msi) {
-        res.status(404).json({ error: 'Measure sheet item not found' });
-        return;
-      }
-
-      // Capture old image ID for deletion
-      const oldImageId = msi.image?.id;
-
-      // Validate new image exists and belongs to company (if provided)
-      if (imageId) {
-        const file = await em.findOne(File, {
-          id: imageId,
-          company: company.id,
-        });
-        if (!file) {
-          res.status(400).json({ error: 'Image file not found' });
-          return;
-        }
-      }
-
-      // Use raw SQL to update only image_id and last_modified_by
-      // This bypasses MikroORM's automatic version increment
-      const knex = em.getKnex();
-      await knex('measure_sheet_item')
-        .where({ id, company_id: company.id })
-        .update({
-          image_id: imageId ?? null,
-          last_modified_by_id: user.id,
-          updated_at: new Date(),
-        });
-
-      // Delete old image if it was replaced (not just cleared)
-      if (oldImageId && imageId && oldImageId !== imageId) {
-        try {
-          const fileService = new FileService(em);
-          await fileService.deleteFile(oldImageId, company.id);
-          req.log.info({ oldImageId, msiId: id }, 'Deleted old MSI thumbnail');
-        } catch (deleteErr) {
-          // Log but don't fail the request - the image is orphaned but not critical
-          req.log.warn(
-            { err: deleteErr, oldImageId },
-            'Failed to delete old MSI thumbnail',
-          );
-        }
-      }
-
-      // Clear the entity manager cache and refetch for response
-      em.clear();
-      const updatedMsi = await em.findOne(
-        MeasureSheetItem,
-        { id, company: company.id },
-        { populate: ['image'] },
-      );
-
-      const imageUrls = await getImageUrls(updatedMsi?.image);
-
-      req.log.info(
-        { msiId: id, msiName: msi.name, imageId, oldImageId, userId: user.id },
-        'MSI thumbnail updated',
-      );
-
-      res.status(200).json({
-        message: 'Thumbnail updated',
-        thumbnailUrl: imageUrls.thumbnailUrl,
-        imageUrl: imageUrls.imageUrl,
-      });
-    } catch (err) {
-      req.log.error({ err }, 'Update MSI thumbnail error');
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  },
-);
+// Note: The legacy PUT /:id/thumbnail endpoint has been removed.
+// Images are now managed via PUT /:id/images which syncs shared images from the library.
 
 /**
  * DELETE /price-guide/measure-sheet-items/:id
@@ -1995,6 +1893,104 @@ router.put(
       res.status(200).json({ message: 'Upcharges reordered successfully' });
     } catch (err) {
       req.log.error({ err }, 'Reorder upcharges error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PUT /price-guide/measure-sheet-items/:id/thumbnail
+ * Set thumbnail image for an MSI
+ */
+router.put(
+  '/:id/thumbnail',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'MSI ID is required' });
+        return;
+      }
+
+      const parseResult = setThumbnailSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues,
+        });
+        return;
+      }
+
+      const { imageId, version } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const msi = await em.findOne(MeasureSheetItem, {
+        id,
+        company: company.id,
+        isActive: true,
+      });
+      if (!msi) {
+        res.status(404).json({ error: 'Measure sheet item not found' });
+        return;
+      }
+
+      // Optimistic locking check
+      if (msi.version !== version) {
+        res.status(409).json({
+          error: 'Conflict',
+          message: 'MSI was modified by another user',
+          currentVersion: msi.version,
+        });
+        return;
+      }
+
+      // Verify image exists and belongs to the company (if setting one)
+      if (imageId) {
+        const image = await em.findOne(PriceGuideImage, {
+          id: imageId,
+          company: company.id,
+          isActive: true,
+        });
+
+        if (!image) {
+          res.status(400).json({ error: 'Image not found or inactive' });
+          return;
+        }
+
+        msi.thumbnailImage = em.getReference(PriceGuideImage, imageId);
+      } else {
+        // Clear thumbnail
+        msi.thumbnailImage = undefined;
+      }
+
+      msi.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        {
+          msiId: id,
+          imageId: imageId ?? null,
+          userId: user.id,
+        },
+        'MSI thumbnail updated',
+      );
+
+      res.status(200).json({
+        message: imageId ? 'Thumbnail set successfully' : 'Thumbnail cleared',
+        imageId: imageId ?? null,
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Set thumbnail error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

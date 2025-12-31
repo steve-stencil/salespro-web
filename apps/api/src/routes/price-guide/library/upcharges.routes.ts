@@ -6,15 +6,14 @@ import {
   PriceGuideOption,
   MeasureSheetItemUpCharge,
   UpChargeDisabledOption,
+  PriceGuideImage,
   Company,
   User,
-  File,
 } from '../../../entities';
 import { getORM } from '../../../lib/db';
 import { PERMISSIONS } from '../../../lib/permissions';
 import { getStorageAdapter } from '../../../lib/storage';
 import { requireAuth, requirePermission } from '../../../middleware';
-import { FileService } from '../../../services';
 
 import type { AuthenticatedRequest } from '../../../middleware/requireAuth';
 import type { EntityManager } from '@mikro-orm/postgresql';
@@ -42,8 +41,8 @@ const createUpchargeSchema = z.object({
   note: z.string().max(2000).optional(),
   measurementType: z.string().max(50).optional(),
   identifier: z.string().max(255).optional(),
-  /** File ID for product thumbnail image */
-  imageId: z.string().uuid().optional(),
+  /** Thumbnail image ID from shared library */
+  thumbnailImageId: z.string().uuid().optional(),
 });
 
 const updateUpchargeSchema = z.object({
@@ -51,8 +50,12 @@ const updateUpchargeSchema = z.object({
   note: z.string().max(2000).optional().nullable(),
   measurementType: z.string().max(50).optional().nullable(),
   identifier: z.string().max(255).optional().nullable(),
-  /** File ID for product thumbnail image (null to remove) */
-  imageId: z.string().uuid().optional().nullable(),
+  version: z.number().int().min(1),
+});
+
+const setThumbnailSchema = z.object({
+  /** Image ID to set as thumbnail (null to clear) */
+  imageId: z.string().uuid().nullable(),
   version: z.number().int().min(1),
 });
 
@@ -231,8 +234,8 @@ router.get(
       const hasMore = items.length > limit;
       if (hasMore) items.pop();
 
-      // Load image relationships for presigned URLs
-      await em.populate(items, ['image']);
+      // Load thumbnail image for presigned URLs
+      await em.populate(items, ['thumbnailImage.file']);
 
       // Fetch tags for all returned upcharges
       const resultUpchargeIds = items.map(u => u.id);
@@ -275,7 +278,21 @@ router.get(
       // Build response with presigned URLs and tags
       const responseItems = await Promise.all(
         items.map(async u => {
-          const { imageUrl, thumbnailUrl } = await getImageUrls(u.image);
+          // Get thumbnail image if set
+          let thumbnailImage = null;
+          if (u.thumbnailImage) {
+            const { imageUrl, thumbnailUrl } = await getImageUrls(
+              u.thumbnailImage.file,
+            );
+            thumbnailImage = {
+              id: u.thumbnailImage.id,
+              name: u.thumbnailImage.name,
+              description: u.thumbnailImage.description ?? null,
+              imageUrl,
+              thumbnailUrl,
+            };
+          }
+
           return {
             id: u.id,
             name: u.name,
@@ -283,8 +300,7 @@ router.get(
             measurementType: u.measurementType,
             identifier: u.identifier,
             linkedMsiCount: u.linkedMsiCount,
-            imageUrl,
-            thumbnailUrl,
+            thumbnailImage,
             isActive: u.isActive,
             tags: tagsByUpchargeId.get(u.id) ?? [],
           };
@@ -333,7 +349,7 @@ router.get(
       const upcharge = await em.findOne(
         UpCharge,
         { id, company: company.id },
-        { populate: ['lastModifiedBy', 'image'] },
+        { populate: ['lastModifiedBy', 'thumbnailImage.file'] },
       );
 
       if (!upcharge) {
@@ -358,8 +374,20 @@ router.get(
         { populate: ['option'] },
       );
 
-      // Generate presigned URLs for image
-      const { imageUrl, thumbnailUrl } = await getImageUrls(upcharge.image);
+      // Build thumbnail image data
+      let thumbnailImage = null;
+      if (upcharge.thumbnailImage) {
+        const { imageUrl, thumbnailUrl } = await getImageUrls(
+          upcharge.thumbnailImage.file,
+        );
+        thumbnailImage = {
+          id: upcharge.thumbnailImage.id,
+          name: upcharge.thumbnailImage.name,
+          description: upcharge.thumbnailImage.description ?? null,
+          imageUrl,
+          thumbnailUrl,
+        };
+      }
 
       res.status(200).json({
         upcharge: {
@@ -368,25 +396,24 @@ router.get(
           note: upcharge.note,
           measurementType: upcharge.measurementType,
           identifier: upcharge.identifier,
-          imageId: upcharge.image?.id ?? null,
-          imageUrl,
-          thumbnailUrl,
-          usageCount: upcharge.linkedMsiCount,
+          thumbnailImage,
+          linkedMsiCount: upcharge.linkedMsiCount,
           hasAllOfficePricing: true, // TODO: Calculate
-          disabledOptionIds: disabledOptions.map(d => d.option.id),
+          disabledOptions: disabledOptions.map(d => ({
+            id: d.option.id,
+            name: d.option.name,
+          })),
           usedByMSIs: msiLinks.map(l => ({
             id: l.measureSheetItem.id,
             name: l.measureSheetItem.name,
-            category: l.measureSheetItem.category.name,
+            categoryName: l.measureSheetItem.category.name,
           })),
           version: upcharge.version,
           updatedAt: upcharge.updatedAt,
           lastModifiedBy: upcharge.lastModifiedBy
             ? {
                 id: upcharge.lastModifiedBy.id,
-                email: upcharge.lastModifiedBy.email,
-                nameFirst: upcharge.lastModifiedBy.nameFirst,
-                nameLast: upcharge.lastModifiedBy.nameLast,
+                name: `${upcharge.lastModifiedBy.nameFirst ?? ''} ${upcharge.lastModifiedBy.nameLast ?? ''}`.trim(),
               }
             : null,
         },
@@ -431,22 +458,18 @@ router.post(
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
-      // Validate image file if provided
-      let imageFile: File | undefined;
-      if (data.imageId) {
-        const file = await em.findOne(File, {
-          id: data.imageId,
+      // Validate thumbnail image if provided
+      if (data.thumbnailImageId) {
+        const image = await em.findOne(PriceGuideImage, {
+          id: data.thumbnailImageId,
           company: company.id,
+          isActive: true,
         });
-        if (!file) {
-          res.status(400).json({ error: 'Image file not found' });
+
+        if (!image) {
+          res.status(400).json({ error: 'Thumbnail image not found' });
           return;
         }
-        if (!file.isImage) {
-          res.status(400).json({ error: 'File is not an image' });
-          return;
-        }
-        imageFile = file;
       }
 
       const upcharge = new UpCharge();
@@ -454,9 +477,14 @@ router.post(
       upcharge.note = data.note;
       upcharge.measurementType = data.measurementType;
       upcharge.identifier = data.identifier;
-      upcharge.image = imageFile;
       upcharge.company = em.getReference(Company, company.id);
       upcharge.lastModifiedBy = em.getReference(User, user.id);
+      if (data.thumbnailImageId) {
+        upcharge.thumbnailImage = em.getReference(
+          PriceGuideImage,
+          data.thumbnailImageId,
+        );
+      }
 
       await em.persistAndFlush(upcharge);
 
@@ -561,27 +589,6 @@ router.put(
       if (data.identifier !== undefined)
         upcharge.identifier = data.identifier ?? undefined;
 
-      // Update image (can be set to new file or removed with null)
-      if (data.imageId !== undefined) {
-        if (data.imageId === null) {
-          upcharge.image = undefined;
-        } else {
-          const file = await em.findOne(File, {
-            id: data.imageId,
-            company: company.id,
-          });
-          if (!file) {
-            res.status(400).json({ error: 'Image file not found' });
-            return;
-          }
-          if (!file.isImage) {
-            res.status(400).json({ error: 'File is not an image' });
-            return;
-          }
-          upcharge.image = file;
-        }
-      }
-
       upcharge.lastModifiedBy = em.getReference(User, user.id);
       await em.flush();
 
@@ -607,12 +614,7 @@ router.put(
 
 /**
  * PUT /price-guide/library/upcharges/:id/thumbnail
- * Update only the thumbnail for an upcharge (quick inline update).
- *
- * This endpoint:
- * - Does NOT bump the version (won't disrupt other users editing the upcharge)
- * - Deletes the old thumbnail when replaced
- * - Uses raw SQL to avoid MikroORM's automatic version increment
+ * Set thumbnail image for an upcharge
  */
 router.put(
   '/:id/thumbnail',
@@ -633,96 +635,77 @@ router.put(
         return;
       }
 
-      // Simple validation - only imageId is expected
-      const { imageId } = req.body as { imageId?: string | null };
+      const parseResult = setThumbnailSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues,
+        });
+        return;
+      }
 
+      const { imageId, version } = parseResult.data;
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
-      // Get current upcharge with its image to capture old image ID
-      const upcharge = await em.findOne(
-        UpCharge,
-        { id, company: company.id },
-        { populate: ['image'] },
-      );
+      const upcharge = await em.findOne(UpCharge, {
+        id,
+        company: company.id,
+        isActive: true,
+      });
 
       if (!upcharge) {
         res.status(404).json({ error: 'Upcharge not found' });
         return;
       }
 
-      // Capture old image ID for deletion
-      const oldImageId = upcharge.image?.id;
+      // Optimistic locking check
+      if (upcharge.version !== version) {
+        res.status(409).json({
+          error: 'Conflict',
+          message: 'Upcharge was modified by another user',
+          currentVersion: upcharge.version,
+        });
+        return;
+      }
 
-      // Validate new image exists and belongs to company (if provided)
+      // Validate image exists and belongs to the company (if setting one)
       if (imageId) {
-        const file = await em.findOne(File, {
+        const image = await em.findOne(PriceGuideImage, {
           id: imageId,
           company: company.id,
+          isActive: true,
         });
-        if (!file) {
-          res.status(400).json({ error: 'Image file not found' });
+
+        if (!image) {
+          res.status(400).json({ error: 'Image not found or inactive' });
           return;
         }
+
+        upcharge.thumbnailImage = em.getReference(PriceGuideImage, imageId);
+      } else {
+        // Clear thumbnail
+        upcharge.thumbnailImage = undefined;
       }
 
-      // Use raw SQL to update only image_id and last_modified_by
-      // This bypasses MikroORM's automatic version increment
-      const knex = em.getKnex();
-      await knex('up_charge')
-        .where({ id, company_id: company.id })
-        .update({
-          image_id: imageId ?? null,
-          last_modified_by_id: user.id,
-          updated_at: new Date(),
-        });
-
-      // Delete old image if it was replaced (not just cleared)
-      if (oldImageId && imageId && oldImageId !== imageId) {
-        try {
-          const fileService = new FileService(em);
-          await fileService.deleteFile(oldImageId, company.id);
-          req.log.info(
-            { oldImageId, upchargeId: id },
-            'Deleted old upcharge thumbnail',
-          );
-        } catch (deleteErr) {
-          // Log but don't fail the request - the image is orphaned but not critical
-          req.log.warn(
-            { err: deleteErr, oldImageId },
-            'Failed to delete old upcharge thumbnail',
-          );
-        }
-      }
-
-      // Clear the entity manager cache and refetch for response
-      em.clear();
-      const updatedUpcharge = await em.findOne(
-        UpCharge,
-        { id, company: company.id },
-        { populate: ['image'] },
-      );
-
-      const imageUrls = await getImageUrls(updatedUpcharge?.image);
+      upcharge.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
 
       req.log.info(
         {
           upchargeId: id,
-          upchargeName: upcharge.name,
-          imageId,
-          oldImageId,
+          imageId: imageId ?? null,
           userId: user.id,
         },
         'Upcharge thumbnail updated',
       );
 
       res.status(200).json({
-        message: 'Thumbnail updated',
-        thumbnailUrl: imageUrls.thumbnailUrl,
-        imageUrl: imageUrls.imageUrl,
+        message: imageId ? 'Thumbnail set successfully' : 'Thumbnail cleared',
+        imageId: imageId ?? null,
       });
     } catch (err) {
-      req.log.error({ err }, 'Update upcharge thumbnail error');
+      req.log.error({ err }, 'Set thumbnail error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

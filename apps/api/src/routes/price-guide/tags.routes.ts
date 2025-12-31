@@ -1,4 +1,3 @@
- 
 import { Router } from 'express';
 import { z } from 'zod';
 
@@ -11,6 +10,7 @@ import {
   UpCharge,
   AdditionalDetailField,
   MeasureSheetItem,
+  PriceGuideImage,
 } from '../../entities';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -52,6 +52,7 @@ const entityTypeSchema = z.enum([
   'UPCHARGE',
   'ADDITIONAL_DETAIL',
   'MEASURE_SHEET_ITEM',
+  'PRICE_GUIDE_IMAGE',
 ]);
 
 // ============================================================================
@@ -75,7 +76,8 @@ function getEntityClass(
   | typeof PriceGuideOption
   | typeof UpCharge
   | typeof AdditionalDetailField
-  | typeof MeasureSheetItem {
+  | typeof MeasureSheetItem
+  | typeof PriceGuideImage {
   switch (entityType) {
     case TaggableEntityType.OPTION:
       return PriceGuideOption;
@@ -85,6 +87,8 @@ function getEntityClass(
       return AdditionalDetailField;
     case TaggableEntityType.MEASURE_SHEET_ITEM:
       return MeasureSheetItem;
+    case TaggableEntityType.PRICE_GUIDE_IMAGE:
+      return PriceGuideImage;
   }
 }
 
@@ -458,6 +462,7 @@ router.get(
             'UPCHARGE',
             'ADDITIONAL_DETAIL',
             'MEASURE_SHEET_ITEM',
+            'PRICE_GUIDE_IMAGE',
           ],
         });
         return;
@@ -539,6 +544,7 @@ router.put(
             'UPCHARGE',
             'ADDITIONAL_DETAIL',
             'MEASURE_SHEET_ITEM',
+            'PRICE_GUIDE_IMAGE',
           ],
         });
         return;
