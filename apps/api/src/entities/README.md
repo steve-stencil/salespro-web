@@ -82,6 +82,34 @@ This folder contains all MikroORM entity definitions for the SalesPro Dashboard 
 | `OfficeSettings.entity.ts`    | Office-level settings (logo, branding)              |
 | `OfficeIntegration.entity.ts` | Third-party integration credentials (KMS-encrypted) |
 
+### Tagging System
+
+| Entity                          | Purpose                                             |
+| ------------------------------- | --------------------------------------------------- |
+| `price-guide/Tag.entity.ts`     | Reusable tags for organizing price guide items      |
+| `price-guide/ItemTag.entity.ts` | Polymorphic junction table linking tags to entities |
+
+**Tag entity:**
+
+- Multi-tenant (scoped to company)
+- Unique name per company
+- Supports custom hex color codes
+- Soft delete via `isActive` flag
+
+**ItemTag entity (polymorphic junction):**
+
+- Links tags to any taggable entity type (Options, UpCharges, Additional Details)
+- Uses `entityType` enum + `entityId` UUID (no FK constraint on entityId)
+- Allows single table for all tag assignments
+- Easy extension to new entity types
+
+```
+Tag (1) ──────── (*) ItemTag ──────── Entity (polymorphic)
+                    │
+                    ├── entityType: 'option' | 'upcharge' | 'additional_detail'
+                    └── entityId: UUID (no FK - references multiple tables)
+```
+
 ### Supporting Files
 
 | File       | Purpose                |
@@ -111,6 +139,8 @@ Office (1) ───────┬──── (1) OfficeSettings ──── 
                   └──── (*) OfficeIntegration
 
 Role (*) ─────────┴──── (*) UserRole
+
+Tag (1) ──────────┴──── (*) ItemTag ──── Option/UpCharge/AdditionalDetail (polymorphic)
 ```
 
 ## Patterns

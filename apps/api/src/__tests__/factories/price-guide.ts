@@ -15,12 +15,19 @@ import {
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
   MeasureSheetItemOffice,
+  Tag,
+  ItemTag,
 } from '../../entities';
-import { AdditionalDetailInputType } from '../../entities/price-guide/types';
+import {
+  AdditionalDetailInputType
+  
+} from '../../entities/price-guide/types';
+
 
 import type { Company } from '../../entities';
 import type { Office } from '../../entities';
 import type { User } from '../../entities';
+import type {TaggableEntityType} from '../../entities/price-guide/types';
 import type { EntityManager } from '@mikro-orm/core';
 
 // ============================================================================
@@ -371,6 +378,56 @@ export async function linkMeasureSheetItemToOffice(
   em.persist(link);
   await em.flush();
   return link;
+}
+
+// ============================================================================
+// Tag Factory
+// ============================================================================
+
+export type CreateTagOptions = {
+  name?: string;
+  color?: string;
+  isActive?: boolean;
+};
+
+/**
+ * Create a test tag for the given company
+ */
+export async function createTestTag(
+  em: EntityManager,
+  company: Company,
+  options: CreateTagOptions = {},
+): Promise<Tag> {
+  const tag = em.create(Tag, {
+    id: uuid(),
+    company,
+    name: options.name ?? `Test Tag ${Date.now()}`,
+    color: options.color ?? '#4CAF50',
+    isActive: options.isActive ?? true,
+  });
+  em.persist(tag);
+  await em.flush();
+  return tag;
+}
+
+/**
+ * Assign a tag to an entity (Option, UpCharge, AdditionalDetailField)
+ */
+export async function assignTagToEntity(
+  em: EntityManager,
+  tag: Tag,
+  entityType: TaggableEntityType,
+  entityId: string,
+): Promise<ItemTag> {
+  const itemTag = em.create(ItemTag, {
+    id: uuid(),
+    tag,
+    entityType,
+    entityId,
+  });
+  em.persist(itemTag);
+  await em.flush();
+  return itemTag;
 }
 
 // ============================================================================
