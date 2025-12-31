@@ -35,7 +35,23 @@ import type {
   SetItemTagsRequest,
   SetItemTagsResponse,
   TaggableEntityType,
+  PriceGuideImageSummary,
+  PriceGuideImageDetail,
+  LinkedImage,
 } from '@shared/types';
+
+/** Response type for image list endpoint */
+type ImageListResponse = {
+  items: PriceGuideImageSummary[];
+  nextCursor?: string;
+  hasMore: boolean;
+  total: number;
+};
+
+/** Response type for image detail endpoint */
+type ImageDetailResponse = {
+  item: PriceGuideImageDetail;
+};
 
 /**
  * Price Guide API methods.
@@ -288,6 +304,20 @@ export const priceGuideApi = {
     );
   },
 
+  /**
+   * Sync images for an MSI (add/remove from library images).
+   */
+  syncMsiImages: async (
+    msiId: string,
+    imageIds: string[],
+    version: number,
+  ): Promise<{ success: boolean; images: LinkedImage[] }> => {
+    return apiClient.put(`/price-guide/measure-sheet-items/${msiId}/images`, {
+      imageIds,
+      version,
+    });
+  },
+
   // ==========================================================================
   // Library - Options
   // ==========================================================================
@@ -303,7 +333,7 @@ export const priceGuideApi = {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
     if (params?.tags && params.tags.length > 0) {
-      searchParams.set('tags', (params.tags).join(','));
+      searchParams.set('tags', params.tags.join(','));
     }
 
     const queryString = searchParams.toString();
@@ -384,7 +414,7 @@ export const priceGuideApi = {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
     if (params?.tags && params.tags.length > 0) {
-      searchParams.set('tags', (params.tags).join(','));
+      searchParams.set('tags', params.tags.join(','));
     }
 
     const queryString = searchParams.toString();
@@ -442,22 +472,20 @@ export const priceGuideApi = {
   },
 
   /**
-   * Update only the thumbnail for an upcharge.
-   * This is a lightweight update that doesn't require version and won't
-   * conflict with other users editing the upcharge.
-   * The old thumbnail is automatically deleted when replaced.
+   * Sync images for an upcharge from the shared image library.
+   * Replaces all current image links with the provided list.
    */
-  updateUpchargeThumbnail: async (
+  syncUpchargeImages: async (
     upchargeId: string,
-    imageId: string | null,
+    imageIds: string[],
+    version: number,
   ): Promise<{
     message: string;
-    thumbnailUrl: string | null;
-    imageUrl: string | null;
+    images: LinkedImage[];
   }> => {
     return apiClient.put(
-      `/price-guide/library/upcharges/${upchargeId}/thumbnail`,
-      { imageId },
+      `/price-guide/library/upcharges/${upchargeId}/images`,
+      { imageIds, version },
     );
   },
 
@@ -489,7 +517,7 @@ export const priceGuideApi = {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.search) searchParams.set('search', params.search);
     if (params?.tags && params.tags.length > 0) {
-      searchParams.set('tags', (params.tags).join(','));
+      searchParams.set('tags', params.tags.join(','));
     }
 
     const queryString = searchParams.toString();
@@ -568,6 +596,92 @@ export const priceGuideApi = {
       ? `/price-guide/library/additional-details/${fieldId}?force=true`
       : `/price-guide/library/additional-details/${fieldId}`;
     return apiClient.delete(url);
+  },
+
+  // ==========================================================================
+  // Library - Images
+  // ==========================================================================
+
+  /**
+   * Get paginated list of images.
+   */
+  listImages: async (
+    params?: LibraryListParams,
+  ): Promise<ImageListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.cursor) searchParams.set('cursor', params.cursor);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/price-guide/library/images?${queryString}`
+      : '/price-guide/library/images';
+    return apiClient.get<ImageListResponse>(url);
+  },
+
+  /**
+   * Get image details by ID.
+   */
+  getImage: async (imageId: string): Promise<ImageDetailResponse> => {
+    return apiClient.get<ImageDetailResponse>(
+      `/price-guide/library/images/${imageId}`,
+    );
+  },
+
+  /**
+   * Upload a new image to the library.
+   */
+  uploadImage: async (
+    file: File,
+    data: { name: string; description?: string },
+  ): Promise<{ item: PriceGuideImageSummary }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', data.name);
+    if (data.description) {
+      formData.append('description', data.description);
+    }
+    return await apiClient.upload('/price-guide/library/images', formData);
+  },
+
+  /**
+   * Update image metadata.
+   */
+  updateImage: async (
+    imageId: string,
+    data: { name?: string; description?: string | null; version: number },
+  ): Promise<{ item: PriceGuideImageSummary }> => {
+    return apiClient.put(`/price-guide/library/images/${imageId}`, data);
+  },
+
+  /**
+   * Delete an image from the library.
+   */
+  deleteImage: async (
+    imageId: string,
+    force = false,
+  ): Promise<SuccessResponse> => {
+    const url = force
+      ? `/price-guide/library/images/${imageId}?force=true`
+      : `/price-guide/library/images/${imageId}`;
+    return apiClient.delete(url);
+  },
+
+  /**
+   * Get where an image is used (MSIs and UpCharges).
+   */
+  getImageWhereUsed: async (
+    imageId: string,
+  ): Promise<{
+    msis: Array<{
+      id: string;
+      name: string;
+      category: { id: string; name: string } | null;
+    }>;
+    upcharges: Array<{ id: string; name: string }>;
+  }> => {
+    return apiClient.get(`/price-guide/library/images/${imageId}/where-used`);
   },
 
   // ==========================================================================

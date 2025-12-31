@@ -111,7 +111,6 @@ export function TagFilterSelect({
         onChange={handleChange}
         label={label}
         renderValue={renderValue}
-        displayEmpty
         MenuProps={{
           PaperProps: {
             sx: { maxHeight: 300 },

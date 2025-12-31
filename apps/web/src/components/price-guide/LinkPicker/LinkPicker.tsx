@@ -21,11 +21,15 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { UsageCountBadge } from '../RelationshipBadges';
+import { TagFilterSelect } from '../TagFilterSelect';
+
+import type { TagSummary } from '@shared/types';
 
 export type LinkableItemType =
   | 'office'
@@ -73,6 +77,14 @@ export type LinkPickerProps = {
   onCreateNew?: () => void;
   /** Whether linking is in progress */
   isLinking?: boolean;
+
+  // Tag filtering props
+  /** Available tags for filtering (only shown if provided and itemType supports tags) */
+  availableTags?: TagSummary[];
+  /** Currently selected tag IDs for filtering */
+  selectedTagIds?: string[];
+  /** Callback when tag filter changes */
+  onTagFilterChange?: (tagIds: string[]) => void;
 };
 
 const itemTypeConfig: Record<
@@ -111,6 +123,10 @@ export function LinkPicker({
   onLink,
   onCreateNew,
   isLinking = false,
+  // Tag filtering props
+  availableTags,
+  selectedTagIds = [],
+  onTagFilterChange,
 }: LinkPickerProps): React.ReactElement {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -118,6 +134,17 @@ export function LinkPicker({
 
   const config = itemTypeConfig[itemType];
   const dialogTitle = title ?? config.title;
+
+  // Determine if this item type supports tag filtering
+  const supportsTagFilter =
+    itemType === 'option' ||
+    itemType === 'upcharge' ||
+    itemType === 'additionalDetail';
+  const hasTagFilter =
+    supportsTagFilter &&
+    availableTags &&
+    availableTags.length > 0 &&
+    onTagFilterChange;
 
   // Convert alreadyLinkedIds to a Set for efficient lookup
   const alreadyLinkedSet = useMemo(
@@ -200,30 +227,41 @@ export function LinkPicker({
       aria-labelledby="link-picker-title"
     >
       <DialogTitle id="link-picker-title">{dialogTitle}</DialogTitle>
-      <DialogContent>
-        {/* Search */}
-        <TextField
-          fullWidth
-          size="small"
-          placeholder={`Search ${config.plural}...`}
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          sx={{ mb: 2 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery && (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={() => setSearchQuery('')}>
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
+      <DialogContent sx={{ overflowY: 'visible' }}>
+        {/* Search and Tag Filter Row */}
+        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder={`Search ${config.plural}...`}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchQuery('')}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+          {hasTagFilter && (
+            <TagFilterSelect
+              value={selectedTagIds}
+              onChange={onTagFilterChange}
+              tags={availableTags}
+              label="Tags"
+              size="small"
+              minWidth={180}
+            />
+          )}
+        </Stack>
 
         {/* Selection count */}
         <Box

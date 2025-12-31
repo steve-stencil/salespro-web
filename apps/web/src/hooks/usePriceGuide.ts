@@ -68,6 +68,16 @@ export const priceGuideKeys = {
   additionalDetailDetail: (id: string) =>
     [...priceGuideKeys.additionalDetailDetails(), id] as const,
 
+  // Images
+  images: () => [...priceGuideKeys.all, 'images'] as const,
+  imageLists: () => [...priceGuideKeys.images(), 'list'] as const,
+  imageList: (filters?: LibraryListParams) =>
+    [...priceGuideKeys.imageLists(), filters] as const,
+  imageDetails: () => [...priceGuideKeys.images(), 'detail'] as const,
+  imageDetail: (id: string) => [...priceGuideKeys.imageDetails(), id] as const,
+  imageWhereUsed: (id: string) =>
+    [...priceGuideKeys.images(), 'where-used', id] as const,
+
   // Price Types
   priceTypes: () => [...priceGuideKeys.all, 'price-types'] as const,
 
@@ -424,6 +434,35 @@ export function useUnlinkAdditionalDetail() {
   });
 }
 
+/**
+ * Hook to sync images for an MSI.
+ * Replaces all linked images with the provided image IDs.
+ */
+export function useSyncMsiImages() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      msiId,
+      imageIds,
+      version,
+    }: {
+      msiId: string;
+      imageIds: string[];
+      version: number;
+    }) => priceGuideApi.syncMsiImages(msiId, imageIds, version),
+    onSuccess: (_, { msiId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.msiDetail(msiId),
+      });
+      // Also invalidate image lists to update linked counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.imageLists(),
+      });
+    },
+  });
+}
+
 // ============================================================================
 // Library Hooks
 // ============================================================================
@@ -715,6 +754,107 @@ export function useDeleteAdditionalDetail() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
+// ============================================================================
+// Image Hooks
+// ============================================================================
+
+/**
+ * Hook to fetch paginated list of images from the library.
+ */
+export function useImageList(params?: Omit<LibraryListParams, 'cursor'>) {
+  return useInfiniteQuery({
+    queryKey: priceGuideKeys.imageList(params),
+    queryFn: ({ pageParam }) =>
+      priceGuideApi.listImages({ ...params, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: lastPage =>
+      lastPage.hasMore ? lastPage.nextCursor : undefined,
+  });
+}
+
+/**
+ * Hook to fetch image details.
+ */
+export function useImageDetail(imageId: string) {
+  return useQuery({
+    queryKey: priceGuideKeys.imageDetail(imageId),
+    queryFn: () => priceGuideApi.getImage(imageId),
+    enabled: !!imageId,
+  });
+}
+
+/**
+ * Hook to fetch where an image is used.
+ */
+export function useImageWhereUsed(imageId: string) {
+  return useQuery({
+    queryKey: priceGuideKeys.imageWhereUsed(imageId),
+    queryFn: () => priceGuideApi.getImageWhereUsed(imageId),
+    enabled: !!imageId,
+  });
+}
+
+/**
+ * Hook to upload a new image to the library.
+ */
+export function useUploadImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      file,
+      data,
+    }: {
+      file: File;
+      data: { name: string; description?: string };
+    }) => priceGuideApi.uploadImage(file, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.imageLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to update image metadata.
+ */
+export function useUpdateImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      imageId,
+      data,
+    }: {
+      imageId: string;
+      data: { name?: string; description?: string | null; version: number };
+    }) => priceGuideApi.updateImage(imageId, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.imageLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to delete an image from the library.
+ */
+export function useDeleteImage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ imageId, force }: { imageId: string; force?: boolean }) =>
+      priceGuideApi.deleteImage(imageId, force),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.imageLists(),
       });
     },
   });

@@ -337,6 +337,7 @@ export function CatalogPage(): React.ReactElement {
   >('option');
   const [linkPickerMsiId, setLinkPickerMsiId] = useState<string>('');
   const [linkPickerSearch, setLinkPickerSearch] = useState('');
+  const [linkPickerTagIds, setLinkPickerTagIds] = useState<string[]>([]);
 
   // Unlink confirmation state
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
@@ -380,7 +381,7 @@ export function CatalogPage(): React.ReactElement {
     limit: 20,
   });
 
-  // Options list for link picker
+  // Options list for link picker (with tag filtering)
   const {
     data: optionsData,
     isLoading: isLoadingOptions,
@@ -389,10 +390,11 @@ export function CatalogPage(): React.ReactElement {
     isFetchingNextPage: isFetchingMoreOptions,
   } = useOptionList({
     search: debouncedLinkPickerSearch || undefined,
+    tags: linkPickerTagIds.length > 0 ? linkPickerTagIds : undefined,
     limit: 20,
   });
 
-  // UpCharges list for link picker
+  // UpCharges list for link picker (with tag filtering)
   const {
     data: upchargesData,
     isLoading: isLoadingUpcharges,
@@ -401,6 +403,7 @@ export function CatalogPage(): React.ReactElement {
     isFetchingNextPage: isFetchingMoreUpcharges,
   } = useUpchargeList({
     search: debouncedLinkPickerSearch || undefined,
+    tags: linkPickerTagIds.length > 0 ? linkPickerTagIds : undefined,
     limit: 20,
   });
 
@@ -654,6 +657,7 @@ export function CatalogPage(): React.ReactElement {
       setLinkPickerType(type);
       setLinkPickerMsiId(msiId);
       setLinkPickerSearch('');
+      setLinkPickerTagIds([]);
       setLinkPickerOpen(true);
     },
     [],
@@ -1240,6 +1244,12 @@ export function CatalogPage(): React.ReactElement {
           linkOptionsMutation.isPending ||
           linkUpchargesMutation.isPending ||
           syncOfficesMutation.isPending
+        }
+        // Tag filtering (for options and upcharges only)
+        availableTags={linkPickerType === 'office' ? undefined : tagsData?.tags}
+        selectedTagIds={linkPickerTagIds}
+        onTagFilterChange={
+          linkPickerType === 'office' ? undefined : setLinkPickerTagIds
         }
       />
 

@@ -128,10 +128,9 @@ export type UpChargeSummary = {
   measurementType: string | null;
   identifier: string | null;
   linkedMsiCount: number;
-  /** Presigned URL for product thumbnail (full size) */
-  imageUrl: string | null;
-  /** Presigned URL for product thumbnail (thumbnail size) */
-  thumbnailUrl: string | null;
+  imageCount: number;
+  /** Linked images from the shared library */
+  images: LinkedImage[];
   isActive: boolean;
   /** Tags assigned to this upcharge */
   tags?: TagSummary[];
@@ -144,12 +143,8 @@ export type UpChargeDetail = {
   note: string | null;
   measurementType: string | null;
   identifier: string | null;
-  /** File ID for the thumbnail image */
-  imageId: string | null;
-  /** Presigned URL for product thumbnail (full size) */
-  imageUrl: string | null;
-  /** Presigned URL for product thumbnail (thumbnail size) */
-  thumbnailUrl: string | null;
+  /** Linked images from shared image library */
+  images: LinkedImage[];
   linkedMsiCount: number;
   isActive: boolean;
   version: number;
@@ -176,6 +171,68 @@ export type LinkedUpCharge = {
   name: string;
   note: string | null;
   measurementType: string | null;
+  sortOrder: number;
+};
+
+// ============================================================================
+// Price Guide Image Types
+// ============================================================================
+
+/** Image summary for lists */
+export type PriceGuideImageSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  linkedMsiCount: number;
+  linkedUpchargeCount: number;
+  /** Presigned URL for image (full size) */
+  imageUrl: string | null;
+  /** Presigned URL for thumbnail */
+  thumbnailUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Image detail response */
+export type PriceGuideImageDetail = {
+  id: string;
+  name: string;
+  description: string | null;
+  linkedMsiCount: number;
+  linkedUpchargeCount: number;
+  /** Presigned URL for image (full size) */
+  imageUrl: string | null;
+  /** Presigned URL for thumbnail */
+  thumbnailUrl: string | null;
+  version: number;
+  lastModifiedBy: {
+    id: string;
+    name: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+  /** MSIs linked to this image */
+  linkedMsis: Array<{
+    id: string;
+    name: string;
+    sortOrder: number;
+  }>;
+  /** UpCharges linked to this image */
+  linkedUpcharges: Array<{
+    id: string;
+    name: string;
+    sortOrder: number;
+  }>;
+};
+
+/** Image linked to an MSI or UpCharge */
+export type LinkedImage = {
+  junctionId: string;
+  imageId: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  thumbnailUrl: string | null;
   sortOrder: number;
 };
 
@@ -246,16 +303,15 @@ export type MeasureSheetItemSummary = {
   officeCount: number;
   optionCount: number;
   upchargeCount: number;
+  imageCount: number;
   /** Names of linked offices (for tooltip display) */
   officeNames?: string[];
   /** Names of linked options (for tooltip display) */
   optionNames?: string[];
   /** Names of linked upcharges (for tooltip display) */
   upchargeNames?: string[];
-  /** Presigned URL for product thumbnail (full size) */
-  imageUrl: string | null;
-  /** Presigned URL for product thumbnail (thumbnail size) */
-  thumbnailUrl: string | null;
+  /** Linked images from the shared library */
+  images: LinkedImage[];
   sortOrder: number;
   /** Tags assigned to this MSI */
   tags?: TagSummary[];
@@ -276,12 +332,6 @@ export type MeasureSheetItemDetail = {
   tagRequired: boolean;
   tagPickerOptions: unknown[] | null;
   tagParams: Record<string, unknown> | null;
-  /** File ID for the thumbnail image */
-  imageId: string | null;
-  /** Presigned URL for product thumbnail (full size) */
-  imageUrl: string | null;
-  /** Presigned URL for product thumbnail (thumbnail size) */
-  thumbnailUrl: string | null;
   sortOrder: number;
   offices: Array<{
     id: string;
@@ -290,6 +340,8 @@ export type MeasureSheetItemDetail = {
   options: LinkedOption[];
   upcharges: LinkedUpCharge[];
   additionalDetails: LinkedAdditionalDetail[];
+  /** Linked images from shared image library */
+  images: LinkedImage[];
   /** Tags assigned to this MSI */
   tags?: TagSummary[];
   isActive: boolean;
