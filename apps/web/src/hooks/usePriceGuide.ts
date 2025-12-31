@@ -489,6 +489,41 @@ export function useSetMsiThumbnail() {
   });
 }
 
+/**
+ * Hook to set thumbnail image for an UpCharge.
+ * @param upchargeId - UpCharge ID
+ * @param imageId - Image ID (null to clear)
+ * @param version - Current upcharge version for optimistic locking
+ */
+export function useSetUpchargeThumbnail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      imageId,
+      version,
+    }: {
+      upchargeId: string;
+      imageId: string | null;
+      version: number;
+    }) => priceGuideApi.setUpchargeThumbnail(upchargeId, imageId, version),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeDetail(upchargeId),
+      });
+      // Also invalidate upcharge lists to update thumbnail display
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeLists(),
+      });
+      // Also invalidate image lists to update linked counts
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.imageLists(),
+      });
+    },
+  });
+}
+
 // ============================================================================
 // Library Hooks
 // ============================================================================

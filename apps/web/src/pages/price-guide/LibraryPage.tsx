@@ -4,10 +4,10 @@
  */
 
 import AddIcon from '@mui/icons-material/Add';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import ClearIcon from '@mui/icons-material/Clear';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import ImageIcon from '@mui/icons-material/Image';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import SearchIcon from '@mui/icons-material/Search';
@@ -46,6 +46,7 @@ import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -55,6 +56,7 @@ import {
   ItemTagEditor,
   ImageLibraryTab,
   DefaultPricingGrid,
+  ImagePicker,
 } from '../../components/price-guide';
 import {
   transformToConfig,
@@ -80,9 +82,13 @@ import {
   useUpchargePricing,
   useUpdateUpchargeDefaultPrices,
   usePriceTypes,
+  useSetUpchargeThumbnail,
+  priceGuideKeys,
 } from '../../hooks/usePriceGuide';
 import { useTagList } from '../../hooks/useTags';
+import { priceGuideApi } from '../../services/price-guide';
 
+import type { SelectedImageData } from '../../components/price-guide/ImagePicker';
 import type {
   OptionSummary,
   UpChargeSummary,
@@ -917,6 +923,15 @@ function EditUpChargeDialog({
   >([]);
   const [hasPricingChanges, setHasPricingChanges] = useState(false);
 
+  // Thumbnail state
+  const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+  const [thumbnailImageId, setThumbnailImageId] = useState<string | null>(null);
+  const [originalThumbnailId, setOriginalThumbnailId] = useState<string | null>(
+    null,
+  );
+  const [selectedImageData, setSelectedImageData] =
+    useState<SelectedImageData | null>(null);
+
   // Queries
   const { data: upchargeData, isLoading: isLoadingDetail } = useUpchargeDetail(
     upchargeId ?? '',
@@ -930,6 +945,7 @@ function EditUpChargeDialog({
 
   // Mutations
   const updateDefaultPricesMutation = useUpdateUpchargeDefaultPrices();
+  const setThumbnailMutation = useSetUpchargeThumbnail();
 
   // Get offices
   const offices = useMemo(() => {
@@ -1002,6 +1018,13 @@ function EditUpChargeDialog({
       setName(upchargeData.upcharge.name);
       setNote(upchargeData.upcharge.note ?? '');
       setVersion(upchargeData.upcharge.version);
+
+      // Sync thumbnail state
+      const thumbId: string | null =
+        upchargeData.upcharge.thumbnailImage?.id ?? null;
+      setThumbnailImageId(thumbId);
+      setOriginalThumbnailId(thumbId);
+      setSelectedImageData(null);
     }
   }, [upchargeData]);
 
@@ -1045,7 +1068,7 @@ function EditUpChargeDialog({
     [],
   );
 
-  // Save everything (details + pricing)
+  // Save everything (details + pricing + thumbnail)
   const handleSave = useCallback(async () => {
     if (!name.trim() || !upchargeId) return;
 
@@ -1075,6 +1098,16 @@ function EditUpChargeDialog({
         }
         setHasPricingChanges(false);
       }
+
+      // Save thumbnail if changed
+      if (thumbnailImageId !== originalThumbnailId) {
+        await setThumbnailMutation.mutateAsync({
+          upchargeId,
+          imageId: thumbnailImageId,
+          version,
+        });
+        setOriginalThumbnailId(thumbnailImageId);
+      }
     } catch (err) {
       console.error('Failed to save upcharge:', err);
     }
@@ -1089,13 +1122,17 @@ function EditUpChargeDialog({
     offices,
     defaultConfigs,
     updateDefaultPricesMutation,
+    thumbnailImageId,
+    originalThumbnailId,
+    setThumbnailMutation,
   ]);
 
   // Handle close with unsaved changes check
+  const hasThumbnailChanges = thumbnailImageId !== originalThumbnailId;
   const handleClose = useCallback(() => {
-    if (hasPricingChanges) {
+    if (hasPricingChanges || hasThumbnailChanges) {
       const confirmed = window.confirm(
-        'You have unsaved pricing changes. Are you sure you want to close?',
+        'You have unsaved changes. Are you sure you want to close?',
       );
       if (!confirmed) return;
     }
@@ -1104,15 +1141,54 @@ function EditUpChargeDialog({
     setDetailSearch('');
     setDetailTagFilter([]);
     setHasPricingChanges(false);
+    // Reset thumbnail state
+    setThumbnailImageId(null);
+    setOriginalThumbnailId(null);
+    setSelectedImageData(null);
+    setIsImagePickerOpen(false);
     onClose();
-  }, [hasPricingChanges, onClose]);
+  }, [hasPricingChanges, hasThumbnailChanges, onClose]);
 
   const isLoadingContent =
     isLoadingDetail ||
     isLoadingPricing ||
     isLoadingPriceTypes ||
     isLoadingOffices;
-  const isSaving = isLoading || updateDefaultPricesMutation.isPending;
+
+  // Image picker handlers
+  const handleOpenImagePicker = useCallback(() => {
+    setIsImagePickerOpen(true);
+  }, []);
+
+  const handleCloseImagePicker = useCallback(() => {
+    setIsImagePickerOpen(false);
+  }, []);
+
+  const handleImageSelectionChange = useCallback(
+    (imageIds: string[], selectedImages: SelectedImageData[]) => {
+      // Single selection mode - take first image or null
+      const newThumbnailId = imageIds.length > 0 ? imageIds[0]! : null;
+      const newImageData =
+        selectedImages.length > 0 ? selectedImages[0]! : null;
+
+      // Store the selected image data for immediate display
+      setSelectedImageData(newImageData);
+      setThumbnailImageId(newThumbnailId);
+      setIsImagePickerOpen(false);
+    },
+    [],
+  );
+
+  const handleClearThumbnail = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Clear both the ID and local display data
+    setSelectedImageData(null);
+    setThumbnailImageId(null);
+  }, []);
+  const isSaving =
+    isLoading ||
+    updateDefaultPricesMutation.isPending ||
+    setThumbnailMutation.isPending;
 
   const handleLinkDetail = useCallback(
     async (fieldId: string) => {
@@ -1162,31 +1238,162 @@ function EditUpChargeDialog({
               <Typography variant="subtitle2" gutterBottom>
                 Basic Information
               </Typography>
-              <Stack spacing={2}>
-                <TextField
-                  label="UpCharge Name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  fullWidth
-                  required
-                  autoFocus
-                />
-                <TextField
-                  label="Note"
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  fullWidth
-                  multiline
-                  rows={2}
-                />
-                <ItemTagEditor
-                  entityType="UPCHARGE"
-                  entityId={upchargeId ?? undefined}
-                  label="Tags"
-                  placeholder="Add tags..."
-                />
-              </Stack>
+              <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+                {/* Product Thumbnail - Click to select from library */}
+                <Box>
+                  <Box
+                    onClick={handleOpenImagePicker}
+                    sx={{
+                      position: 'relative',
+                      width: 120,
+                      height: 120,
+                      border: '2px dashed',
+                      borderColor:
+                        thumbnailImageId !== null ? '#e0e0e0' : '#bdbdbd',
+                      borderRadius: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      backgroundColor: '#fff',
+                      overflow: 'hidden',
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        bgcolor: 'action.hover',
+                      },
+                    }}
+                  >
+                    {(() => {
+                      // Get thumbnail URL for display
+                      const displayImage =
+                        thumbnailImageId === null
+                          ? null
+                          : selectedImageData
+                            ? {
+                                url:
+                                  selectedImageData.thumbnailUrl ??
+                                  selectedImageData.imageUrl,
+                                name: selectedImageData.name,
+                              }
+                            : upchargeData?.upcharge.thumbnailImage
+                              ? {
+                                  url:
+                                    upchargeData.upcharge.thumbnailImage
+                                      .thumbnailUrl ??
+                                    upchargeData.upcharge.thumbnailImage
+                                      .imageUrl,
+                                  name: upchargeData.upcharge.thumbnailImage
+                                    .name,
+                                }
+                              : null;
+
+                      const thumbnailUrl = displayImage?.url ?? null;
+                      const thumbnailName = displayImage?.name ?? 'Thumbnail';
+
+                      return thumbnailUrl ? (
+                        <>
+                          <Box
+                            component="img"
+                            src={thumbnailUrl}
+                            alt={thumbnailName}
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                          {/* Remove button overlay */}
+                          <IconButton
+                            onClick={handleClearThumbnail}
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              bgcolor: 'error.main',
+                              color: 'white',
+                              '&:hover': {
+                                bgcolor: 'error.dark',
+                              },
+                            }}
+                          >
+                            <ClearIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            p: 1,
+                          }}
+                        >
+                          <AddPhotoAlternateIcon
+                            sx={{ fontSize: 32, color: 'action.disabled' }}
+                          />
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            align="center"
+                          >
+                            Click to select
+                            <br />
+                            from library
+                          </Typography>
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 0.5, display: 'block' }}
+                  >
+                    Thumbnail
+                  </Typography>
+                </Box>
+
+                {/* Name and Note fields */}
+                <Stack spacing={2} sx={{ flex: 1 }}>
+                  <TextField
+                    label="UpCharge Name"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    fullWidth
+                    required
+                    autoFocus
+                  />
+                  <TextField
+                    label="Note"
+                    value={note}
+                    onChange={e => setNote(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={2}
+                  />
+                  <ItemTagEditor
+                    entityType="UPCHARGE"
+                    entityId={upchargeId ?? undefined}
+                    label="Tags"
+                    placeholder="Add tags..."
+                  />
+                </Stack>
+              </Box>
             </Box>
+
+            {/* Image Picker Dialog */}
+            <ImagePicker
+              open={isImagePickerOpen}
+              onClose={handleCloseImagePicker}
+              selectedImageIds={thumbnailImageId ? [thumbnailImageId] : []}
+              onSelectionChange={handleImageSelectionChange}
+              multiple={false}
+              title="Select Thumbnail Image"
+            />
 
             <Divider />
 
@@ -2257,6 +2464,10 @@ type UpChargesTabProps = {
   tags?: string[];
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  /** Called when thumbnail image is clicked to change it */
+  onThumbnailClick?: (id: string) => void;
+  /** ID of the upcharge currently saving its thumbnail (to show loading) */
+  thumbnailLoadingId?: string | null;
 };
 
 function UpChargesTab({
@@ -2264,6 +2475,8 @@ function UpChargesTab({
   tags,
   onEdit,
   onDelete,
+  onThumbnailClick,
+  thumbnailLoadingId,
 }: UpChargesTabProps): React.ReactElement {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -2359,11 +2572,12 @@ function UpChargesTab({
                     <Tooltip
                       title={
                         upcharge.thumbnailImage
-                          ? upcharge.thumbnailImage.name
-                          : 'No image'
+                          ? `${upcharge.thumbnailImage.name} (click to change)`
+                          : 'Click to add image'
                       }
                     >
                       <Box
+                        onClick={() => onThumbnailClick?.(upcharge.id)}
                         sx={{
                           width: 40,
                           height: 40,
@@ -2375,9 +2589,18 @@ function UpChargesTab({
                           overflow: 'hidden',
                           border: 1,
                           borderColor: 'divider',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          position: 'relative',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            boxShadow: 1,
+                          },
                         }}
                       >
-                        {upcharge.thumbnailImage?.thumbnailUrl ? (
+                        {thumbnailLoadingId === upcharge.id ? (
+                          <CircularProgress size={20} />
+                        ) : upcharge.thumbnailImage?.thumbnailUrl ? (
                           <Box
                             component="img"
                             src={upcharge.thumbnailImage.thumbnailUrl}
@@ -2389,7 +2612,9 @@ function UpChargesTab({
                             }}
                           />
                         ) : (
-                          <ImageIcon sx={{ color: 'grey.400', fontSize: 24 }} />
+                          <AddPhotoAlternateIcon
+                            sx={{ color: 'grey.400', fontSize: 24 }}
+                          />
                         )}
                       </Box>
                     </Tooltip>
@@ -2741,6 +2966,18 @@ export function LibraryPage(): React.ReactElement {
     useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
+  // Upcharge thumbnail picker state (for changing thumbnail from list row)
+  const [upchargeThumbnailPickerOpen, setUpchargeThumbnailPickerOpen] =
+    useState(false);
+  const [upchargeThumbnailPickerId, setUpchargeThumbnailPickerId] = useState<
+    string | null
+  >(null);
+  const [upchargeThumbnailPickerSaving, setUpchargeThumbnailPickerSaving] =
+    useState(false);
+
+  // Query client for cache invalidation
+  const queryClient = useQueryClient();
+
   // Get initial tab from URL param (default to 0 = options)
   const tabParam = searchParams.get('tab');
   const activeTab = tabParam ? (TAB_MAP[tabParam] ?? 0) : 0;
@@ -2768,6 +3005,64 @@ export function LibraryPage(): React.ReactElement {
   const updateOptionMutation = useUpdateOption();
   const updateUpchargeMutation = useUpdateUpcharge();
   const updateAdditionalDetailMutation = useUpdateAdditionalDetail();
+
+  // Query for upcharge detail (needed for thumbnail picker to get version)
+  const { data: thumbnailPickerUpchargeData } = useUpchargeDetail(
+    upchargeThumbnailPickerId ?? '',
+  );
+
+  // Upcharge thumbnail picker handlers
+  const handleUpchargeThumbnailClick = useCallback((upchargeId: string) => {
+    setUpchargeThumbnailPickerId(upchargeId);
+    setUpchargeThumbnailPickerOpen(true);
+  }, []);
+
+  const handleUpchargeThumbnailPickerClose = useCallback(() => {
+    setUpchargeThumbnailPickerOpen(false);
+    setUpchargeThumbnailPickerId(null);
+  }, []);
+
+  const handleUpchargeThumbnailChange = useCallback(
+    async (imageIds: string[], _images: SelectedImageData[]) => {
+      if (!upchargeThumbnailPickerId || !thumbnailPickerUpchargeData?.upcharge)
+        return;
+
+      setUpchargeThumbnailPickerSaving(true);
+      try {
+        // Set thumbnail image for upcharge (single image, or null to clear)
+        const imageId = imageIds.length > 0 ? imageIds[0]! : null;
+        await priceGuideApi.setUpchargeThumbnail(
+          upchargeThumbnailPickerId,
+          imageId,
+          thumbnailPickerUpchargeData.upcharge.version,
+        );
+
+        // Invalidate upcharge list to refresh thumbnail
+        void queryClient.invalidateQueries({
+          queryKey: priceGuideKeys.upchargeLists(),
+        });
+
+        // Also invalidate the upcharge detail to refresh for next edit
+        void queryClient.invalidateQueries({
+          queryKey: priceGuideKeys.upchargeDetail(upchargeThumbnailPickerId),
+        });
+
+        // Invalidate image lists to update usage counts
+        void queryClient.invalidateQueries({
+          queryKey: priceGuideKeys.imageLists(),
+        });
+
+        // Close picker
+        setUpchargeThumbnailPickerOpen(false);
+        setUpchargeThumbnailPickerId(null);
+      } catch (err) {
+        console.error('Failed to set thumbnail:', err);
+      } finally {
+        setUpchargeThumbnailPickerSaving(false);
+      }
+    },
+    [upchargeThumbnailPickerId, thumbnailPickerUpchargeData, queryClient],
+  );
 
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, newValue: number) => {
@@ -3066,6 +3361,10 @@ export function LibraryPage(): React.ReactElement {
               tags={selectedTags}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onThumbnailClick={handleUpchargeThumbnailClick}
+              thumbnailLoadingId={
+                upchargeThumbnailPickerSaving ? upchargeThumbnailPickerId : null
+              }
             />
           </TabPanel>
           <TabPanel value={activeTab} index={2}>
@@ -3140,6 +3439,22 @@ export function LibraryPage(): React.ReactElement {
         }}
         onSave={handleUpdateAdditionalDetail}
         isLoading={updateAdditionalDetailMutation.isPending}
+      />
+
+      {/* Upcharge Thumbnail Picker Dialog */}
+      <ImagePicker
+        open={upchargeThumbnailPickerOpen}
+        onClose={handleUpchargeThumbnailPickerClose}
+        selectedImageIds={
+          thumbnailPickerUpchargeData?.upcharge.thumbnailImage
+            ? [thumbnailPickerUpchargeData.upcharge.thumbnailImage.id]
+            : []
+        }
+        onSelectionChange={(imageIds, images) => {
+          void handleUpchargeThumbnailChange(imageIds, images);
+        }}
+        multiple={false}
+        title="Select Thumbnail Image"
       />
     </Box>
   );
