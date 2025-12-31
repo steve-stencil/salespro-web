@@ -128,9 +128,8 @@ export type UpChargeSummary = {
   measurementType: string | null;
   identifier: string | null;
   linkedMsiCount: number;
-  imageCount: number;
-  /** Linked images from the shared library */
-  images: LinkedImage[];
+  /** Thumbnail image from the shared library */
+  thumbnailImage: ThumbnailImage | null;
   isActive: boolean;
   /** Tags assigned to this upcharge */
   tags?: TagSummary[];
@@ -143,8 +142,8 @@ export type UpChargeDetail = {
   note: string | null;
   measurementType: string | null;
   identifier: string | null;
-  /** Linked images from shared image library */
-  images: LinkedImage[];
+  /** Thumbnail image from shared image library */
+  thumbnailImage: ThumbnailImage | null;
   linkedMsiCount: number;
   isActive: boolean;
   version: number;
@@ -189,6 +188,8 @@ export type PriceGuideImageSummary = {
   imageUrl: string | null;
   /** Presigned URL for thumbnail */
   thumbnailUrl: string | null;
+  /** Tags assigned to this image */
+  tags?: TagSummary[];
   createdAt: string;
   updatedAt: string;
 };
@@ -225,7 +226,18 @@ export type PriceGuideImageDetail = {
   }>;
 };
 
-/** Image linked to an MSI or UpCharge */
+/** Thumbnail image for an MSI or UpCharge */
+export type ThumbnailImage = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  thumbnailUrl: string | null;
+};
+
+/**
+ * @deprecated Use ThumbnailImage instead - MSIs and UpCharges now have a single thumbnail
+ */
 export type LinkedImage = {
   junctionId: string;
   imageId: string;
@@ -303,15 +315,14 @@ export type MeasureSheetItemSummary = {
   officeCount: number;
   optionCount: number;
   upchargeCount: number;
-  imageCount: number;
   /** Names of linked offices (for tooltip display) */
   officeNames?: string[];
   /** Names of linked options (for tooltip display) */
   optionNames?: string[];
   /** Names of linked upcharges (for tooltip display) */
   upchargeNames?: string[];
-  /** Linked images from the shared library */
-  images: LinkedImage[];
+  /** Thumbnail image from the shared library */
+  thumbnailImage: ThumbnailImage | null;
   sortOrder: number;
   /** Tags assigned to this MSI */
   tags?: TagSummary[];
@@ -340,8 +351,8 @@ export type MeasureSheetItemDetail = {
   options: LinkedOption[];
   upcharges: LinkedUpCharge[];
   additionalDetails: LinkedAdditionalDetail[];
-  /** Linked images from shared image library */
-  images: LinkedImage[];
+  /** Thumbnail image from shared image library */
+  thumbnailImage: ThumbnailImage | null;
   /** Tags assigned to this MSI */
   tags?: TagSummary[];
   isActive: boolean;
@@ -750,7 +761,8 @@ export type TaggableEntityType =
   | 'OPTION'
   | 'UPCHARGE'
   | 'ADDITIONAL_DETAIL'
-  | 'MEASURE_SHEET_ITEM';
+  | 'MEASURE_SHEET_ITEM'
+  | 'PRICE_GUIDE_IMAGE';
 
 /** Tag summary for lists and autocomplete */
 export type TagSummary = {
