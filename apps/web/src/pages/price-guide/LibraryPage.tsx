@@ -22,10 +22,16 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
+import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
@@ -63,6 +69,8 @@ import {
   useUpdateUpcharge,
   useAdditionalDetailDetail,
   useUpdateAdditionalDetail,
+  useLinkUpchargeAdditionalDetails,
+  useUnlinkUpchargeAdditionalDetail,
 } from '../../hooks/usePriceGuide';
 import { useTagList } from '../../hooks/useTags';
 
@@ -848,6 +856,22 @@ function EditOptionDialog({
 // Edit UpCharge Dialog
 // ============================================================================
 
+/** Input type display labels */
+const UPCHARGE_INPUT_TYPE_LABELS: Record<string, string> = {
+  text: 'Text',
+  textarea: 'Text Area',
+  number: 'Number',
+  currency: 'Currency',
+  picker: 'Picker',
+  size_picker: 'Size (2D)',
+  size_picker_3d: 'Size (3D)',
+  date: 'Date',
+  time: 'Time',
+  datetime: 'Date & Time',
+  united_inch: 'United Inch',
+  toggle: 'Toggle',
+};
+
 type EditUpChargeDialogProps = {
   open: boolean;
   upchargeId: string | null;
@@ -870,10 +894,68 @@ function EditUpChargeDialog({
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [version, setVersion] = useState(1);
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailTagFilter, setDetailTagFilter] = useState<string[]>([]);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  const debouncedDetailSearch = useDebouncedValue(detailSearch, 300);
 
   const { data: upchargeData, isLoading: isLoadingDetail } = useUpchargeDetail(
     upchargeId ?? '',
   );
+
+  // Fetch tags for filtering
+  const { data: tagsData } = useTagList();
+
+  // Link/unlink mutations
+  const linkDetailsMutation = useLinkUpchargeAdditionalDetails();
+  const unlinkDetailMutation = useUnlinkUpchargeAdditionalDetail();
+
+  // Additional details list query
+  const {
+    data: detailsData,
+    isLoading: isLoadingDetails,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useAdditionalDetailList({
+    search: debouncedDetailSearch || undefined,
+    tags: detailTagFilter.length > 0 ? detailTagFilter : undefined,
+    limit: 20,
+  });
+
+  // Flatten all details from pagination
+  const allDetails = useMemo(() => {
+    if (!detailsData?.pages) return [];
+    return detailsData.pages.flatMap(page => page.items);
+  }, [detailsData]);
+
+  // Get currently linked additional details
+  type LinkedDetailItem = {
+    junctionId: string;
+    fieldId: string;
+    title: string;
+    inputType: string;
+    cellType: string | null;
+    isRequired: boolean;
+    sortOrder: number;
+  };
+
+  const linkedDetails = useMemo<LinkedDetailItem[]>(() => {
+    const upcharge = upchargeData?.upcharge;
+    if (!upcharge) return [];
+    return upcharge.additionalDetails;
+  }, [upchargeData]);
+
+  // Get currently linked detail IDs for filtering
+  const linkedDetailIds = useMemo<Set<string>>(() => {
+    return new Set(linkedDetails.map(d => d.fieldId));
+  }, [linkedDetails]);
+
+  // Filter out already linked details
+  const availableDetails = useMemo(() => {
+    return allDetails.filter(d => !linkedDetailIds.has(d.id));
+  }, [allDetails, linkedDetailIds]);
 
   // Sync form state when upcharge data loads
   useEffect(() => {
@@ -883,6 +965,25 @@ function EditUpChargeDialog({
       setVersion(upchargeData.upcharge.version);
     }
   }, [upchargeData]);
+
+  // Infinite scroll for details list
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    const el = loadMoreRef.current;
+    if (el) observer.observe(el);
+    return () => {
+      if (el) observer.unobserve(el);
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleSubmit = async () => {
     if (!name.trim() || !upchargeId) return;
@@ -899,41 +1000,267 @@ function EditUpChargeDialog({
   const handleClose = () => {
     setName('');
     setNote('');
+    setDetailSearch('');
+    setDetailTagFilter([]);
     onClose();
   };
 
+  const handleLinkDetail = useCallback(
+    async (fieldId: string) => {
+      if (!upchargeId) return;
+      await linkDetailsMutation.mutateAsync({
+        upchargeId,
+        fieldIds: [fieldId],
+      });
+    },
+    [upchargeId, linkDetailsMutation],
+  );
+
+  const handleUnlinkDetail = useCallback(
+    async (fieldId: string) => {
+      if (!upchargeId) return;
+      await unlinkDetailMutation.mutateAsync({
+        upchargeId,
+        fieldId,
+      });
+    },
+    [upchargeId, unlinkDetailMutation],
+  );
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setDetailSearch(e.target.value);
+    },
+    [],
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setDetailSearch('');
+  }, []);
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>Edit UpCharge</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         {isLoadingDetail ? (
           <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress />
           </Box>
         ) : (
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField
-              label="UpCharge Name"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              fullWidth
-              required
-              autoFocus
-            />
-            <TextField
-              label="Note"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              fullWidth
-              multiline
-              rows={2}
-            />
-            <ItemTagEditor
-              entityType="UPCHARGE"
-              entityId={upchargeId ?? undefined}
-              label="Tags"
-              placeholder="Add tags..."
-            />
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            {/* Basic Fields */}
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Basic Information
+              </Typography>
+              <Stack spacing={2}>
+                <TextField
+                  label="UpCharge Name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  fullWidth
+                  required
+                  autoFocus
+                />
+                <TextField
+                  label="Note"
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
+                <ItemTagEditor
+                  entityType="UPCHARGE"
+                  entityId={upchargeId ?? undefined}
+                  label="Tags"
+                  placeholder="Add tags..."
+                />
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            {/* Additional Details Section */}
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Additional Details
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Link additional detail fields to this upcharge. These fields
+                will appear when this upcharge is added to an estimate.
+              </Typography>
+
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                {/* Left: Search & Select */}
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <TextField
+                      placeholder="Search additional details..."
+                      value={detailSearch}
+                      onChange={handleSearchChange}
+                      size="small"
+                      sx={{ flex: 1 }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon color="action" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: detailSearch && (
+                          <InputAdornment position="end">
+                            <IconButton
+                              size="small"
+                              onClick={handleClearSearch}
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    {tagsData?.tags && tagsData.tags.length > 0 && (
+                      <TagFilterSelect
+                        value={detailTagFilter}
+                        onChange={setDetailTagFilter}
+                        tags={tagsData.tags}
+                        label="Filter by Tags"
+                        minWidth={140}
+                        size="small"
+                      />
+                    )}
+                  </Box>
+
+                  <Paper
+                    variant="outlined"
+                    sx={{ maxHeight: 250, overflow: 'auto', minHeight: 150 }}
+                  >
+                    {isLoadingDetails ? (
+                      <Box
+                        sx={{ display: 'flex', justifyContent: 'center', p: 3 }}
+                      >
+                        <CircularProgress size={24} />
+                      </Box>
+                    ) : availableDetails.length === 0 ? (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ p: 2, textAlign: 'center' }}
+                      >
+                        {detailSearch || detailTagFilter.length > 0
+                          ? 'No matching additional details found'
+                          : 'All additional details have been linked'}
+                      </Typography>
+                    ) : (
+                      <List dense disablePadding>
+                        {availableDetails.map(detail => (
+                          <ListItem
+                            key={detail.id}
+                            sx={{
+                              cursor: 'pointer',
+                              '&:hover': { bgcolor: 'action.hover' },
+                            }}
+                            onClick={() => void handleLinkDetail(detail.id)}
+                          >
+                            <ListItemText
+                              primary={detail.title}
+                              secondary={
+                                UPCHARGE_INPUT_TYPE_LABELS[detail.inputType] ??
+                                detail.inputType
+                              }
+                            />
+                            {linkDetailsMutation.isPending && (
+                              <CircularProgress size={16} sx={{ ml: 1 }} />
+                            )}
+                          </ListItem>
+                        ))}
+                        <Box ref={loadMoreRef} sx={{ height: 1 }} />
+                        {isFetchingNextPage && (
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'center',
+                              p: 1,
+                            }}
+                          >
+                            <CircularProgress size={20} />
+                          </Box>
+                        )}
+                      </List>
+                    )}
+                  </Paper>
+                </Box>
+
+                {/* Right: Linked Details */}
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
+                    Linked Details ({linkedDetails.length})
+                  </Typography>
+                  {linkedDetails.length === 0 ? (
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 3,
+                        textAlign: 'center',
+                        bgcolor: 'action.hover',
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        No additional details linked. Additional details are
+                        optional.
+                      </Typography>
+                    </Paper>
+                  ) : (
+                    <Paper
+                      variant="outlined"
+                      sx={{ maxHeight: 250, overflow: 'auto' }}
+                    >
+                      <List dense disablePadding>
+                        {linkedDetails.map(detail => (
+                          <ListItem key={detail.fieldId}>
+                            <ListItemText
+                              primary={detail.title}
+                              secondary={
+                                UPCHARGE_INPUT_TYPE_LABELS[detail.inputType] ??
+                                detail.inputType
+                              }
+                            />
+                            <Chip
+                              label={
+                                UPCHARGE_INPUT_TYPE_LABELS[detail.inputType] ??
+                                detail.inputType
+                              }
+                              size="small"
+                              variant="outlined"
+                              sx={{ mr: 1 }}
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  void handleUnlinkDetail(detail.fieldId)
+                                }
+                                disabled={unlinkDetailMutation.isPending}
+                              >
+                                {unlinkDetailMutation.isPending ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <DeleteIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Paper>
+                  )}
+                </Box>
+              </Box>
+            </Box>
           </Stack>
         )}
       </DialogContent>

@@ -506,6 +506,31 @@ export const priceGuideApi = {
     return apiClient.delete(url);
   },
 
+  /**
+   * Link additional detail fields to an upcharge.
+   */
+  linkUpchargeAdditionalDetails: async (
+    upchargeId: string,
+    fieldIds: string[],
+  ): Promise<{ success: boolean; linked: number; warnings: string[] }> => {
+    return apiClient.post(
+      `/price-guide/library/upcharges/${upchargeId}/additional-details`,
+      { fieldIds },
+    );
+  },
+
+  /**
+   * Unlink an additional detail field from an upcharge.
+   */
+  unlinkUpchargeAdditionalDetail: async (
+    upchargeId: string,
+    fieldId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/library/upcharges/${upchargeId}/additional-details/${fieldId}`,
+    );
+  },
+
   // ==========================================================================
   // Library - Additional Details
   // ==========================================================================

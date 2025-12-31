@@ -687,6 +687,58 @@ export function useDeleteUpcharge() {
 }
 
 /**
+ * Hook to link additional detail fields to an upcharge.
+ */
+export function useLinkUpchargeAdditionalDetails() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      fieldIds,
+    }: {
+      upchargeId: string;
+      fieldIds: string[];
+    }) => priceGuideApi.linkUpchargeAdditionalDetails(upchargeId, fieldIds),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeDetail(upchargeId),
+      });
+      // Invalidate additional detail lists to update linkedUpChargeCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to unlink an additional detail field from an upcharge.
+ */
+export function useUnlinkUpchargeAdditionalDetail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      fieldId,
+    }: {
+      upchargeId: string;
+      fieldId: string;
+    }) => priceGuideApi.unlinkUpchargeAdditionalDetail(upchargeId, fieldId),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeDetail(upchargeId),
+      });
+      // Invalidate additional detail lists to update linkedUpChargeCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
+/**
  * Hook to fetch paginated additional details list.
  */
 export function useAdditionalDetailList(
