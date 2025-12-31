@@ -1,31 +1,26 @@
 /**
  * UpCharges Section Component.
  * Handles linking/unlinking upcharges with option compatibility settings.
+ * Uses the generic LinkableItemPicker with custom linked item rendering.
  */
 
-import ClearIcon from '@mui/icons-material/Clear';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import SearchIcon from '@mui/icons-material/Search';
-import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
-import CircularProgress from '@mui/material/CircularProgress';
 import Collapse from '@mui/material/Collapse';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useUpchargeList } from '../../../hooks/usePriceGuide';
+
+import { LinkableItemPicker } from './LinkableItemPicker';
 
 import type {
   LinkedUpCharge,
@@ -52,11 +47,7 @@ export type UpchargesSectionProps = {
 // ============================================================================
 
 type UpChargeCardProps = {
-  upcharge: {
-    id: string;
-    name: string;
-    disabledOptionIds: string[];
-  };
+  upcharge: LinkedUpCharge;
   options: Array<{ id: string; name: string; brand: string | null }>;
   onRemove: (id: string) => void;
   onToggleDisabledOption: (upchargeId: string, optionId: string) => void;
@@ -164,7 +155,7 @@ export function UpchargesSection({
   updateUpchargeDisabledOptions,
 }: UpchargesSectionProps): React.ReactElement {
   const [search, setSearch] = useState('');
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
 
   const debouncedSearch = useDebouncedValue(search, 300);
 
@@ -178,6 +169,7 @@ export function UpchargesSection({
     error,
   } = useUpchargeList({
     search: debouncedSearch || undefined,
+    tags: tagFilter.length > 0 ? tagFilter : undefined,
     limit: 20,
   });
 
@@ -187,44 +179,16 @@ export function UpchargesSection({
     return data.pages.flatMap(page => page.items);
   }, [data]);
 
-  // Filter out already selected
-  const availableUpcharges = useMemo(() => {
-    const selectedIds = new Set(state.upcharges.map(u => u.id));
-    return allUpcharges.filter(u => !selectedIds.has(u.id));
-  }, [allUpcharges, state.upcharges]);
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        const entry = entries[0];
-        if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          void fetchNextPage();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    const el = loadMoreRef.current;
-    if (el) observer.observe(el);
-    return () => {
-      if (el) observer.unobserve(el);
-    };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
   // Handlers
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setSearch(e.target.value);
-    },
-    [],
-  );
-
-  const handleClearSearch = useCallback(() => {
-    setSearch('');
+  const handleSearchChange = useCallback((searchValue: string) => {
+    setSearch(searchValue);
   }, []);
 
-  const handleSelectUpcharge = useCallback(
+  const handleTagFilterChange = useCallback((tags: string[]) => {
+    setTagFilter(tags);
+  }, []);
+
+  const handleLinkUpcharge = useCallback(
     (upcharge: UpChargeSummary) => {
       addUpcharge({
         id: upcharge.id,
@@ -249,110 +213,50 @@ export function UpchargesSection({
     [state.upcharges, updateUpchargeDisabledOptions],
   );
 
+  // Custom render for linked upcharge cards
+  const renderLinkedUpcharge = useCallback(
+    (upcharge: LinkedUpCharge, onUnlink: (id: string) => void) => (
+      <UpChargeCard
+        upcharge={upcharge}
+        options={state.options}
+        onRemove={onUnlink}
+        onToggleDisabledOption={handleToggleDisabledOption}
+      />
+    ),
+    [state.options, handleToggleDisabledOption],
+  );
+
   return (
-    <Box sx={{ display: 'flex', gap: 3 }}>
-      {/* Left: Search & Select */}
-      <Box sx={{ flex: 1 }}>
-        <TextField
-          placeholder="Search upcharges..."
-          value={search}
-          onChange={handleSearchChange}
-          size="small"
-          fullWidth
-          sx={{ mb: 2 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-            endAdornment: search && (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={handleClearSearch}>
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            Failed to load upcharges. Please try again.
-          </Alert>
-        )}
-
-        <Paper
-          variant="outlined"
-          sx={{ maxHeight: 300, overflow: 'auto', minHeight: 200 }}
-        >
-          {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-              <CircularProgress size={24} />
-            </Box>
-          ) : availableUpcharges.length === 0 ? (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ p: 2, textAlign: 'center' }}
-            >
-              {search
-                ? 'No matching upcharges found'
-                : 'All upcharges have been added'}
-            </Typography>
-          ) : (
-            <List dense disablePadding>
-              {availableUpcharges.map(upcharge => (
-                <ListItem
-                  key={upcharge.id}
-                  sx={{
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                  onClick={() => handleSelectUpcharge(upcharge)}
-                >
-                  <Typography variant="body2">{upcharge.name}</Typography>
-                </ListItem>
-              ))}
-              <Box ref={loadMoreRef} sx={{ height: 1 }} />
-              {isFetchingNextPage && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }}>
-                  <CircularProgress size={20} />
-                </Box>
-              )}
-            </List>
-          )}
-        </Paper>
-      </Box>
-
-      {/* Right: Selected UpCharges */}
-      <Box sx={{ flex: 1 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Selected UpCharges ({state.upcharges.length})
-        </Typography>
-        {state.upcharges.length === 0 ? (
-          <Paper
-            variant="outlined"
-            sx={{ p: 3, textAlign: 'center', bgcolor: 'action.hover' }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              No upcharges selected. UpCharges are optional.
-            </Typography>
-          </Paper>
-        ) : (
-          <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
-            {state.upcharges.map(upcharge => (
-              <UpChargeCard
-                key={upcharge.id}
-                upcharge={upcharge}
-                options={state.options}
-                onRemove={removeUpcharge}
-                onToggleDisabledOption={handleToggleDisabledOption}
-              />
-            ))}
-          </Box>
-        )}
-      </Box>
-    </Box>
+    <LinkableItemPicker<UpChargeSummary, LinkedUpCharge>
+      // Data
+      availableItems={allUpcharges}
+      linkedItems={state.upcharges}
+      // Callbacks
+      onLinkItem={handleLinkUpcharge}
+      onUnlinkItem={removeUpcharge}
+      onSearchChange={handleSearchChange}
+      onTagFilterChange={handleTagFilterChange}
+      // Display - Available items
+      getAvailableItemPrimary={upcharge => upcharge.name}
+      // Display - Linked items (custom render)
+      getLinkedItemPrimary={upcharge => upcharge.name}
+      renderLinkedItem={renderLinkedUpcharge}
+      // Labels
+      searchPlaceholder="Search upcharges..."
+      availableLabel="Available UpCharges"
+      linkedLabel="Selected UpCharges"
+      emptyAvailableMessage="All upcharges have been added"
+      emptyLinkedMessage="No upcharges selected. UpCharges are optional."
+      // Configuration
+      enableTagFilter={true}
+      // Loading states
+      isLoading={isLoading}
+      error={!!error}
+      errorMessage="Failed to load upcharges. Please try again."
+      // Infinite scroll
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      fetchNextPage={() => void fetchNextPage()}
+    />
   );
 }
