@@ -46,7 +46,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
-  TagChip,
+  TagDots,
   TagFilterSelect,
   ItemTagEditor,
   ImageLibraryTab,
@@ -2138,23 +2138,7 @@ function OptionsTab({
                   </TableCell>
                   <TableCell>
                     {option.tags && option.tags.length > 0 ? (
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        flexWrap="wrap"
-                        useFlexGap
-                      >
-                        {option.tags.slice(0, 3).map(tag => (
-                          <TagChip key={tag.id} tag={tag} size="small" />
-                        ))}
-                        {option.tags.length > 3 && (
-                          <Chip
-                            label={`+${option.tags.length - 3}`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
-                      </Stack>
+                      <TagDots tags={option.tags} maxDots={5} />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         -
@@ -2406,23 +2390,7 @@ function UpChargesTab({
                   </TableCell>
                   <TableCell>
                     {upcharge.tags && upcharge.tags.length > 0 ? (
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        flexWrap="wrap"
-                        useFlexGap
-                      >
-                        {upcharge.tags.slice(0, 3).map(tag => (
-                          <TagChip key={tag.id} tag={tag} size="small" />
-                        ))}
-                        {upcharge.tags.length > 3 && (
-                          <Chip
-                            label={`+${upcharge.tags.length - 3}`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
-                      </Stack>
+                      <TagDots tags={upcharge.tags} maxDots={5} />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         -
@@ -2610,23 +2578,7 @@ function AdditionalDetailsTab({
                   </TableCell>
                   <TableCell>
                     {detail.tags && detail.tags.length > 0 ? (
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        flexWrap="wrap"
-                        useFlexGap
-                      >
-                        {detail.tags.slice(0, 3).map(tag => (
-                          <TagChip key={tag.id} tag={tag} size="small" />
-                        ))}
-                        {detail.tags.length > 3 && (
-                          <Chip
-                            label={`+${detail.tags.length - 3}`}
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
-                      </Stack>
+                      <TagDots tags={detail.tags} maxDots={5} />
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         -

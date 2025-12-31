@@ -113,10 +113,12 @@ export type {
 
 // Tags
 export { TagChip } from './TagChip';
+export { TagDots } from './TagDots';
 export { TagAutocomplete } from './TagAutocomplete';
 export { TagFilterSelect } from './TagFilterSelect';
 export { ItemTagEditor } from './ItemTagEditor';
 export type { TagChipProps } from './TagChip';
+export type { TagDotsProps } from './TagDots';
 export type { TagAutocompleteProps } from './TagAutocomplete';
 export type { TagFilterSelectProps } from './TagFilterSelect';
 export type { ItemTagEditorProps } from './ItemTagEditor';

@@ -44,7 +44,8 @@ import { useTagList, useSetItemTags } from '../../hooks/useTags';
 
 import { ItemTagEditor } from './ItemTagEditor';
 import { TagAutocomplete } from './TagAutocomplete';
-import { TagChip } from './TagChip';
+import { TagDots } from './TagDots';
+import { UsageIcons } from './UsageIcons';
 
 import type { PriceGuideImageSummary, TagSummary } from '@shared/types';
 
@@ -605,7 +606,7 @@ function DeleteImageDialog({
 }
 
 // ============================================================================
-// Image Card Component
+// Image Card Component (Compact Layout)
 // ============================================================================
 
 type ImageCardProps = {
@@ -619,6 +620,9 @@ function ImageCard({
   onEdit,
   onDelete,
 }: ImageCardProps): React.ReactElement {
+  const hasTags = image.tags && image.tags.length > 0;
+  const hasUsage = image.linkedMsiCount > 0 || image.linkedUpchargeCount > 0;
+
   return (
     <Card
       sx={{
@@ -632,75 +636,45 @@ function ImageCard({
         image={image.thumbnailUrl ?? image.imageUrl ?? undefined}
         alt={image.name}
         sx={{
-          height: 140,
+          height: 100,
           width: '100%',
           objectFit: 'contain',
           objectPosition: 'center',
           bgcolor: 'grey.100',
         }}
       />
-      <Box sx={{ p: 1.5, flexGrow: 1 }}>
+      <Box sx={{ p: 1, flexGrow: 1 }}>
         <Typography
-          variant="subtitle2"
+          variant="body2"
           noWrap
           title={image.name}
-          sx={{ fontWeight: 600 }}
+          sx={{ fontWeight: 600, fontSize: '0.8rem' }}
         >
           {image.name}
         </Typography>
-        {image.description && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
+        {/* Compact indicators row: Tags (dots) + Usage (icons) */}
+        {(hasTags || hasUsage) && (
+          <Box
             sx={{
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
+              mt: 0.75,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1,
             }}
           >
-            {image.description}
-          </Typography>
-        )}
-        {/* Tags */}
-        {image.tags && image.tags.length > 0 && (
-          <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {image.tags.slice(0, 3).map(tag => (
-              <TagChip key={tag.id} tag={tag} size="small" />
-            ))}
-            {image.tags.length > 3 && (
-              <Chip
-                label={`+${image.tags.length - 3}`}
-                size="small"
-                variant="outlined"
-              />
-            )}
+            {hasTags ? <TagDots tags={image.tags} maxDots={5} /> : <Box />}
+            <UsageIcons
+              msiCount={image.linkedMsiCount}
+              upchargeCount={image.linkedUpchargeCount}
+            />
           </Box>
         )}
-        {/* Usage counts */}
-        <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {image.linkedMsiCount > 0 && (
-            <Chip
-              label={`${image.linkedMsiCount} MSI${image.linkedMsiCount !== 1 ? 's' : ''}`}
-              size="small"
-              variant="outlined"
-              color="primary"
-            />
-          )}
-          {image.linkedUpchargeCount > 0 && (
-            <Chip
-              label={`${image.linkedUpchargeCount} UpCharge${image.linkedUpchargeCount !== 1 ? 's' : ''}`}
-              size="small"
-              variant="outlined"
-              color="secondary"
-            />
-          )}
-        </Box>
       </Box>
-      <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+      <CardActions sx={{ justifyContent: 'flex-end', pt: 0, pb: 0.5, px: 0.5 }}>
         <Tooltip title="Edit">
           <IconButton size="small" onClick={() => onEdit(image.id)}>
-            <EditIcon fontSize="small" />
+            <EditIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
         <Tooltip title="Delete">
@@ -708,7 +682,7 @@ function ImageCard({
             size="small"
             onClick={() => onDelete(image.id, image.name)}
           >
-            <DeleteIcon fontSize="small" />
+            <DeleteIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       </CardActions>
@@ -821,10 +795,14 @@ export function ImageLibraryTab({
 
       {/* Image Grid */}
       {isLoading ? (
-        <Grid container spacing={2}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={i}>
-              <Skeleton variant="rectangular" height={200} />
+        <Grid container spacing={1.5}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={i}>
+              <Skeleton
+                variant="rectangular"
+                height={160}
+                sx={{ borderRadius: 1 }}
+              />
             </Grid>
           ))}
         </Grid>
@@ -858,9 +836,9 @@ export function ImageLibraryTab({
         </Box>
       ) : (
         <>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             {images.map(image => (
-              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={image.id}>
+              <Grid size={{ xs: 6, sm: 4, md: 3, lg: 2 }} key={image.id}>
                 <ImageCard
                   image={image}
                   onEdit={handleEdit}
