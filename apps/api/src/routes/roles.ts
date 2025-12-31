@@ -182,11 +182,10 @@ router.get(
 
       let roles = await permissionService.getAvailableRoles(company.id);
 
-      // Filter out platform roles for non-internal users
-      // Platform roles should only be visible to internal platform users
-      if ((user.userType as UserType) !== UserType.INTERNAL) {
-        roles = roles.filter(r => (r.type as RoleType) !== RoleType.PLATFORM);
-      }
+      // Always filter out platform roles from the company roles endpoint.
+      // Platform roles should only be accessible via /platform/roles endpoint.
+      // This ensures clean separation: /roles = company context, /platform/roles = platform context
+      roles = roles.filter(r => (r.type as RoleType) !== RoleType.PLATFORM);
 
       // Get user counts for each role
       const roleCounts = await Promise.all(
