@@ -19,7 +19,6 @@ import {
   ItemTag,
   File,
   PriceGuideImage,
-  MeasureSheetItemImage,
   Company,
   User,
 } from '../../entities';
@@ -603,25 +602,17 @@ export async function createTestPriceGuideImage(
 }
 
 // ============================================================================
-// Image Link Factory
+// Thumbnail Image Setter
 // ============================================================================
 
 /**
- * Link a PriceGuideImage to a MeasureSheetItem
+ * Set a PriceGuideImage as thumbnail for a MeasureSheetItem
  */
-export async function linkImageToMeasureSheetItem(
+export async function setMsiThumbnail(
   em: EntityManager,
   msi: MeasureSheetItem,
   image: PriceGuideImage,
-  sortOrder: number = 0,
-): Promise<MeasureSheetItemImage> {
-  const link = em.create(MeasureSheetItemImage, {
-    id: uuid(),
-    measureSheetItem: msi,
-    priceGuideImage: image,
-    sortOrder,
-  });
-  em.persist(link);
+): Promise<void> {
+  msi.thumbnailImage = image;
   await em.flush();
-  return link;
 }

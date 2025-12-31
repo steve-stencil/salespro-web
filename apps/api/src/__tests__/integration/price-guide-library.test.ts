@@ -13,7 +13,7 @@ import {
   createTestPriceGuideImage,
   createTestTag,
   assignTagToEntity,
-  linkImageToMeasureSheetItem,
+  setMsiThumbnail,
 } from '../factories/price-guide';
 
 import {
@@ -724,7 +724,7 @@ describe('Price Guide Library Routes', () => {
           setup.company,
           category,
         );
-        await linkImageToMeasureSheetItem(em, msi, image, 0);
+        await setMsiThumbnail(em, msi, image);
 
         const response = await makeRequest()
           .get(`/api/price-guide/library/images/${image.id}`)
@@ -917,7 +917,7 @@ describe('Price Guide Library Routes', () => {
             name: 'Double Hung Window',
           },
         );
-        await linkImageToMeasureSheetItem(em, msi, image, 0);
+        await setMsiThumbnail(em, msi, image);
 
         const response = await makeRequest()
           .get(`/api/price-guide/library/images/${image.id}/where-used`)
@@ -980,7 +980,7 @@ describe('Price Guide Library Routes', () => {
           setup.company,
           category,
         );
-        await linkImageToMeasureSheetItem(em, msi, image, 0);
+        await setMsiThumbnail(em, msi, image);
 
         const response = await makeRequest()
           .delete(`/api/price-guide/library/images/${image.id}`)
