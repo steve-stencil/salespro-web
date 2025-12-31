@@ -29,6 +29,11 @@ const listQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   search: z.string().optional(),
+  /** Comma-separated tag IDs to filter by (OR logic) */
+  tags: z
+    .string()
+    .optional()
+    .transform(val => (val ? val.split(',').filter(Boolean) : undefined)),
 });
 
 const sizePickerConfigSchema = z.object({
@@ -123,7 +128,7 @@ function encodeCursor(title: string, id: string): string {
 
 /**
  * GET /price-guide/library/additional-details
- * List additional detail fields with cursor-based pagination
+ * List additional detail fields with cursor-based pagination and optional tag filtering
  */
 router.get(
   '/',
@@ -147,7 +152,7 @@ router.get(
         return;
       }
 
-      const { cursor, limit, search } = parseResult.data;
+      const { cursor, limit, search, tags } = parseResult.data;
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
@@ -164,6 +169,31 @@ router.get(
             { note: { $ilike: `%${search}%` } },
           ],
         });
+      }
+
+      // Tag filtering (OR logic - matches any of the provided tags)
+      if (tags && tags.length > 0) {
+        const knex = em.getKnex();
+        const taggedRows = await knex('item_tag')
+          .select('entity_id')
+          .where('entity_type', 'ADDITIONAL_DETAIL')
+          .whereIn('tag_id', tags);
+
+        const filteredFieldIds = taggedRows.map(
+          (row: { entity_id: string }) => row.entity_id,
+        );
+
+        if (filteredFieldIds.length === 0) {
+          res.status(200).json({
+            items: [],
+            nextCursor: undefined,
+            hasMore: false,
+            total: 0,
+          });
+          return;
+        }
+
+        qb.andWhere({ id: { $in: filteredFieldIds } });
       }
 
       // Cursor pagination
@@ -185,6 +215,38 @@ router.get(
       const hasMore = items.length > limit;
       if (hasMore) items.pop();
 
+      // Fetch tags for all returned additional details
+      const resultFieldIds = items.map(f => f.id);
+      const tagsByFieldId = new Map<
+        string,
+        Array<{ id: string; name: string; color: string }>
+      >();
+
+      if (resultFieldIds.length > 0) {
+        const knex = em.getKnex();
+        const tagRows = await knex('item_tag as it')
+          .join('tag as t', 't.id', 'it.tag_id')
+          .select('it.entity_id', 't.id as tag_id', 't.name', 't.color')
+          .where('it.entity_type', 'ADDITIONAL_DETAIL')
+          .whereIn('it.entity_id', resultFieldIds)
+          .where('t.is_active', true);
+
+        for (const row of tagRows as Array<{
+          entity_id: string;
+          tag_id: string;
+          name: string;
+          color: string;
+        }>) {
+          const existing = tagsByFieldId.get(row.entity_id) ?? [];
+          existing.push({
+            id: row.tag_id,
+            name: row.name,
+            color: row.color,
+          });
+          tagsByFieldId.set(row.entity_id, existing);
+        }
+      }
+
       const lastItem = items[items.length - 1];
       const nextCursor =
         hasMore && lastItem
@@ -199,6 +261,7 @@ router.get(
           isRequired: f.isRequired,
           linkedMsiCount: f.linkedMsiCount,
           isActive: f.isActive,
+          tags: tagsByFieldId.get(f.id) ?? [],
         })),
         nextCursor,
         hasMore,

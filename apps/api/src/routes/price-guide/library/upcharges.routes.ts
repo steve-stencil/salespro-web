@@ -30,6 +30,11 @@ const listQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   search: z.string().optional(),
+  /** Comma-separated tag IDs to filter by (OR logic) */
+  tags: z
+    .string()
+    .optional()
+    .transform(val => (val ? val.split(',').filter(Boolean) : undefined)),
 });
 
 const createUpchargeSchema = z.object({
@@ -138,7 +143,7 @@ async function getImageUrls(
 
 /**
  * GET /price-guide/library/upcharges
- * List upcharges with cursor-based pagination
+ * List upcharges with cursor-based pagination and optional tag filtering
  */
 router.get(
   '/',
@@ -162,7 +167,7 @@ router.get(
         return;
       }
 
-      const { cursor, limit, search } = parseResult.data;
+      const { cursor, limit, search, tags } = parseResult.data;
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
@@ -180,6 +185,31 @@ router.get(
             { identifier: { $ilike: `%${search}%` } },
           ],
         });
+      }
+
+      // Tag filtering (OR logic - matches any of the provided tags)
+      if (tags && tags.length > 0) {
+        const knex = em.getKnex();
+        const taggedRows = await knex('item_tag')
+          .select('entity_id')
+          .where('entity_type', 'UPCHARGE')
+          .whereIn('tag_id', tags);
+
+        const filteredUpchargeIds = taggedRows.map(
+          (row: { entity_id: string }) => row.entity_id,
+        );
+
+        if (filteredUpchargeIds.length === 0) {
+          res.status(200).json({
+            items: [],
+            nextCursor: undefined,
+            hasMore: false,
+            total: 0,
+          });
+          return;
+        }
+
+        qb.andWhere({ id: { $in: filteredUpchargeIds } });
       }
 
       // Cursor pagination
@@ -204,13 +234,45 @@ router.get(
       // Load image relationships for presigned URLs
       await em.populate(items, ['image']);
 
+      // Fetch tags for all returned upcharges
+      const resultUpchargeIds = items.map(u => u.id);
+      const tagsByUpchargeId = new Map<
+        string,
+        Array<{ id: string; name: string; color: string }>
+      >();
+
+      if (resultUpchargeIds.length > 0) {
+        const knex = em.getKnex();
+        const tagRows = await knex('item_tag as it')
+          .join('tag as t', 't.id', 'it.tag_id')
+          .select('it.entity_id', 't.id as tag_id', 't.name', 't.color')
+          .where('it.entity_type', 'UPCHARGE')
+          .whereIn('it.entity_id', resultUpchargeIds)
+          .where('t.is_active', true);
+
+        for (const row of tagRows as Array<{
+          entity_id: string;
+          tag_id: string;
+          name: string;
+          color: string;
+        }>) {
+          const existing = tagsByUpchargeId.get(row.entity_id) ?? [];
+          existing.push({
+            id: row.tag_id,
+            name: row.name,
+            color: row.color,
+          });
+          tagsByUpchargeId.set(row.entity_id, existing);
+        }
+      }
+
       const lastItem = items[items.length - 1];
       const nextCursor =
         hasMore && lastItem
           ? encodeCursor(lastItem.name, lastItem.id)
           : undefined;
 
-      // Build response with presigned URLs
+      // Build response with presigned URLs and tags
       const responseItems = await Promise.all(
         items.map(async u => {
           const { imageUrl, thumbnailUrl } = await getImageUrls(u.image);
@@ -224,6 +286,7 @@ router.get(
             imageUrl,
             thumbnailUrl,
             isActive: u.isActive,
+            tags: tagsByUpchargeId.get(u.id) ?? [],
           };
         }),
       );
