@@ -39,7 +39,7 @@ export { MeasureSheetItem } from './MeasureSheetItem.entity';
 export { PriceGuideOption } from './PriceGuideOption.entity';
 export { UpCharge } from './UpCharge.entity';
 export { AdditionalDetailField } from './AdditionalDetailField.entity';
-export { PriceObjectType, DEFAULT_PRICE_TYPES } from './PriceObjectType.entity';
+export { PriceObjectType } from './PriceObjectType.entity';
 export { Tag } from './Tag.entity';
 export { PriceGuideImage } from './PriceGuideImage.entity';
 
@@ -51,6 +51,7 @@ export { MeasureSheetItemAdditionalDetailField } from './MeasureSheetItemAdditio
 export { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.entity';
 export { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
 export { ItemTag } from './ItemTag.entity';
+export { OfficePriceType } from './OfficePriceType.entity';
 
 // Pricing entities
 export { OptionPrice } from './OptionPrice.entity';
@@ -69,6 +70,9 @@ export {
   PriceChangeJobStatus,
   PriceChangeTargetType,
   TaggableEntityType,
+  PARENT_PRICE_TYPE_CODES,
+  PARENT_PRICE_TYPE_LABELS,
+  PARENT_PRICE_TYPE_DESCRIPTIONS,
 } from './types';
 
 export type {
@@ -76,4 +80,5 @@ export type {
   UnitedInchConfig,
   PhotoFieldConfig,
   PriceChangeOperation,
+  ParentPriceTypeCode,
 } from './types';
