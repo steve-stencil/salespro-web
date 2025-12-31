@@ -6,11 +6,13 @@
 export { BasicInfoSection } from './BasicInfoSection';
 export { OfficesSection } from './OfficesSection';
 export { OptionsSection } from './OptionsSection';
+export { TagsSection } from './TagsSection';
 export { UpchargesSection } from './UpchargesSection';
 export { AdditionalDetailsSection } from './AdditionalDetailsSection';
 
 export type { BasicInfoSectionProps } from './BasicInfoSection';
 export type { OfficesSectionProps } from './OfficesSection';
 export type { OptionsSectionProps } from './OptionsSection';
+export type { TagsSectionProps } from './TagsSection';
 export type { UpchargesSectionProps } from './UpchargesSection';
 export type { AdditionalDetailsSectionProps } from './AdditionalDetailsSection';

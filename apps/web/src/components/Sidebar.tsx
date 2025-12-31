@@ -12,6 +12,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -96,6 +97,12 @@ const PRICE_GUIDE_NAV_ITEMS: NavItem[] = [
     path: '/price-guide/categories',
     icon: <CategoryIcon />,
     permission: PERMISSIONS.PRICE_GUIDE_READ,
+  },
+  {
+    label: 'Tags',
+    path: '/price-guide/tags',
+    icon: <LocalOfferIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_UPDATE,
   },
   {
     label: 'Tools',

@@ -27,6 +27,7 @@ import {
   MigrationWizardPage,
   MsiEditPage,
   PricingPage,
+  TagManagementPage,
   ToolsPage,
 } from './pages/price-guide';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -181,6 +182,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
             <ToolsPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/tags',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <TagManagementPage />
           </PermissionGuard>
         ),
       },
