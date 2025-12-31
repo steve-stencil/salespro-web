@@ -48,6 +48,17 @@ export enum PriceChangeTargetType {
   UPCHARGES = 'upcharges',
 }
 
+/**
+ * Entity types that support tagging via the polymorphic ItemTag junction table.
+ * Add new values here as tagging is enabled for additional entity types.
+ */
+export enum TaggableEntityType {
+  OPTION = 'OPTION',
+  UPCHARGE = 'UPCHARGE',
+  ADDITIONAL_DETAIL = 'ADDITIONAL_DETAIL',
+  MEASURE_SHEET_ITEM = 'MEASURE_SHEET_ITEM',
+}
+
 /** Size picker configuration for 2D/3D size pickers */
 export type SizePickerConfig = {
   precision: SizePickerPrecision;

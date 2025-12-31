@@ -47,6 +47,8 @@ import {
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  Tag,
+  ItemTag,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -99,6 +101,8 @@ const entities = [
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  Tag,
+  ItemTag,
 ];
 
 /**

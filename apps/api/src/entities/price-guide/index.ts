@@ -8,6 +8,7 @@
  * - UpCharge: Shared add-ons/accessories library
  * - AdditionalDetailField: Shared custom input fields library
  * - PriceObjectType: TypeCodes for pricing breakdown (Materials, Labor, etc.)
+ * - Tag: Reusable labels for organizing library items
  *
  * Junction Tables:
  * - MeasureSheetItemOffice: Office visibility for MSIs
@@ -16,6 +17,7 @@
  * - MeasureSheetItemAdditionalDetailField: Links MSIs to additional detail fields
  * - UpChargeAdditionalDetailField: Links upcharges to additional detail fields
  * - UpChargeDisabledOption: Tracks disabled options per upcharge
+ * - ItemTag: Polymorphic junction for tagging any library item
  *
  * Pricing Entities:
  * - OptionPrice: Price breakdowns per option × office × priceType
@@ -37,6 +39,7 @@ export { PriceGuideOption } from './PriceGuideOption.entity';
 export { UpCharge } from './UpCharge.entity';
 export { AdditionalDetailField } from './AdditionalDetailField.entity';
 export { PriceObjectType, DEFAULT_PRICE_TYPES } from './PriceObjectType.entity';
+export { Tag } from './Tag.entity';
 
 // Junction tables
 export { MeasureSheetItemOffice } from './MeasureSheetItemOffice.entity';
@@ -45,6 +48,7 @@ export { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
 export { MeasureSheetItemAdditionalDetailField } from './MeasureSheetItemAdditionalDetailField.entity';
 export { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.entity';
 export { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
+export { ItemTag } from './ItemTag.entity';
 
 // Pricing entities
 export { OptionPrice } from './OptionPrice.entity';
@@ -62,6 +66,7 @@ export {
   SizePickerPrecision,
   PriceChangeJobStatus,
   PriceChangeTargetType,
+  TaggableEntityType,
 } from './types';
 
 export type {
