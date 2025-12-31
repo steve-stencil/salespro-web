@@ -9,6 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import ImageIcon from '@mui/icons-material/Image';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import SearchIcon from '@mui/icons-material/Search';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -43,6 +44,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
+import {
+  TagChip,
+  TagFilterSelect,
+  ItemTagEditor,
+} from '../../components/price-guide';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import {
   useOptionList,
@@ -58,6 +64,7 @@ import {
   useAdditionalDetailDetail,
   useUpdateAdditionalDetail,
 } from '../../hooks/usePriceGuide';
+import { useTagList } from '../../hooks/useTags';
 import { filesApi } from '../../services/files';
 import { priceGuideApi } from '../../services/price-guide';
 
@@ -65,6 +72,7 @@ import type {
   OptionSummary,
   UpChargeSummary,
   AdditionalDetailFieldSummary,
+  TagSummary,
 } from '@shared/types';
 
 // ============================================================================
@@ -429,6 +437,12 @@ function EditOptionDialog({
               onChange={e => setItemCode(e.target.value)}
               fullWidth
             />
+            <ItemTagEditor
+              entityType="OPTION"
+              entityId={optionId ?? undefined}
+              label="Tags"
+              placeholder="Add tags..."
+            />
           </Stack>
         )}
       </DialogContent>
@@ -532,6 +546,12 @@ function EditUpChargeDialog({
               fullWidth
               multiline
               rows={2}
+            />
+            <ItemTagEditor
+              entityType="UPCHARGE"
+              entityId={upchargeId ?? undefined}
+              label="Tags"
+              placeholder="Add tags..."
             />
           </Stack>
         )}
@@ -654,6 +674,12 @@ function EditAdditionalDetailDialog({
                 />
               }
               label="Required field"
+            />
+            <ItemTagEditor
+              entityType="ADDITIONAL_DETAIL"
+              entityId={detailId ?? undefined}
+              label="Tags"
+              placeholder="Add tags..."
             />
           </Stack>
         )}
@@ -806,12 +832,14 @@ function TableRowSkeleton({
 
 type OptionsTabProps = {
   search: string;
+  tags?: string[];
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 };
 
 function OptionsTab({
   search,
+  tags,
   onEdit,
   onDelete,
 }: OptionsTabProps): React.ReactElement {
@@ -827,6 +855,7 @@ function OptionsTab({
     error,
   } = useOptionList({
     search: debouncedSearch || undefined,
+    tags: tags && tags.length > 0 ? tags : undefined,
     limit: 25,
   });
 
@@ -881,6 +910,7 @@ function OptionsTab({
               <TableCell>Brand</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Item Code</TableCell>
+              <TableCell>Tags</TableCell>
               <TableCell align="center">Used By</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -888,11 +918,11 @@ function OptionsTab({
           <TableBody>
             {isLoading ? (
               [...Array(5)].map((_, i) => (
-                <TableRowSkeleton key={i} columns={5} />
+                <TableRowSkeleton key={i} columns={6} />
               ))
             ) : allItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
                     {search
                       ? 'No options match your search.'
@@ -921,6 +951,31 @@ function OptionsTab({
                     >
                       {option.itemCode ?? '-'}
                     </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {option.tags && option.tags.length > 0 ? (
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        flexWrap="wrap"
+                        useFlexGap
+                      >
+                        {option.tags.slice(0, 3).map(tag => (
+                          <TagChip key={tag.id} tag={tag} size="small" />
+                        ))}
+                        {option.tags.length > 3 && (
+                          <Chip
+                            label={`+${option.tags.length - 3}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        -
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell align="center">
                     <UsageCountBadge
@@ -988,12 +1043,14 @@ function OptionsTab({
 
 type UpChargesTabProps = {
   search: string;
+  tags?: string[];
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 };
 
 function UpChargesTab({
   search,
+  tags,
   onEdit,
   onDelete,
 }: UpChargesTabProps): React.ReactElement {
@@ -1017,6 +1074,7 @@ function UpChargesTab({
     error,
   } = useUpchargeList({
     search: debouncedSearch || undefined,
+    tags: tags && tags.length > 0 ? tags : undefined,
     limit: 25,
   });
 
@@ -1135,6 +1193,7 @@ function UpChargesTab({
               <TableCell width={60}>Image</TableCell>
               <TableCell>Name</TableCell>
               <TableCell>Note</TableCell>
+              <TableCell>Tags</TableCell>
               <TableCell align="center">Used By</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -1142,11 +1201,11 @@ function UpChargesTab({
           <TableBody>
             {isLoading ? (
               [...Array(5)].map((_, i) => (
-                <TableRowSkeleton key={i} columns={5} />
+                <TableRowSkeleton key={i} columns={6} />
               ))
             ) : allItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
                     {search
                       ? 'No upcharges match your search.'
@@ -1226,7 +1285,7 @@ function UpChargesTab({
                       variant="body2"
                       color="text.secondary"
                       sx={{
-                        maxWidth: 300,
+                        maxWidth: 200,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -1234,6 +1293,31 @@ function UpChargesTab({
                     >
                       {upcharge.note ?? '-'}
                     </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {upcharge.tags && upcharge.tags.length > 0 ? (
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        flexWrap="wrap"
+                        useFlexGap
+                      >
+                        {upcharge.tags.slice(0, 3).map(tag => (
+                          <TagChip key={tag.id} tag={tag} size="small" />
+                        ))}
+                        {upcharge.tags.length > 3 && (
+                          <Chip
+                            label={`+${upcharge.tags.length - 3}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        -
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell align="center">
                     <UsageCountBadge
@@ -1301,12 +1385,14 @@ function UpChargesTab({
 
 type AdditionalDetailsTabProps = {
   search: string;
+  tags?: string[];
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 };
 
 function AdditionalDetailsTab({
   search,
+  tags,
   onEdit,
   onDelete,
 }: AdditionalDetailsTabProps): React.ReactElement {
@@ -1322,6 +1408,7 @@ function AdditionalDetailsTab({
     error,
   } = useAdditionalDetailList({
     search: debouncedSearch || undefined,
+    tags: tags && tags.length > 0 ? tags : undefined,
     limit: 25,
   });
 
@@ -1375,6 +1462,7 @@ function AdditionalDetailsTab({
             <TableRow>
               <TableCell>Title</TableCell>
               <TableCell>Input Type</TableCell>
+              <TableCell>Tags</TableCell>
               <TableCell align="center">Required</TableCell>
               <TableCell align="center">Used By</TableCell>
               <TableCell align="right">Actions</TableCell>
@@ -1383,11 +1471,11 @@ function AdditionalDetailsTab({
           <TableBody>
             {isLoading ? (
               [...Array(5)].map((_, i) => (
-                <TableRowSkeleton key={i} columns={5} />
+                <TableRowSkeleton key={i} columns={6} />
               ))
             ) : allItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
                     {search
                       ? 'No additional details match your search.'
@@ -1410,6 +1498,31 @@ function AdditionalDetailsTab({
                       variant="outlined"
                       sx={{ textTransform: 'capitalize' }}
                     />
+                  </TableCell>
+                  <TableCell>
+                    {detail.tags && detail.tags.length > 0 ? (
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        flexWrap="wrap"
+                        useFlexGap
+                      >
+                        {detail.tags.slice(0, 3).map(tag => (
+                          <TagChip key={tag.id} tag={tag} size="small" />
+                        ))}
+                        {detail.tags.length > 3 && (
+                          <Chip
+                            label={`+${detail.tags.length - 3}`}
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Stack>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        -
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell align="center">
                     {detail.isRequired ? (
@@ -1495,6 +1608,7 @@ const TAB_NAMES = ['options', 'upcharges', 'details'];
 export function LibraryPage(): React.ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showAddOptionDialog, setShowAddOptionDialog] = useState(false);
   const [showAddUpChargeDialog, setShowAddUpChargeDialog] = useState(false);
   const [showAddAdditionalDetailDialog, setShowAddAdditionalDetailDialog] =
@@ -1511,6 +1625,20 @@ export function LibraryPage(): React.ReactElement {
   const tabParam = searchParams.get('tab');
   const activeTab = tabParam ? (TAB_MAP[tabParam] ?? 0) : 0;
 
+  // Fetch tags for filtering
+  const { data: tagsData } = useTagList();
+
+  // Get selected tag objects for chip display
+  const selectedTagObjects = useMemo(() => {
+    if (selectedTags.length === 0 || !tagsData?.tags) return [];
+    return selectedTags
+      .map(id => tagsData.tags.find(t => t.id === id))
+      .filter((t): t is TagSummary => t !== undefined);
+  }, [selectedTags, tagsData?.tags]);
+
+  // Check if any filters are active
+  const hasFilters = search || selectedTags.length > 0;
+
   // Mutations for creating items
   const createOptionMutation = useCreateOption();
   const createUpchargeMutation = useCreateUpcharge();
@@ -1526,6 +1654,7 @@ export function LibraryPage(): React.ReactElement {
       const tabName = TAB_NAMES[newValue] ?? 'options';
       setSearchParams({ tab: tabName });
       setSearch(''); // Clear search when switching tabs
+      setSelectedTags([]); // Clear tags when switching tabs
     },
     [setSearchParams],
   );
@@ -1714,8 +1843,10 @@ export function LibraryPage(): React.ReactElement {
             </Tabs>
           </Box>
 
-          {/* Search */}
-          <Box sx={{ mt: 2, mb: 2 }}>
+          {/* Search & Filter */}
+          <Box
+            sx={{ mt: 2, mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}
+          >
             <TextField
               placeholder={`Search ${activeTab === 0 ? 'options' : activeTab === 1 ? 'upcharges' : 'additional details'}...`}
               value={search}
@@ -1737,12 +1868,73 @@ export function LibraryPage(): React.ReactElement {
                 ),
               }}
             />
+            {tagsData?.tags && tagsData.tags.length > 0 && (
+              <TagFilterSelect
+                value={selectedTags}
+                onChange={setSelectedTags}
+                tags={tagsData.tags}
+                label="Filter by Tags"
+                minWidth={180}
+              />
+            )}
           </Box>
+
+          {/* Active Filter Chips */}
+          {hasFilters && (
+            <Box
+              sx={{
+                mb: 2,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
+              <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                Active filters:
+              </Typography>
+              {search && (
+                <Chip
+                  label={`Search: "${search}"`}
+                  onDelete={handleClearSearch}
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+              {selectedTagObjects.map(tag => (
+                <Chip
+                  key={tag.id}
+                  icon={<LocalOfferIcon sx={{ fontSize: 16 }} />}
+                  label={tag.name}
+                  onDelete={() =>
+                    setSelectedTags(prev => prev.filter(id => id !== tag.id))
+                  }
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: tag.color,
+                    '& .MuiChip-icon': { color: tag.color },
+                  }}
+                />
+              ))}
+              <Button
+                size="small"
+                onClick={() => {
+                  setSearch('');
+                  setSelectedTags([]);
+                }}
+                sx={{ ml: 1 }}
+              >
+                Clear All
+              </Button>
+            </Box>
+          )}
 
           {/* Tab Panels */}
           <TabPanel value={activeTab} index={0}>
             <OptionsTab
               search={search}
+              tags={selectedTags}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
@@ -1750,6 +1942,7 @@ export function LibraryPage(): React.ReactElement {
           <TabPanel value={activeTab} index={1}>
             <UpChargesTab
               search={search}
+              tags={selectedTags}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
@@ -1757,6 +1950,7 @@ export function LibraryPage(): React.ReactElement {
           <TabPanel value={activeTab} index={2}>
             <AdditionalDetailsTab
               search={search}
+              tags={selectedTags}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />

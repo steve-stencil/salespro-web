@@ -47,6 +47,7 @@ import { AdditionalDetailsSection } from './sections/AdditionalDetailsSection';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { OfficesSection } from './sections/OfficesSection';
 import { OptionsSection } from './sections/OptionsSection';
+import { TagsSection } from './sections/TagsSection';
 import { UpchargesSection } from './sections/UpchargesSection';
 
 import type {
@@ -217,6 +218,7 @@ export function MsiEditPage(): React.ReactElement {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [expandedSections, setExpandedSections] = useState<string[]>([
     'basic-info',
+    'tags',
     'offices',
     'options',
     'upcharges',
@@ -665,6 +667,24 @@ export function MsiEditPage(): React.ReactElement {
                 onFileSelected={onFileSelected}
                 onImageRemoved={onImageRemoved}
               />
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Tags */}
+          <Accordion
+            expanded={expandedSections.includes('tags')}
+            onChange={() => handleSectionToggle('tags')}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6">Tags</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  ({msiData?.item.tags?.length ?? 0} assigned)
+                </Typography>
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              {msiId && <TagsSection msiId={msiId} />}
             </AccordionDetails>
           </Accordion>
 

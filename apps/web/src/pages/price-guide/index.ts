@@ -9,6 +9,7 @@ export { LibraryPage } from './LibraryPage';
 export { MigrationWizardPage } from './MigrationWizardPage';
 export { MsiEditPage } from './MsiEditPage';
 export { PricingPage } from './PricingPage';
+export { TagManagementPage } from './TagManagementPage';
 export { ToolsPage } from './ToolsPage';
 
 // Re-export wizard context hook and types from shared context

@@ -47,6 +47,8 @@ import {
   ImportDialog,
   LinkPicker,
   LinkedItemsList,
+  TagChip,
+  TagFilterSelect,
   UnlinkConfirmation,
 } from '../../components/price-guide';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -63,6 +65,7 @@ import {
   useUnlinkOption,
   useUnlinkUpcharge,
 } from '../../hooks/usePriceGuide';
+import { useTagList } from '../../hooks/useTags';
 import { filesApi } from '../../services/files';
 import { priceGuideApi } from '../../services/price-guide';
 
@@ -256,6 +259,21 @@ function MsiCardWrapper({
         variant="upcharge"
         items={msi.upchargeNames}
       />
+      {msi.tags && msi.tags.length > 0 && (
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', ml: 1 }}>
+          {msi.tags.slice(0, 3).map(tag => (
+            <TagChip key={tag.id} tag={tag} size="small" />
+          ))}
+          {msi.tags.length > 3 && (
+            <Chip
+              label={`+${msi.tags.length - 3}`}
+              size="small"
+              variant="outlined"
+              sx={{ height: 20, fontSize: '0.7rem' }}
+            />
+          )}
+        </Box>
+      )}
     </>
   );
 
@@ -302,6 +320,7 @@ export function CatalogPage(): React.ReactElement {
   const [search, setSearch] = useState('');
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [officeIds, setOfficeIds] = useState<string[]>([]);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -344,6 +363,7 @@ export function CatalogPage(): React.ReactElement {
   // Queries
   const { data: categoryData } = useCategoryTree();
   const { data: officesData } = useOfficesList();
+  const { data: tagsData } = useTagList();
 
   const {
     data: msiData,
@@ -356,6 +376,7 @@ export function CatalogPage(): React.ReactElement {
     search: debouncedSearch || undefined,
     categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
     officeIds: officeIds.length > 0 ? officeIds : undefined,
+    tags: tagIds.length > 0 ? tagIds : undefined,
     limit: 20,
   });
 
@@ -411,6 +432,14 @@ export function CatalogPage(): React.ReactElement {
       .map(id => officesData.offices.find(o => o.id === id))
       .filter((o): o is NonNullable<typeof o> => o !== undefined);
   }, [officeIds, officesData]);
+
+  // Get selected tags for chip display
+  const selectedTags = useMemo(() => {
+    if (tagIds.length === 0 || !tagsData?.tags) return [];
+    return tagIds
+      .map(id => tagsData.tags.find(t => t.id === id))
+      .filter((t): t is NonNullable<typeof t> => t !== undefined);
+  }, [tagIds, tagsData]);
 
   // All MSIs from infinite query pages
   const allMsis = useMemo(() => {
@@ -487,9 +516,14 @@ export function CatalogPage(): React.ReactElement {
     setSearch('');
     setCategoryIds([]);
     setOfficeIds([]);
+    setTagIds([]);
   }, []);
 
-  const hasFilters = search || categoryIds.length > 0 || officeIds.length > 0;
+  const hasFilters =
+    search ||
+    categoryIds.length > 0 ||
+    officeIds.length > 0 ||
+    tagIds.length > 0;
 
   // Infinite scroll observer
   useEffect(() => {
@@ -935,6 +969,17 @@ export function CatalogPage(): React.ReactElement {
                 ))}
               </Select>
             </FormControl>
+
+            {/* Tag Filter */}
+            {tagsData?.tags && tagsData.tags.length > 0 && (
+              <TagFilterSelect
+                value={tagIds}
+                onChange={setTagIds}
+                tags={tagsData.tags}
+                label="Tags"
+                minWidth={180}
+              />
+            )}
           </Stack>
 
           {/* Active Filter Chips */}
@@ -982,6 +1027,22 @@ export function CatalogPage(): React.ReactElement {
                   }
                   size="small"
                   variant="outlined"
+                />
+              ))}
+              {selectedTags.map(tag => (
+                <Chip
+                  key={tag.id}
+                  icon={<LocalOfferIcon sx={{ fontSize: 16 }} />}
+                  label={tag.name}
+                  onDelete={() =>
+                    setTagIds(prev => prev.filter(id => id !== tag.id))
+                  }
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: tag.color,
+                    '& .MuiChip-icon': { color: tag.color },
+                  }}
                 />
               ))}
               <Button size="small" onClick={clearFilters} sx={{ ml: 1 }}>
