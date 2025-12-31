@@ -27,6 +27,7 @@ import {
   MigrationWizardPage,
   MsiEditPage,
   PricingPage,
+  PriceTypesPage,
   TagManagementPage,
   ToolsPage,
 } from './pages/price-guide';
@@ -190,6 +191,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
             <TagManagementPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/price-types',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <PriceTypesPage />
           </PermissionGuard>
         ),
       },
