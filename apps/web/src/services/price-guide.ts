@@ -556,7 +556,19 @@ export const priceGuideApi = {
     placeholder?: string;
     note?: string;
     defaultValue?: string;
+    allowDecimal?: boolean;
     pickerValues?: string[];
+    sizePickerConfig?: {
+      precision: string;
+      minWidth?: number;
+      maxWidth?: number;
+      minHeight?: number;
+      maxHeight?: number;
+      minDepth?: number;
+      maxDepth?: number;
+    };
+    unitedInchConfig?: { suffix?: string };
+    dateDisplayFormat?: string;
   }): Promise<{
     message: string;
     field: { id: string; title: string; version: number };
@@ -576,7 +588,19 @@ export const priceGuideApi = {
       placeholder?: string | null;
       note?: string | null;
       defaultValue?: string | null;
+      allowDecimal?: boolean;
       pickerValues?: string[] | null;
+      sizePickerConfig?: {
+        precision: string;
+        minWidth?: number;
+        maxWidth?: number;
+        minHeight?: number;
+        maxHeight?: number;
+        minDepth?: number;
+        maxDepth?: number;
+      } | null;
+      unitedInchConfig?: { suffix?: string } | null;
+      dateDisplayFormat?: string | null;
       version: number;
     },
   ): Promise<{

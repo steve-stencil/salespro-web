@@ -18,10 +18,40 @@ export type MeasurementType =
 /** Input types for additional detail fields */
 export type AdditionalDetailInputType =
   | 'text'
+  | 'textarea'
   | 'number'
+  | 'currency'
   | 'picker'
+  | 'size_picker'
+  | 'size_picker_3d'
   | 'date'
+  | 'time'
+  | 'datetime'
+  | 'united_inch'
   | 'toggle';
+
+/** Size picker precision options */
+export type SizePickerPrecision =
+  | 'inch'
+  | 'quarter_inch'
+  | 'eighth_inch'
+  | 'sixteenth_inch';
+
+/** Size picker configuration */
+export type SizePickerConfig = {
+  precision: SizePickerPrecision;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  minDepth?: number;
+  maxDepth?: number;
+};
+
+/** United inch configuration */
+export type UnitedInchConfig = {
+  suffix?: string;
+};
 
 // ============================================================================
 // Category Types
@@ -156,6 +186,16 @@ export type UpChargeDetail = {
     id: string;
     name: string;
   }>;
+  /** Additional details linked to this upcharge */
+  additionalDetails: Array<{
+    junctionId: string;
+    fieldId: string;
+    title: string;
+    inputType: AdditionalDetailInputType;
+    cellType: string | null;
+    isRequired: boolean;
+    sortOrder: number;
+  }>;
   lastModifiedBy?: {
     id: string;
     name: string;
@@ -273,7 +313,13 @@ export type AdditionalDetailFieldDetail = {
   placeholder: string | null;
   note: string | null;
   defaultValue: string | null;
+  /** Allow decimal values for number/currency input types */
+  allowDecimal: boolean;
   pickerValues: string[] | null;
+  /** Configuration for size picker (2D/3D) input types */
+  sizePickerConfig: SizePickerConfig | null;
+  /** Configuration for united inch input type */
+  unitedInchConfig: UnitedInchConfig | null;
   numericMin: number | null;
   numericMax: number | null;
   numericStep: number | null;
@@ -281,6 +327,8 @@ export type AdditionalDetailFieldDetail = {
   dateDisplayFormat: string | null;
   notAddedReplacement: string | null;
   linkedMsiCount: number;
+  /** Count of upcharges using this field */
+  linkedUpChargeCount: number;
   isActive: boolean;
   version: number;
   /** MSIs using this additional detail (for detail view) */
@@ -288,6 +336,11 @@ export type AdditionalDetailFieldDetail = {
     id: string;
     name: string;
     category: string;
+  }>;
+  /** UpCharges using this additional detail (for detail view) */
+  usedByUpcharges?: Array<{
+    id: string;
+    name: string;
   }>;
 };
 

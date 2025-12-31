@@ -247,19 +247,65 @@ const INPUT_TYPE_OPTIONS = [
   { value: 'number', label: 'Number' },
   { value: 'currency', label: 'Currency' },
   { value: 'picker', label: 'Picker (Dropdown)' },
+  { value: 'size_picker', label: 'Size Picker (2D)' },
+  { value: 'size_picker_3d', label: 'Size Picker (3D)' },
   { value: 'date', label: 'Date' },
   { value: 'time', label: 'Time' },
   { value: 'datetime', label: 'Date & Time' },
+  { value: 'united_inch', label: 'United Inch' },
 ];
+
+/** Size picker precision options */
+const SIZE_PICKER_PRECISION_OPTIONS = [
+  { value: 'inch', label: 'Inch' },
+  { value: 'quarter_inch', label: '1/4 Inch' },
+  { value: 'eighth_inch', label: '1/8 Inch' },
+  { value: 'sixteenth_inch', label: '1/16 Inch' },
+];
+
+/** Input types that require additional configuration */
+const TYPES_WITH_CONFIG = [
+  'number',
+  'currency',
+  'picker',
+  'size_picker',
+  'size_picker_3d',
+  'date',
+  'time',
+  'datetime',
+  'united_inch',
+];
+
+/** Type for size picker configuration */
+type SizePickerConfig = {
+  precision: string;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  minDepth?: number;
+  maxDepth?: number;
+};
+
+/** Type for additional detail field data */
+type AdditionalDetailFieldData = {
+  title: string;
+  inputType: string;
+  isRequired: boolean;
+  placeholder?: string;
+  note?: string;
+  defaultValue?: string;
+  allowDecimal?: boolean;
+  pickerValues?: string[];
+  sizePickerConfig?: SizePickerConfig;
+  unitedInchConfig?: { suffix?: string };
+  dateDisplayFormat?: string;
+};
 
 type QuickAddAdditionalDetailDialogProps = {
   open: boolean;
   onClose: () => void;
-  onAdd: (
-    title: string,
-    inputType: string,
-    isRequired: boolean,
-  ) => Promise<void>;
+  onAdd: (data: AdditionalDetailFieldData) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -272,27 +318,103 @@ function QuickAddAdditionalDetailDialog({
   const [title, setTitle] = useState('');
   const [inputType, setInputType] = useState('text');
   const [isRequired, setIsRequired] = useState(false);
+  const [placeholder, setPlaceholder] = useState('');
+  const [note, setNote] = useState('');
+  const [defaultValue, setDefaultValue] = useState('');
+  const [allowDecimal, setAllowDecimal] = useState(false);
+  const [pickerValues, setPickerValues] = useState<string[]>([]);
+  const [newPickerValue, setNewPickerValue] = useState('');
+  const [sizePickerConfig, setSizePickerConfig] = useState<SizePickerConfig>({
+    precision: 'inch',
+  });
+  const [unitedInchSuffix, setUnitedInchSuffix] = useState('');
+  const [dateDisplayFormat, setDateDisplayFormat] = useState('');
+
+  const resetForm = () => {
+    setTitle('');
+    setInputType('text');
+    setIsRequired(false);
+    setPlaceholder('');
+    setNote('');
+    setDefaultValue('');
+    setAllowDecimal(false);
+    setPickerValues([]);
+    setNewPickerValue('');
+    setSizePickerConfig({ precision: 'inch' });
+    setUnitedInchSuffix('');
+    setDateDisplayFormat('');
+  };
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
-    await onAdd(title.trim(), inputType, isRequired);
-    setTitle('');
-    setInputType('text');
-    setIsRequired(false);
+    const data: AdditionalDetailFieldData = {
+      title: title.trim(),
+      inputType,
+      isRequired,
+      placeholder: placeholder.trim() || undefined,
+      note: note.trim() || undefined,
+      defaultValue: defaultValue.trim() || undefined,
+    };
+
+    // Add type-specific config
+    if (inputType === 'number' || inputType === 'currency') {
+      data.allowDecimal = allowDecimal;
+    }
+    if (inputType === 'picker' && pickerValues.length > 0) {
+      data.pickerValues = pickerValues;
+    }
+    if (inputType === 'size_picker' || inputType === 'size_picker_3d') {
+      data.sizePickerConfig = sizePickerConfig;
+    }
+    if (inputType === 'united_inch' && unitedInchSuffix.trim()) {
+      data.unitedInchConfig = { suffix: unitedInchSuffix.trim() };
+    }
+    if (
+      (inputType === 'date' ||
+        inputType === 'time' ||
+        inputType === 'datetime') &&
+      dateDisplayFormat.trim()
+    ) {
+      data.dateDisplayFormat = dateDisplayFormat.trim();
+    }
+
+    await onAdd(data);
+    resetForm();
   };
 
   const handleClose = () => {
-    setTitle('');
-    setInputType('text');
-    setIsRequired(false);
+    resetForm();
     onClose();
   };
 
+  const handleAddPickerValue = () => {
+    if (
+      newPickerValue.trim() &&
+      !pickerValues.includes(newPickerValue.trim())
+    ) {
+      setPickerValues([...pickerValues, newPickerValue.trim()]);
+      setNewPickerValue('');
+    }
+  };
+
+  const handleRemovePickerValue = (value: string) => {
+    setPickerValues(pickerValues.filter(v => v !== value));
+  };
+
+  const showConfig = TYPES_WITH_CONFIG.includes(inputType);
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{ sx: { maxHeight: '90vh' } }}
+    >
       <DialogTitle>Create New Additional Detail</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         <Stack spacing={2} sx={{ mt: 1 }}>
+          {/* Basic Fields */}
           <TextField
             label="Title"
             value={title}
@@ -324,6 +446,267 @@ function QuickAddAdditionalDetailDialog({
             }
             label="Required field"
           />
+
+          {/* General Optional Fields */}
+          <TextField
+            label="Placeholder"
+            value={placeholder}
+            onChange={e => setPlaceholder(e.target.value)}
+            fullWidth
+            helperText="Text shown when field is empty"
+          />
+          <TextField
+            label="Helper Note"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            fullWidth
+            multiline
+            rows={2}
+            helperText="Instructions or context for this field"
+          />
+          <TextField
+            label="Default Value"
+            value={defaultValue}
+            onChange={e => setDefaultValue(e.target.value)}
+            fullWidth
+            helperText="Pre-filled value when adding to estimate"
+          />
+
+          {/* Type-Specific Configuration */}
+          {showConfig && (
+            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Type Configuration
+              </Typography>
+
+              {/* Number/Currency: allowDecimal */}
+              {(inputType === 'number' || inputType === 'currency') && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={allowDecimal}
+                      onChange={e => setAllowDecimal(e.target.checked)}
+                    />
+                  }
+                  label="Allow decimal values"
+                />
+              )}
+
+              {/* Picker: pickerValues */}
+              {inputType === 'picker' && (
+                <Stack spacing={1}>
+                  <Typography variant="body2" color="text.secondary">
+                    Picker Options
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                      size="small"
+                      placeholder="Add option..."
+                      value={newPickerValue}
+                      onChange={e => setNewPickerValue(e.target.value)}
+                      onKeyPress={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddPickerValue();
+                        }
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleAddPickerValue}
+                      disabled={!newPickerValue.trim()}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                  {pickerValues.length > 0 && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 0.5,
+                        mt: 1,
+                      }}
+                    >
+                      {pickerValues.map(value => (
+                        <Chip
+                          key={value}
+                          label={value}
+                          onDelete={() => handleRemovePickerValue(value)}
+                          size="small"
+                        />
+                      ))}
+                    </Box>
+                  )}
+                  {pickerValues.length === 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      Add at least one option for the picker
+                    </Typography>
+                  )}
+                </Stack>
+              )}
+
+              {/* Size Picker: precision and constraints */}
+              {(inputType === 'size_picker' ||
+                inputType === 'size_picker_3d') && (
+                <Stack spacing={2}>
+                  <TextField
+                    select
+                    label="Precision"
+                    value={sizePickerConfig.precision}
+                    onChange={e =>
+                      setSizePickerConfig({
+                        ...sizePickerConfig,
+                        precision: e.target.value,
+                      })
+                    }
+                    fullWidth
+                    size="small"
+                  >
+                    {SIZE_PICKER_PRECISION_OPTIONS.map(option => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      label="Min Width"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.minWidth ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          minWidth: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      label="Max Width"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.maxWidth ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          maxWidth: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      label="Min Height"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.minHeight ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          minHeight: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      label="Max Height"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.maxHeight ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          maxHeight: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                  </Box>
+                  {inputType === 'size_picker_3d' && (
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Min Depth"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.minDepth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            minDepth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Max Depth"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.maxDepth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            maxDepth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+                  )}
+                </Stack>
+              )}
+
+              {/* United Inch: suffix */}
+              {inputType === 'united_inch' && (
+                <TextField
+                  label="Suffix"
+                  value={unitedInchSuffix}
+                  onChange={e => setUnitedInchSuffix(e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder='e.g., "UI"'
+                  helperText="Text appended to the united inch value"
+                />
+              )}
+
+              {/* Date/Time: format */}
+              {(inputType === 'date' ||
+                inputType === 'time' ||
+                inputType === 'datetime') && (
+                <TextField
+                  label="Display Format"
+                  value={dateDisplayFormat}
+                  onChange={e => setDateDisplayFormat(e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder={
+                    inputType === 'date'
+                      ? 'MM/dd/yyyy'
+                      : inputType === 'time'
+                        ? 'HH:mm'
+                        : 'MM/dd/yyyy HH:mm'
+                  }
+                  helperText="Format string for displaying the value"
+                />
+              )}
+            </Box>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -581,7 +964,14 @@ type EditAdditionalDetailDialogProps = {
   onClose: () => void;
   onSave: (
     detailId: string,
-    data: { title: string; inputType: string; isRequired: boolean },
+    data: Omit<
+      AdditionalDetailFieldData,
+      'title' | 'inputType' | 'isRequired'
+    > & {
+      title: string;
+      inputType: string;
+      isRequired: boolean;
+    },
     version: number,
   ) => Promise<void>;
   isLoading: boolean;
@@ -598,6 +988,17 @@ function EditAdditionalDetailDialog({
   const [inputType, setInputType] = useState('text');
   const [isRequired, setIsRequired] = useState(false);
   const [version, setVersion] = useState(1);
+  const [placeholder, setPlaceholder] = useState('');
+  const [note, setNote] = useState('');
+  const [defaultValue, setDefaultValue] = useState('');
+  const [allowDecimal, setAllowDecimal] = useState(false);
+  const [pickerValues, setPickerValues] = useState<string[]>([]);
+  const [newPickerValue, setNewPickerValue] = useState('');
+  const [sizePickerConfig, setSizePickerConfig] = useState<SizePickerConfig>({
+    precision: 'inch',
+  });
+  const [unitedInchSuffix, setUnitedInchSuffix] = useState('');
+  const [dateDisplayFormat, setDateDisplayFormat] = useState('');
 
   const { data: detailData, isLoading: isLoadingDetail } =
     useAdditionalDetailDetail(detailId ?? '');
@@ -609,39 +1010,107 @@ function EditAdditionalDetailDialog({
       setInputType(detailData.field.inputType);
       setIsRequired(detailData.field.isRequired);
       setVersion(detailData.field.version);
+      setPlaceholder(detailData.field.placeholder ?? '');
+      setNote(detailData.field.note ?? '');
+      setDefaultValue(detailData.field.defaultValue ?? '');
+      setAllowDecimal(detailData.field.allowDecimal);
+      setPickerValues(detailData.field.pickerValues ?? []);
+      if (detailData.field.sizePickerConfig) {
+        setSizePickerConfig(detailData.field.sizePickerConfig);
+      } else {
+        setSizePickerConfig({ precision: 'inch' });
+      }
+      setUnitedInchSuffix(detailData.field.unitedInchConfig?.suffix ?? '');
+      setDateDisplayFormat(detailData.field.dateDisplayFormat ?? '');
     }
   }, [detailData]);
 
   const handleSubmit = async () => {
     if (!title.trim() || !detailId) return;
-    await onSave(
-      detailId,
-      {
-        title: title.trim(),
-        inputType,
-        isRequired,
-      },
-      version,
-    );
+    const data: AdditionalDetailFieldData = {
+      title: title.trim(),
+      inputType,
+      isRequired,
+      placeholder: placeholder.trim() || undefined,
+      note: note.trim() || undefined,
+      defaultValue: defaultValue.trim() || undefined,
+    };
+
+    // Add type-specific config
+    if (inputType === 'number' || inputType === 'currency') {
+      data.allowDecimal = allowDecimal;
+    }
+    if (inputType === 'picker') {
+      data.pickerValues = pickerValues.length > 0 ? pickerValues : undefined;
+    }
+    if (inputType === 'size_picker' || inputType === 'size_picker_3d') {
+      data.sizePickerConfig = sizePickerConfig;
+    }
+    if (inputType === 'united_inch') {
+      data.unitedInchConfig = unitedInchSuffix.trim()
+        ? { suffix: unitedInchSuffix.trim() }
+        : undefined;
+    }
+    if (
+      inputType === 'date' ||
+      inputType === 'time' ||
+      inputType === 'datetime'
+    ) {
+      data.dateDisplayFormat = dateDisplayFormat.trim() || undefined;
+    }
+
+    await onSave(detailId, data, version);
   };
 
   const handleClose = () => {
     setTitle('');
     setInputType('text');
     setIsRequired(false);
+    setPlaceholder('');
+    setNote('');
+    setDefaultValue('');
+    setAllowDecimal(false);
+    setPickerValues([]);
+    setNewPickerValue('');
+    setSizePickerConfig({ precision: 'inch' });
+    setUnitedInchSuffix('');
+    setDateDisplayFormat('');
     onClose();
   };
 
+  const handleAddPickerValue = () => {
+    if (
+      newPickerValue.trim() &&
+      !pickerValues.includes(newPickerValue.trim())
+    ) {
+      setPickerValues([...pickerValues, newPickerValue.trim()]);
+      setNewPickerValue('');
+    }
+  };
+
+  const handleRemovePickerValue = (value: string) => {
+    setPickerValues(pickerValues.filter(v => v !== value));
+  };
+
+  const showConfig = TYPES_WITH_CONFIG.includes(inputType);
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{ sx: { maxHeight: '90vh' } }}
+    >
       <DialogTitle>Edit Additional Detail</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         {isLoadingDetail ? (
           <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress />
           </Box>
         ) : (
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {/* Basic Fields */}
             <TextField
               label="Title"
               value={title}
@@ -673,6 +1142,271 @@ function EditAdditionalDetailDialog({
               }
               label="Required field"
             />
+
+            {/* General Optional Fields */}
+            <TextField
+              label="Placeholder"
+              value={placeholder}
+              onChange={e => setPlaceholder(e.target.value)}
+              fullWidth
+              helperText="Text shown when field is empty"
+            />
+            <TextField
+              label="Helper Note"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              fullWidth
+              multiline
+              rows={2}
+              helperText="Instructions or context for this field"
+            />
+            <TextField
+              label="Default Value"
+              value={defaultValue}
+              onChange={e => setDefaultValue(e.target.value)}
+              fullWidth
+              helperText="Pre-filled value when adding to estimate"
+            />
+
+            {/* Type-Specific Configuration */}
+            {showConfig && (
+              <Box
+                sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, mt: 2 }}
+              >
+                <Typography variant="subtitle2" gutterBottom>
+                  Type Configuration
+                </Typography>
+
+                {/* Number/Currency: allowDecimal */}
+                {(inputType === 'number' || inputType === 'currency') && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={allowDecimal}
+                        onChange={e => setAllowDecimal(e.target.checked)}
+                      />
+                    }
+                    label="Allow decimal values"
+                  />
+                )}
+
+                {/* Picker: pickerValues */}
+                {inputType === 'picker' && (
+                  <Stack spacing={1}>
+                    <Typography variant="body2" color="text.secondary">
+                      Picker Options
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <TextField
+                        size="small"
+                        placeholder="Add option..."
+                        value={newPickerValue}
+                        onChange={e => setNewPickerValue(e.target.value)}
+                        onKeyPress={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddPickerValue();
+                          }
+                        }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleAddPickerValue}
+                        disabled={!newPickerValue.trim()}
+                      >
+                        Add
+                      </Button>
+                    </Box>
+                    {pickerValues.length > 0 && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 0.5,
+                          mt: 1,
+                        }}
+                      >
+                        {pickerValues.map(value => (
+                          <Chip
+                            key={value}
+                            label={value}
+                            onDelete={() => handleRemovePickerValue(value)}
+                            size="small"
+                          />
+                        ))}
+                      </Box>
+                    )}
+                    {pickerValues.length === 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        Add at least one option for the picker
+                      </Typography>
+                    )}
+                  </Stack>
+                )}
+
+                {/* Size Picker: precision and constraints */}
+                {(inputType === 'size_picker' ||
+                  inputType === 'size_picker_3d') && (
+                  <Stack spacing={2}>
+                    <TextField
+                      select
+                      label="Precision"
+                      value={sizePickerConfig.precision}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          precision: e.target.value,
+                        })
+                      }
+                      fullWidth
+                      size="small"
+                    >
+                      {SIZE_PICKER_PRECISION_OPTIONS.map(option => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Min Width"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.minWidth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            minWidth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Max Width"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.maxWidth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            maxWidth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Min Height"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.minHeight ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            minHeight: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Max Height"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.maxHeight ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            maxHeight: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+                    {inputType === 'size_picker_3d' && (
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                          label="Min Depth"
+                          type="number"
+                          size="small"
+                          value={sizePickerConfig.minDepth ?? ''}
+                          onChange={e =>
+                            setSizePickerConfig({
+                              ...sizePickerConfig,
+                              minDepth: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          sx={{ flex: 1 }}
+                        />
+                        <TextField
+                          label="Max Depth"
+                          type="number"
+                          size="small"
+                          value={sizePickerConfig.maxDepth ?? ''}
+                          onChange={e =>
+                            setSizePickerConfig({
+                              ...sizePickerConfig,
+                              maxDepth: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          sx={{ flex: 1 }}
+                        />
+                      </Box>
+                    )}
+                  </Stack>
+                )}
+
+                {/* United Inch: suffix */}
+                {inputType === 'united_inch' && (
+                  <TextField
+                    label="Suffix"
+                    value={unitedInchSuffix}
+                    onChange={e => setUnitedInchSuffix(e.target.value)}
+                    fullWidth
+                    size="small"
+                    placeholder='e.g., "UI"'
+                    helperText="Text appended to the united inch value"
+                  />
+                )}
+
+                {/* Date/Time: format */}
+                {(inputType === 'date' ||
+                  inputType === 'time' ||
+                  inputType === 'datetime') && (
+                  <TextField
+                    label="Display Format"
+                    value={dateDisplayFormat}
+                    onChange={e => setDateDisplayFormat(e.target.value)}
+                    fullWidth
+                    size="small"
+                    placeholder={
+                      inputType === 'date'
+                        ? 'MM/dd/yyyy'
+                        : inputType === 'time'
+                          ? 'HH:mm'
+                          : 'MM/dd/yyyy HH:mm'
+                    }
+                    helperText="Format string for displaying the value"
+                  />
+                )}
+              </Box>
+            )}
+
+            {/* Tags */}
             <ItemTagEditor
               entityType="ADDITIONAL_DETAIL"
               entityId={detailId ?? undefined}
@@ -1145,9 +1879,9 @@ function UpChargesTab({
                   <TableCell>
                     <Tooltip
                       title={
-                        upcharge.images?.length
-                          ? `${upcharge.images.length} image(s)`
-                          : 'No images'
+                        upcharge.thumbnailImage
+                          ? upcharge.thumbnailImage.name
+                          : 'No image'
                       }
                     >
                       <Box
@@ -1164,10 +1898,10 @@ function UpChargesTab({
                           borderColor: 'divider',
                         }}
                       >
-                        {upcharge.images?.[0]?.thumbnailUrl ? (
+                        {upcharge.thumbnailImage?.thumbnailUrl ? (
                           <Box
                             component="img"
-                            src={upcharge.images[0].thumbnailUrl}
+                            src={upcharge.thumbnailImage.thumbnailUrl}
                             alt="Thumbnail"
                             sx={{
                               width: '100%',
@@ -1634,12 +2368,8 @@ export function LibraryPage(): React.ReactElement {
   );
 
   const handleCreateAdditionalDetail = useCallback(
-    async (title: string, inputType: string, isRequired: boolean) => {
-      await createAdditionalDetailMutation.mutateAsync({
-        title,
-        inputType,
-        isRequired,
-      });
+    async (data: AdditionalDetailFieldData) => {
+      await createAdditionalDetailMutation.mutateAsync(data);
       setShowAddAdditionalDetailDialog(false);
     },
     [createAdditionalDetailMutation],
@@ -1681,7 +2411,7 @@ export function LibraryPage(): React.ReactElement {
   const handleUpdateAdditionalDetail = useCallback(
     async (
       detailId: string,
-      data: { title: string; inputType: string; isRequired: boolean },
+      data: AdditionalDetailFieldData,
       version: number,
     ) => {
       await updateAdditionalDetailMutation.mutateAsync({

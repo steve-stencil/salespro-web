@@ -4,8 +4,10 @@ import { z } from 'zod';
 import {
   UpCharge,
   PriceGuideOption,
+  AdditionalDetailField,
   MeasureSheetItemUpCharge,
   UpChargeDisabledOption,
+  UpChargeAdditionalDetailField,
   PriceGuideImage,
   Company,
   User,
@@ -61,6 +63,14 @@ const setThumbnailSchema = z.object({
 
 const setDisabledOptionsSchema = z.object({
   optionIds: z.array(z.string().uuid()),
+});
+
+const linkAdditionalDetailsSchema = z.object({
+  fieldIds: z.array(z.string().uuid()).min(1),
+});
+
+const reorderAdditionalDetailsSchema = z.object({
+  orderedIds: z.array(z.string().uuid()).min(1),
 });
 
 // ============================================================================
@@ -374,6 +384,16 @@ router.get(
         { populate: ['option'] },
       );
 
+      // Get additional details
+      const additionalDetailLinks = await em.find(
+        UpChargeAdditionalDetailField,
+        { upCharge: upcharge.id },
+        {
+          populate: ['additionalDetailField'],
+          orderBy: { sortOrder: 'ASC' },
+        },
+      );
+
       // Build thumbnail image data
       let thumbnailImage = null;
       if (upcharge.thumbnailImage) {
@@ -402,6 +422,15 @@ router.get(
           disabledOptions: disabledOptions.map(d => ({
             id: d.option.id,
             name: d.option.name,
+          })),
+          additionalDetails: additionalDetailLinks.map(a => ({
+            junctionId: a.id,
+            fieldId: a.additionalDetailField.id,
+            title: a.additionalDetailField.title,
+            inputType: a.additionalDetailField.inputType,
+            cellType: a.additionalDetailField.cellType,
+            isRequired: a.additionalDetailField.isRequired,
+            sortOrder: a.sortOrder,
           })),
           usedByMSIs: msiLinks.map(l => ({
             id: l.measureSheetItem.id,
@@ -922,6 +951,319 @@ router.put(
       });
     } catch (err) {
       req.log.error({ err }, 'Set disabled options error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+// ============================================================================
+// Additional Details Routes
+// ============================================================================
+
+/**
+ * GET /price-guide/library/upcharges/:id/additional-details
+ * List additional detail fields linked to an upcharge
+ */
+router.get(
+  '/:id/additional-details',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_READ),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Upcharge ID is required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const upcharge = await em.findOne(UpCharge, {
+        id,
+        company: company.id,
+      });
+
+      if (!upcharge) {
+        res.status(404).json({ error: 'Upcharge not found' });
+        return;
+      }
+
+      const links = await em.find(
+        UpChargeAdditionalDetailField,
+        { upCharge: upcharge.id },
+        {
+          populate: ['additionalDetailField'],
+          orderBy: { sortOrder: 'ASC' },
+        },
+      );
+
+      res.status(200).json({
+        additionalDetails: links.map(l => ({
+          junctionId: l.id,
+          fieldId: l.additionalDetailField.id,
+          title: l.additionalDetailField.title,
+          inputType: l.additionalDetailField.inputType,
+          cellType: l.additionalDetailField.cellType,
+          isRequired: l.additionalDetailField.isRequired,
+          placeholder: l.additionalDetailField.placeholder,
+          note: l.additionalDetailField.note,
+          defaultValue: l.additionalDetailField.defaultValue,
+          sortOrder: l.sortOrder,
+        })),
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Get upcharge additional details error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * POST /price-guide/library/upcharges/:id/additional-details
+ * Link additional detail fields to an upcharge
+ */
+router.post(
+  '/:id/additional-details',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Upcharge ID is required' });
+        return;
+      }
+
+      const parseResult = linkAdditionalDetailsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues,
+        });
+        return;
+      }
+
+      const { fieldIds } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const upcharge = await em.findOne(UpCharge, {
+        id,
+        company: company.id,
+      });
+      if (!upcharge) {
+        res.status(404).json({ error: 'Upcharge not found' });
+        return;
+      }
+
+      // Get existing links
+      const existingLinks = await em.find(UpChargeAdditionalDetailField, {
+        upCharge: upcharge.id,
+      });
+      const existingFieldIds = new Set(
+        existingLinks.map(l => l.additionalDetailField.id),
+      );
+
+      // Get max sort order
+      const maxSortOrder = Math.max(0, ...existingLinks.map(l => l.sortOrder));
+
+      // Validate and create new links
+      const fields = await em.find(AdditionalDetailField, {
+        id: { $in: fieldIds },
+        company: company.id,
+        isActive: true,
+      });
+
+      let linked = 0;
+      let sortOrder = maxSortOrder + 1;
+
+      for (const fieldId of fieldIds) {
+        if (existingFieldIds.has(fieldId)) continue;
+
+        const field = fields.find(f => f.id === fieldId);
+        if (!field) continue;
+
+        const link = new UpChargeAdditionalDetailField();
+        link.upCharge = upcharge;
+        link.additionalDetailField = em.getReference(
+          AdditionalDetailField,
+          fieldId,
+        );
+        link.sortOrder = sortOrder++;
+        em.persist(link);
+        linked++;
+      }
+
+      upcharge.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        { upchargeId: upcharge.id, linkedFields: linked, userId: user.id },
+        'Additional details linked to upcharge',
+      );
+
+      res.status(200).json({
+        success: true,
+        linked,
+        warnings: [],
+      });
+    } catch (err) {
+      req.log.error({ err }, 'Link upcharge additional details error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * DELETE /price-guide/library/upcharges/:id/additional-details/:fieldId
+ * Unlink an additional detail field from an upcharge
+ */
+router.delete(
+  '/:id/additional-details/:fieldId',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id, fieldId } = req.params;
+      if (!id || !fieldId) {
+        res
+          .status(400)
+          .json({ error: 'Upcharge ID and field ID are required' });
+        return;
+      }
+
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const upcharge = await em.findOne(UpCharge, {
+        id,
+        company: company.id,
+      });
+      if (!upcharge) {
+        res.status(404).json({ error: 'Upcharge not found' });
+        return;
+      }
+
+      const link = await em.findOne(UpChargeAdditionalDetailField, {
+        upCharge: upcharge.id,
+        additionalDetailField: fieldId,
+      });
+      if (!link) {
+        res.status(404).json({ error: 'Additional detail link not found' });
+        return;
+      }
+
+      em.remove(link);
+      upcharge.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        { upchargeId: upcharge.id, fieldId, userId: user.id },
+        'Additional detail unlinked from upcharge',
+      );
+
+      res
+        .status(200)
+        .json({ message: 'Additional detail unlinked successfully' });
+    } catch (err) {
+      req.log.error({ err }, 'Unlink upcharge additional detail error');
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+/**
+ * PUT /price-guide/library/upcharges/:id/additional-details/order
+ * Reorder additional detail fields for an upcharge
+ */
+router.put(
+  '/:id/additional-details/order',
+  requireAuth(),
+  requirePermission(PERMISSIONS.SETTINGS_UPDATE),
+  async (req: Request, res: Response) => {
+    try {
+      const context = getCompanyContext(req);
+      if (!context) {
+        res.status(401).json({ error: 'Not authenticated' });
+        return;
+      }
+
+      const { user, company } = context;
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Upcharge ID is required' });
+        return;
+      }
+
+      const parseResult = reorderAdditionalDetailsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          error: 'Validation failed',
+          details: parseResult.error.issues,
+        });
+        return;
+      }
+
+      const { orderedIds } = parseResult.data;
+      const orm = getORM();
+      const em = orm.em.fork() as EntityManager;
+
+      const upcharge = await em.findOne(UpCharge, {
+        id,
+        company: company.id,
+      });
+      if (!upcharge) {
+        res.status(404).json({ error: 'Upcharge not found' });
+        return;
+      }
+
+      const links = await em.find(UpChargeAdditionalDetailField, {
+        upCharge: upcharge.id,
+      });
+      const linkMap = new Map(links.map(l => [l.id, l]));
+
+      for (let i = 0; i < orderedIds.length; i++) {
+        const link = linkMap.get(orderedIds[i]!);
+        if (link) {
+          link.sortOrder = i;
+        }
+      }
+
+      upcharge.lastModifiedBy = em.getReference(User, user.id);
+      await em.flush();
+
+      req.log.info(
+        { upchargeId: upcharge.id, userId: user.id },
+        'Upcharge additional details reordered',
+      );
+
+      res
+        .status(200)
+        .json({ message: 'Additional details reordered successfully' });
+    } catch (err) {
+      req.log.error({ err }, 'Reorder upcharge additional details error');
       res.status(500).json({ error: 'Internal server error' });
     }
   },

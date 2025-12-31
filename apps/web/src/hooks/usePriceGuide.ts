@@ -713,6 +713,17 @@ export function useAdditionalDetailDetail(fieldId: string) {
   });
 }
 
+/** Size picker configuration type */
+type SizePickerConfigInput = {
+  precision: string;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  minDepth?: number;
+  maxDepth?: number;
+};
+
 /**
  * Hook to create an additional detail field.
  */
@@ -727,7 +738,11 @@ export function useCreateAdditionalDetail() {
       placeholder?: string;
       note?: string;
       defaultValue?: string;
+      allowDecimal?: boolean;
       pickerValues?: string[];
+      sizePickerConfig?: SizePickerConfigInput;
+      unitedInchConfig?: { suffix?: string };
+      dateDisplayFormat?: string;
     }) => priceGuideApi.createAdditionalDetail(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
@@ -756,7 +771,11 @@ export function useUpdateAdditionalDetail() {
         placeholder?: string | null;
         note?: string | null;
         defaultValue?: string | null;
+        allowDecimal?: boolean;
         pickerValues?: string[] | null;
+        sizePickerConfig?: SizePickerConfigInput | null;
+        unitedInchConfig?: { suffix?: string } | null;
+        dateDisplayFormat?: string | null;
         version: number;
       };
     }) => priceGuideApi.updateAdditionalDetail(fieldId, data),

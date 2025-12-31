@@ -46,9 +46,16 @@ export type AdditionalDetailsSectionProps = {
 
 const INPUT_TYPE_LABELS: Record<string, string> = {
   text: 'Text',
+  textarea: 'Text Area',
   number: 'Number',
+  currency: 'Currency',
   picker: 'Picker',
+  size_picker: 'Size (2D)',
+  size_picker_3d: 'Size (3D)',
   date: 'Date',
+  time: 'Time',
+  datetime: 'Date & Time',
+  united_inch: 'United Inch',
   toggle: 'Toggle',
 };
 
