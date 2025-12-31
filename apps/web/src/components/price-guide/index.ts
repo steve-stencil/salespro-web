@@ -48,11 +48,16 @@ export type {
 } from './ImpactWarning';
 
 // LinkPicker
-export { LinkPicker } from './LinkPicker';
+export { LinkPicker, LinkPickerDialog } from './LinkPicker';
 export type {
   LinkPickerProps,
   LinkableItem,
   LinkableItemType,
+  LinkPickerDialogProps,
+  LinkPickerDialogType,
+  LinkPickerLinkedOffice,
+  LinkPickerLinkedOption,
+  LinkPickerLinkedUpcharge,
 } from './LinkPicker';
 
 // LinkedItemsList

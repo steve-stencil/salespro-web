@@ -95,6 +95,8 @@ export type WizardAction =
     }
   | { type: 'SET_IMAGE'; payload: MsiImage }
   | { type: 'REMOVE_IMAGE' }
+  | { type: 'ADD_OFFICE'; payload: string }
+  | { type: 'REMOVE_OFFICE'; payload: string }
   | { type: 'ADD_OPTION'; payload: LinkedOption }
   | { type: 'REMOVE_OPTION'; payload: string }
   | { type: 'ADD_UPCHARGE'; payload: LinkedUpCharge }

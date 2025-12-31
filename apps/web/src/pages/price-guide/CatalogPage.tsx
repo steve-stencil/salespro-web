@@ -46,7 +46,7 @@ import {
   ExportDialog,
   ImagePicker,
   ImportDialog,
-  LinkPicker,
+  LinkPickerDialog,
   LinkedItemsList,
   TagChip,
   TagFilterSelect,
@@ -58,8 +58,6 @@ import {
   useMsiList,
   useMsiDetail,
   useCategoryTree,
-  useOptionList,
-  useUpchargeList,
   useLinkOptions,
   useLinkUpcharges,
   useSyncOffices,
@@ -76,7 +74,7 @@ import type {
   BulkDeleteResult,
   BulkEditOptions,
   BulkEditResult,
-  LinkableItem,
+  LinkPickerDialogType,
   MenuAction,
   SelectedImageData,
 } from '../../components/price-guide';
@@ -336,14 +334,11 @@ export function CatalogPage(): React.ReactElement {
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
 
-  // Link picker state
+  // Link picker dialog state (uses new LinkPickerDialog for all types)
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
-  const [linkPickerType, setLinkPickerType] = useState<
-    'office' | 'option' | 'upcharge' | 'additionalDetail'
-  >('option');
+  const [linkPickerType, setLinkPickerType] =
+    useState<LinkPickerDialogType>('option');
   const [linkPickerMsiId, setLinkPickerMsiId] = useState<string>('');
-  const [linkPickerSearch, setLinkPickerSearch] = useState('');
-  const [linkPickerTagIds, setLinkPickerTagIds] = useState<string[]>([]);
 
   // Unlink confirmation state
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
@@ -363,7 +358,6 @@ export function CatalogPage(): React.ReactElement {
 
   // Debounced search
   const debouncedSearch = useDebouncedValue(search, 300);
-  const debouncedLinkPickerSearch = useDebouncedValue(linkPickerSearch, 300);
 
   // Refs for infinite scroll
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -385,32 +379,6 @@ export function CatalogPage(): React.ReactElement {
     categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
     officeIds: officeIds.length > 0 ? officeIds : undefined,
     tags: tagIds.length > 0 ? tagIds : undefined,
-    limit: 20,
-  });
-
-  // Options list for link picker (with tag filtering)
-  const {
-    data: optionsData,
-    isLoading: isLoadingOptions,
-    hasNextPage: hasMoreOptions,
-    fetchNextPage: fetchMoreOptions,
-    isFetchingNextPage: isFetchingMoreOptions,
-  } = useOptionList({
-    search: debouncedLinkPickerSearch || undefined,
-    tags: linkPickerTagIds.length > 0 ? linkPickerTagIds : undefined,
-    limit: 20,
-  });
-
-  // UpCharges list for link picker (with tag filtering)
-  const {
-    data: upchargesData,
-    isLoading: isLoadingUpcharges,
-    hasNextPage: hasMoreUpcharges,
-    fetchNextPage: fetchMoreUpcharges,
-    isFetchingNextPage: isFetchingMoreUpcharges,
-  } = useUpchargeList({
-    search: debouncedLinkPickerSearch || undefined,
-    tags: linkPickerTagIds.length > 0 ? linkPickerTagIds : undefined,
     limit: 20,
   });
 
@@ -460,56 +428,73 @@ export function CatalogPage(): React.ReactElement {
   // Total count
   const totalCount = msiData?.pages[0]?.total ?? 0;
 
-  // Link picker items
-  const linkPickerItems: LinkableItem[] = useMemo(() => {
-    if (linkPickerType === 'office') {
-      if (!officesData?.offices) return [];
-      return officesData.offices.map(office => ({
-        id: office.id,
-        name: office.name,
-        subtitle: null,
-        usageCount: 0, // Offices don't have usage counts in this context
-      }));
-    } else if (linkPickerType === 'option') {
-      if (!optionsData?.pages) return [];
-      return optionsData.pages.flatMap(page =>
-        page.items.map(item => ({
-          id: item.id,
-          name: item.name,
-          subtitle: item.brand,
-          usageCount: item.linkedMsiCount,
-        })),
-      );
-    } else if (linkPickerType === 'upcharge') {
-      if (!upchargesData?.pages) return [];
-      return upchargesData.pages.flatMap(page =>
-        page.items.map(item => ({
-          id: item.id,
-          name: item.name,
-          subtitle: item.note,
-          usageCount: item.linkedMsiCount,
-        })),
-      );
-    }
-    return [];
-  }, [linkPickerType, officesData, optionsData, upchargesData]);
-
-  // Get current MSI for determining already linked items (for LinkPicker)
-  const { data: currentMsiData } = useMsiDetail(linkPickerMsiId);
+  // Get current MSI for link picker dialog
+  const { data: linkPickerMsiData } = useMsiDetail(linkPickerMsiId);
 
   // Get MSI detail for image picker (to get version for sync)
   const { data: imagePickerMsiData } = useMsiDetail(imagePickerMsiId ?? '');
-  const alreadyLinkedIds = useMemo(() => {
-    if (!currentMsiData?.item) return [];
-    if (linkPickerType === 'office') {
-      return currentMsiData.item.offices.map(o => o.id);
-    } else if (linkPickerType === 'option') {
-      return currentMsiData.item.options.map(o => o.optionId);
-    } else if (linkPickerType === 'upcharge') {
-      return currentMsiData.item.upcharges.map(u => u.upchargeId);
+
+  // Currently linked offices for the dialog
+  const linkedOfficesForDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.offices.map(o => ({
+      id: o.id,
+      name: o.name,
+    }));
+  }, [linkPickerMsiData]);
+
+  // Currently linked options for the dialog
+  const linkedOptionsForDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.options.map(o => ({
+      id: o.optionId,
+      name: o.name,
+      brand: o.brand,
+    }));
+  }, [linkPickerMsiData]);
+
+  // Options for the disabled options dropdown in upcharge dialog
+  const msiOptionsForUpchargeDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.options.map(o => ({
+      id: o.optionId,
+      name: o.name,
+      brand: o.brand,
+    }));
+  }, [linkPickerMsiData]);
+
+  // State for upcharge disabled options (local state since API doesn't support per-MSI disabled options yet)
+  const [upchargeDisabledOptions, setUpchargeDisabledOptions] = useState<
+    Record<string, string[]>
+  >({});
+
+  // Reset disabled options state when dialog closes
+  useEffect(() => {
+    if (!linkPickerOpen) {
+      setUpchargeDisabledOptions({});
     }
-    return [];
-  }, [currentMsiData, linkPickerType]);
+  }, [linkPickerOpen]);
+
+  // Currently linked upcharges for the dialog
+  const linkedUpchargesForDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.upcharges.map(u => ({
+      id: u.upchargeId,
+      name: u.name,
+      disabledOptionIds: upchargeDisabledOptions[u.upchargeId] ?? [],
+    }));
+  }, [linkPickerMsiData, upchargeDisabledOptions]);
+
+  // Handler to update disabled options for an upcharge
+  const handleUpdateDisabledOptions = useCallback(
+    (upchargeId: string, optionIds: string[]) => {
+      setUpchargeDisabledOptions(prev => ({
+        ...prev,
+        [upchargeId]: optionIds,
+      }));
+    },
+    [],
+  );
 
   // Toggle expanded
   const toggleExpanded = useCallback((id: string) => {
@@ -664,58 +649,103 @@ export function CatalogPage(): React.ReactElement {
     [imagePickerMsiId, imagePickerMsiData, queryClient],
   );
 
-  // Link picker handlers
+  // Link picker dialog handlers (unified for office, option, upcharge)
   const openLinkPicker = useCallback(
-    (type: 'office' | 'option' | 'upcharge', msiId: string) => {
+    (type: LinkPickerDialogType, msiId: string) => {
       setLinkPickerType(type);
       setLinkPickerMsiId(msiId);
-      setLinkPickerSearch('');
-      setLinkPickerTagIds([]);
       setLinkPickerOpen(true);
     },
     [],
   );
 
-  const handleLink = useCallback(
-    async (itemIds: string[]) => {
+  const handleLinkItem = useCallback(
+    async (itemId: string) => {
       try {
-        if (linkPickerType === 'office') {
-          // For offices, we need to sync ALL selected offices (existing + new)
-          const existingOfficeIds =
-            currentMsiData?.item.offices.map(o => o.id) ?? [];
-          const allOfficeIds = [...new Set([...existingOfficeIds, ...itemIds])];
-          await syncOfficesMutation.mutateAsync({
-            msiId: linkPickerMsiId,
-            officeIds: allOfficeIds,
-            version: currentMsiData?.item.version ?? 1,
-          });
-        } else if (linkPickerType === 'option') {
-          await linkOptionsMutation.mutateAsync({
-            msiId: linkPickerMsiId,
-            optionIds: itemIds,
-          });
-        } else if (linkPickerType === 'upcharge') {
-          await linkUpchargesMutation.mutateAsync({
-            msiId: linkPickerMsiId,
-            upchargeIds: itemIds,
-          });
+        switch (linkPickerType) {
+          case 'office': {
+            // For offices, we need to sync ALL offices (existing + new)
+            const existingOfficeIds =
+              linkPickerMsiData?.item.offices.map(o => o.id) ?? [];
+            const allOfficeIds = [...new Set([...existingOfficeIds, itemId])];
+            await syncOfficesMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              officeIds: allOfficeIds,
+              version: linkPickerMsiData?.item.version ?? 1,
+            });
+            break;
+          }
+          case 'option':
+            await linkOptionsMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              optionIds: [itemId],
+            });
+            break;
+          case 'upcharge':
+            await linkUpchargesMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              upchargeIds: [itemId],
+            });
+            break;
         }
-        setLinkPickerOpen(false);
       } catch (err) {
-        console.error('Failed to link items:', err);
+        console.error('Failed to link item:', err);
       }
     },
     [
       linkPickerType,
       linkPickerMsiId,
-      currentMsiData,
+      linkPickerMsiData,
+      syncOfficesMutation,
       linkOptionsMutation,
       linkUpchargesMutation,
-      syncOfficesMutation,
     ],
   );
 
-  // Unlink handlers
+  const handleUnlinkItemFromDialog = useCallback(
+    async (itemId: string) => {
+      try {
+        switch (linkPickerType) {
+          case 'office': {
+            // For offices, we need to sync with the office removed
+            const currentOfficeIds =
+              linkPickerMsiData?.item.offices.map(o => o.id) ?? [];
+            const newOfficeIds = currentOfficeIds.filter(id => id !== itemId);
+            await syncOfficesMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              officeIds: newOfficeIds,
+              version: linkPickerMsiData?.item.version ?? 1,
+            });
+            break;
+          }
+          case 'option':
+            await unlinkOptionMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              optionId: itemId,
+            });
+            break;
+          case 'upcharge':
+            await unlinkUpchargeMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              upchargeId: itemId,
+            });
+            break;
+        }
+      } catch (err) {
+        console.error('Failed to unlink item:', err);
+      }
+    },
+    [
+      linkPickerType,
+      linkPickerMsiId,
+      linkPickerMsiData,
+      syncOfficesMutation,
+      unlinkOptionMutation,
+      unlinkUpchargeMutation,
+    ],
+  );
+
+  // Unlink handlers (for confirmation dialog when unlinking from expanded card)
   const openUnlinkDialog = useCallback(
     (
       type: 'office' | 'option' | 'upcharge',
@@ -724,10 +754,8 @@ export function CatalogPage(): React.ReactElement {
       itemId: string,
       itemName: string,
     ) => {
-      // For offices, we need to set linkPickerMsiId so currentMsiData has the right MSI
-      if (type === 'office') {
-        setLinkPickerMsiId(msiId);
-      }
+      // Set the linkPickerMsiId so we can get the MSI data for the unlink
+      setLinkPickerMsiId(msiId);
       setUnlinkItem({ type, msiId, msiName, itemId, itemName });
       setUnlinkDialogOpen(true);
     },
@@ -740,14 +768,14 @@ export function CatalogPage(): React.ReactElement {
       if (unlinkItem.type === 'office') {
         // For offices, we need to sync with the office removed
         const currentOfficeIds =
-          currentMsiData?.item.offices.map(o => o.id) ?? [];
+          linkPickerMsiData?.item.offices.map(o => o.id) ?? [];
         const newOfficeIds = currentOfficeIds.filter(
           id => id !== unlinkItem.itemId,
         );
         await syncOfficesMutation.mutateAsync({
           msiId: unlinkItem.msiId,
           officeIds: newOfficeIds,
-          version: currentMsiData?.item.version ?? 1,
+          version: linkPickerMsiData?.item.version ?? 1,
         });
       } else if (unlinkItem.type === 'option') {
         await unlinkOptionMutation.mutateAsync({
@@ -767,7 +795,7 @@ export function CatalogPage(): React.ReactElement {
     }
   }, [
     unlinkItem,
-    currentMsiData,
+    linkPickerMsiData,
     unlinkOptionMutation,
     unlinkUpchargeMutation,
     syncOfficesMutation,
@@ -1206,54 +1234,27 @@ export function CatalogPage(): React.ReactElement {
         onBulkDelete={() => setBulkDeleteDialogOpen(true)}
       />
 
-      {/* Link Picker Dialog */}
-      <LinkPicker
+      {/* Link Picker Dialog (unified for offices, options, upcharges) */}
+      <LinkPickerDialog
         open={linkPickerOpen}
         itemType={linkPickerType}
-        items={linkPickerItems}
-        alreadyLinkedIds={alreadyLinkedIds}
-        isLoading={
-          linkPickerType === 'office'
-            ? false // Offices are loaded synchronously
-            : linkPickerType === 'option'
-              ? isLoadingOptions
-              : isLoadingUpcharges
-        }
-        hasMore={
-          linkPickerType === 'office'
-            ? false // Offices don't have pagination
-            : linkPickerType === 'option'
-              ? hasMoreOptions
-              : hasMoreUpcharges
-        }
-        onLoadMore={() => {
-          if (linkPickerType === 'option') {
-            void fetchMoreOptions();
-          } else if (linkPickerType === 'upcharge') {
-            void fetchMoreUpcharges();
-          }
-          // Offices don't need load more
-        }}
-        isLoadingMore={
-          linkPickerType === 'office'
-            ? false
-            : linkPickerType === 'option'
-              ? isFetchingMoreOptions
-              : isFetchingMoreUpcharges
-        }
-        onSearch={linkPickerType === 'office' ? undefined : setLinkPickerSearch}
+        linkedOffices={linkedOfficesForDialog}
+        linkedOptions={linkedOptionsForDialog}
+        linkedUpcharges={linkedUpchargesForDialog}
+        msiOptions={msiOptionsForUpchargeDialog}
+        onLink={itemId => void handleLinkItem(itemId)}
+        onUnlink={itemId => void handleUnlinkItemFromDialog(itemId)}
+        onUpdateDisabledOptions={handleUpdateDisabledOptions}
         onClose={() => setLinkPickerOpen(false)}
-        onLink={itemIds => void handleLink(itemIds)}
         isLinking={
+          syncOfficesMutation.isPending ||
           linkOptionsMutation.isPending ||
-          linkUpchargesMutation.isPending ||
-          syncOfficesMutation.isPending
+          linkUpchargesMutation.isPending
         }
-        // Tag filtering (for options and upcharges only)
-        availableTags={linkPickerType === 'office' ? undefined : tagsData?.tags}
-        selectedTagIds={linkPickerTagIds}
-        onTagFilterChange={
-          linkPickerType === 'office' ? undefined : setLinkPickerTagIds
+        isUnlinking={
+          syncOfficesMutation.isPending ||
+          unlinkOptionMutation.isPending ||
+          unlinkUpchargeMutation.isPending
         }
       />
 

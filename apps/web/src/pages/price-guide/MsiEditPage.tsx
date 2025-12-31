@@ -132,6 +132,16 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, image: action.payload };
     case 'REMOVE_IMAGE':
       return { ...state, image: null };
+    case 'ADD_OFFICE':
+      if (state.officeIds.includes(action.payload)) {
+        return state;
+      }
+      return { ...state, officeIds: [...state.officeIds, action.payload] };
+    case 'REMOVE_OFFICE':
+      return {
+        ...state,
+        officeIds: state.officeIds.filter(id => id !== action.payload),
+      };
     case 'ADD_OPTION':
       if (state.options.some(o => o.id === action.payload.id)) {
         return state;
@@ -304,6 +314,14 @@ export function MsiEditPage(): React.ReactElement {
     },
     [],
   );
+
+  const addOffice = useCallback((officeId: string) => {
+    dispatch({ type: 'ADD_OFFICE', payload: officeId });
+  }, []);
+
+  const removeOffice = useCallback((officeId: string) => {
+    dispatch({ type: 'REMOVE_OFFICE', payload: officeId });
+  }, []);
 
   const addOption = useCallback((option: LinkedOption) => {
     dispatch({ type: 'ADD_OPTION', payload: option });
@@ -652,7 +670,11 @@ export function MsiEditPage(): React.ReactElement {
               </Box>
             </AccordionSummary>
             <AccordionDetails>
-              <OfficesSection state={state} setBasicInfo={setBasicInfo} />
+              <OfficesSection
+                state={state}
+                addOffice={addOffice}
+                removeOffice={removeOffice}
+              />
             </AccordionDetails>
           </Accordion>
 
