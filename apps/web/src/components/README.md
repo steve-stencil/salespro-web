@@ -77,6 +77,45 @@ The `PlatformRoleEditDialog` provides:
 - Company permission selection (wildcard `*` or specific permissions)
 - Role name, display name, and description fields
 
+#### `price-guide/`
+
+Price guide library components:
+
+| Component             | Purpose                                        |
+| --------------------- | ---------------------------------------------- |
+| `TagChip.tsx`         | Displays a single tag with name and color      |
+| `TagAutocomplete.tsx` | Autocomplete input for selecting/creating tags |
+| `TagFilterSelect.tsx` | Multi-select dropdown for filtering by tags    |
+
+**TagChip** - Displays a colored tag chip with optional delete/click handlers:
+
+```tsx
+<TagChip
+  id="tag-123"
+  name="Premium"
+  color="#4CAF50"
+  onDelete={handleDelete}
+  size="small"
+/>
+```
+
+**TagAutocomplete** - Allows selecting existing tags or creating new ones:
+
+```tsx
+<TagAutocomplete
+  selectedTags={selectedTags}
+  onChange={setSelectedTags}
+  label="Tags"
+  placeholder="Add tags..."
+/>
+```
+
+**TagFilterSelect** - Filter items by tags (used in library pages):
+
+```tsx
+<TagFilterSelect selectedTagIds={filterTags} onChange={setFilterTags} />
+```
+
 ## Patterns
 
 ### Component Structure
