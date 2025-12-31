@@ -22,10 +22,16 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import Divider from '@mui/material/Divider';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
+import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
@@ -69,6 +75,8 @@ import {
   useUpdateUpcharge,
   useAdditionalDetailDetail,
   useUpdateAdditionalDetail,
+  useLinkUpchargeAdditionalDetails,
+  useUnlinkUpchargeAdditionalDetail,
   useUpchargePricing,
   useUpdateUpchargeDefaultPrices,
   usePriceTypes,
@@ -257,19 +265,65 @@ const INPUT_TYPE_OPTIONS = [
   { value: 'number', label: 'Number' },
   { value: 'currency', label: 'Currency' },
   { value: 'picker', label: 'Picker (Dropdown)' },
+  { value: 'size_picker', label: 'Size Picker (2D)' },
+  { value: 'size_picker_3d', label: 'Size Picker (3D)' },
   { value: 'date', label: 'Date' },
   { value: 'time', label: 'Time' },
   { value: 'datetime', label: 'Date & Time' },
+  { value: 'united_inch', label: 'United Inch' },
 ];
+
+/** Size picker precision options */
+const SIZE_PICKER_PRECISION_OPTIONS = [
+  { value: 'inch', label: 'Inch' },
+  { value: 'quarter_inch', label: '1/4 Inch' },
+  { value: 'eighth_inch', label: '1/8 Inch' },
+  { value: 'sixteenth_inch', label: '1/16 Inch' },
+];
+
+/** Input types that require additional configuration */
+const TYPES_WITH_CONFIG = [
+  'number',
+  'currency',
+  'picker',
+  'size_picker',
+  'size_picker_3d',
+  'date',
+  'time',
+  'datetime',
+  'united_inch',
+];
+
+/** Type for size picker configuration */
+type SizePickerConfig = {
+  precision: string;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  minDepth?: number;
+  maxDepth?: number;
+};
+
+/** Type for additional detail field data */
+type AdditionalDetailFieldData = {
+  title: string;
+  inputType: string;
+  isRequired: boolean;
+  placeholder?: string;
+  note?: string;
+  defaultValue?: string;
+  allowDecimal?: boolean;
+  pickerValues?: string[];
+  sizePickerConfig?: SizePickerConfig;
+  unitedInchConfig?: { suffix?: string };
+  dateDisplayFormat?: string;
+};
 
 type QuickAddAdditionalDetailDialogProps = {
   open: boolean;
   onClose: () => void;
-  onAdd: (
-    title: string,
-    inputType: string,
-    isRequired: boolean,
-  ) => Promise<void>;
+  onAdd: (data: AdditionalDetailFieldData) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -282,27 +336,103 @@ function QuickAddAdditionalDetailDialog({
   const [title, setTitle] = useState('');
   const [inputType, setInputType] = useState('text');
   const [isRequired, setIsRequired] = useState(false);
+  const [placeholder, setPlaceholder] = useState('');
+  const [note, setNote] = useState('');
+  const [defaultValue, setDefaultValue] = useState('');
+  const [allowDecimal, setAllowDecimal] = useState(false);
+  const [pickerValues, setPickerValues] = useState<string[]>([]);
+  const [newPickerValue, setNewPickerValue] = useState('');
+  const [sizePickerConfig, setSizePickerConfig] = useState<SizePickerConfig>({
+    precision: 'inch',
+  });
+  const [unitedInchSuffix, setUnitedInchSuffix] = useState('');
+  const [dateDisplayFormat, setDateDisplayFormat] = useState('');
+
+  const resetForm = () => {
+    setTitle('');
+    setInputType('text');
+    setIsRequired(false);
+    setPlaceholder('');
+    setNote('');
+    setDefaultValue('');
+    setAllowDecimal(false);
+    setPickerValues([]);
+    setNewPickerValue('');
+    setSizePickerConfig({ precision: 'inch' });
+    setUnitedInchSuffix('');
+    setDateDisplayFormat('');
+  };
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
-    await onAdd(title.trim(), inputType, isRequired);
-    setTitle('');
-    setInputType('text');
-    setIsRequired(false);
+    const data: AdditionalDetailFieldData = {
+      title: title.trim(),
+      inputType,
+      isRequired,
+      placeholder: placeholder.trim() || undefined,
+      note: note.trim() || undefined,
+      defaultValue: defaultValue.trim() || undefined,
+    };
+
+    // Add type-specific config
+    if (inputType === 'number' || inputType === 'currency') {
+      data.allowDecimal = allowDecimal;
+    }
+    if (inputType === 'picker' && pickerValues.length > 0) {
+      data.pickerValues = pickerValues;
+    }
+    if (inputType === 'size_picker' || inputType === 'size_picker_3d') {
+      data.sizePickerConfig = sizePickerConfig;
+    }
+    if (inputType === 'united_inch' && unitedInchSuffix.trim()) {
+      data.unitedInchConfig = { suffix: unitedInchSuffix.trim() };
+    }
+    if (
+      (inputType === 'date' ||
+        inputType === 'time' ||
+        inputType === 'datetime') &&
+      dateDisplayFormat.trim()
+    ) {
+      data.dateDisplayFormat = dateDisplayFormat.trim();
+    }
+
+    await onAdd(data);
+    resetForm();
   };
 
   const handleClose = () => {
-    setTitle('');
-    setInputType('text');
-    setIsRequired(false);
+    resetForm();
     onClose();
   };
 
+  const handleAddPickerValue = () => {
+    if (
+      newPickerValue.trim() &&
+      !pickerValues.includes(newPickerValue.trim())
+    ) {
+      setPickerValues([...pickerValues, newPickerValue.trim()]);
+      setNewPickerValue('');
+    }
+  };
+
+  const handleRemovePickerValue = (value: string) => {
+    setPickerValues(pickerValues.filter(v => v !== value));
+  };
+
+  const showConfig = TYPES_WITH_CONFIG.includes(inputType);
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{ sx: { maxHeight: '90vh' } }}
+    >
       <DialogTitle>Create New Additional Detail</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         <Stack spacing={2} sx={{ mt: 1 }}>
+          {/* Basic Fields */}
           <TextField
             label="Title"
             value={title}
@@ -334,6 +464,267 @@ function QuickAddAdditionalDetailDialog({
             }
             label="Required field"
           />
+
+          {/* General Optional Fields */}
+          <TextField
+            label="Placeholder"
+            value={placeholder}
+            onChange={e => setPlaceholder(e.target.value)}
+            fullWidth
+            helperText="Text shown when field is empty"
+          />
+          <TextField
+            label="Helper Note"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            fullWidth
+            multiline
+            rows={2}
+            helperText="Instructions or context for this field"
+          />
+          <TextField
+            label="Default Value"
+            value={defaultValue}
+            onChange={e => setDefaultValue(e.target.value)}
+            fullWidth
+            helperText="Pre-filled value when adding to estimate"
+          />
+
+          {/* Type-Specific Configuration */}
+          {showConfig && (
+            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Type Configuration
+              </Typography>
+
+              {/* Number/Currency: allowDecimal */}
+              {(inputType === 'number' || inputType === 'currency') && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={allowDecimal}
+                      onChange={e => setAllowDecimal(e.target.checked)}
+                    />
+                  }
+                  label="Allow decimal values"
+                />
+              )}
+
+              {/* Picker: pickerValues */}
+              {inputType === 'picker' && (
+                <Stack spacing={1}>
+                  <Typography variant="body2" color="text.secondary">
+                    Picker Options
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                      size="small"
+                      placeholder="Add option..."
+                      value={newPickerValue}
+                      onChange={e => setNewPickerValue(e.target.value)}
+                      onKeyPress={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddPickerValue();
+                        }
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleAddPickerValue}
+                      disabled={!newPickerValue.trim()}
+                    >
+                      Add
+                    </Button>
+                  </Box>
+                  {pickerValues.length > 0 && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 0.5,
+                        mt: 1,
+                      }}
+                    >
+                      {pickerValues.map(value => (
+                        <Chip
+                          key={value}
+                          label={value}
+                          onDelete={() => handleRemovePickerValue(value)}
+                          size="small"
+                        />
+                      ))}
+                    </Box>
+                  )}
+                  {pickerValues.length === 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      Add at least one option for the picker
+                    </Typography>
+                  )}
+                </Stack>
+              )}
+
+              {/* Size Picker: precision and constraints */}
+              {(inputType === 'size_picker' ||
+                inputType === 'size_picker_3d') && (
+                <Stack spacing={2}>
+                  <TextField
+                    select
+                    label="Precision"
+                    value={sizePickerConfig.precision}
+                    onChange={e =>
+                      setSizePickerConfig({
+                        ...sizePickerConfig,
+                        precision: e.target.value,
+                      })
+                    }
+                    fullWidth
+                    size="small"
+                  >
+                    {SIZE_PICKER_PRECISION_OPTIONS.map(option => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      label="Min Width"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.minWidth ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          minWidth: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      label="Max Width"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.maxWidth ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          maxWidth: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      label="Min Height"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.minHeight ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          minHeight: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                    <TextField
+                      label="Max Height"
+                      type="number"
+                      size="small"
+                      value={sizePickerConfig.maxHeight ?? ''}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          maxHeight: e.target.value
+                            ? Number(e.target.value)
+                            : undefined,
+                        })
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                  </Box>
+                  {inputType === 'size_picker_3d' && (
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Min Depth"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.minDepth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            minDepth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Max Depth"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.maxDepth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            maxDepth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+                  )}
+                </Stack>
+              )}
+
+              {/* United Inch: suffix */}
+              {inputType === 'united_inch' && (
+                <TextField
+                  label="Suffix"
+                  value={unitedInchSuffix}
+                  onChange={e => setUnitedInchSuffix(e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder='e.g., "UI"'
+                  helperText="Text appended to the united inch value"
+                />
+              )}
+
+              {/* Date/Time: format */}
+              {(inputType === 'date' ||
+                inputType === 'time' ||
+                inputType === 'datetime') && (
+                <TextField
+                  label="Display Format"
+                  value={dateDisplayFormat}
+                  onChange={e => setDateDisplayFormat(e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder={
+                    inputType === 'date'
+                      ? 'MM/dd/yyyy'
+                      : inputType === 'time'
+                        ? 'HH:mm'
+                        : 'MM/dd/yyyy HH:mm'
+                  }
+                  helperText="Format string for displaying the value"
+                />
+              )}
+            </Box>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -475,6 +866,22 @@ function EditOptionDialog({
 // Edit UpCharge Dialog (Unified View with Pricing)
 // ============================================================================
 
+/** Input type display labels */
+const UPCHARGE_INPUT_TYPE_LABELS: Record<string, string> = {
+  text: 'Text',
+  textarea: 'Text Area',
+  number: 'Number',
+  currency: 'Currency',
+  picker: 'Picker',
+  size_picker: 'Size (2D)',
+  size_picker_3d: 'Size (3D)',
+  date: 'Date',
+  time: 'Time',
+  datetime: 'Date & Time',
+  united_inch: 'United Inch',
+  toggle: 'Toggle',
+};
+
 type EditUpChargeDialogProps = {
   open: boolean;
   upchargeId: string | null;
@@ -498,6 +905,11 @@ function EditUpChargeDialog({
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [version, setVersion] = useState(1);
+  const [detailSearch, setDetailSearch] = useState('');
+  const [detailTagFilter, setDetailTagFilter] = useState<string[]>([]);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  const debouncedDetailSearch = useDebouncedValue(detailSearch, 300);
 
   // Pricing state
   const [defaultConfigs, setDefaultConfigs] = useState<
@@ -531,6 +943,59 @@ function EditUpChargeDialog({
     return priceTypesData.priceTypes.filter(pt => pt.isActive);
   }, [priceTypesData]);
 
+  // Fetch tags for filtering
+  const { data: tagsData } = useTagList();
+
+  // Link/unlink mutations
+  const linkDetailsMutation = useLinkUpchargeAdditionalDetails();
+  const unlinkDetailMutation = useUnlinkUpchargeAdditionalDetail();
+
+  // Additional details list query
+  const {
+    data: detailsData,
+    isLoading: isLoadingDetails,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useAdditionalDetailList({
+    search: debouncedDetailSearch || undefined,
+    tags: detailTagFilter.length > 0 ? detailTagFilter : undefined,
+    limit: 20,
+  });
+
+  // Flatten all details from pagination
+  const allDetails = useMemo(() => {
+    if (!detailsData?.pages) return [];
+    return detailsData.pages.flatMap(page => page.items);
+  }, [detailsData]);
+
+  // Get currently linked additional details
+  type LinkedDetailItem = {
+    junctionId: string;
+    fieldId: string;
+    title: string;
+    inputType: string;
+    cellType: string | null;
+    isRequired: boolean;
+    sortOrder: number;
+  };
+
+  const linkedDetails = useMemo<LinkedDetailItem[]>(() => {
+    const upcharge = upchargeData?.upcharge;
+    if (!upcharge) return [];
+    return upcharge.additionalDetails;
+  }, [upchargeData]);
+
+  // Get currently linked detail IDs for filtering
+  const linkedDetailIds = useMemo<Set<string>>(() => {
+    return new Set(linkedDetails.map(d => d.fieldId));
+  }, [linkedDetails]);
+
+  // Filter out already linked details
+  const availableDetails = useMemo(() => {
+    return allDetails.filter(d => !linkedDetailIds.has(d.id));
+  }, [allDetails, linkedDetailIds]);
+
   // Sync form state when upcharge data loads
   useEffect(() => {
     if (upchargeData?.upcharge) {
@@ -539,6 +1004,25 @@ function EditUpChargeDialog({
       setVersion(upchargeData.upcharge.version);
     }
   }, [upchargeData]);
+
+  // Infinite scroll for details list
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    const el = loadMoreRef.current;
+    if (el) observer.observe(el);
+    return () => {
+      if (el) observer.unobserve(el);
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Initialize pricing state from API data
   useEffect(() => {
@@ -617,6 +1101,8 @@ function EditUpChargeDialog({
     }
     setName('');
     setNote('');
+    setDetailSearch('');
+    setDetailTagFilter([]);
     setHasPricingChanges(false);
     onClose();
   }, [hasPricingChanges, onClose]);
@@ -628,41 +1114,81 @@ function EditUpChargeDialog({
     isLoadingOffices;
   const isSaving = isLoading || updateDefaultPricesMutation.isPending;
 
+  const handleLinkDetail = useCallback(
+    async (fieldId: string) => {
+      if (!upchargeId) return;
+      await linkDetailsMutation.mutateAsync({
+        upchargeId,
+        fieldIds: [fieldId],
+      });
+    },
+    [upchargeId, linkDetailsMutation],
+  );
+
+  const handleUnlinkDetail = useCallback(
+    async (fieldId: string) => {
+      if (!upchargeId) return;
+      await unlinkDetailMutation.mutateAsync({
+        upchargeId,
+        fieldId,
+      });
+    },
+    [upchargeId, unlinkDetailMutation],
+  );
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setDetailSearch(e.target.value);
+    },
+    [],
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setDetailSearch('');
+  }, []);
+
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>Edit UpCharge</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         {isLoadingContent ? (
           <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress />
           </Box>
         ) : (
           <Stack spacing={3} sx={{ mt: 1 }}>
-            {/* Details Section */}
-            <Stack spacing={2}>
-              <TextField
-                label="UpCharge Name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                fullWidth
-                required
-                autoFocus
-              />
-              <TextField
-                label="Note"
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                fullWidth
-                multiline
-                rows={2}
-              />
-              <ItemTagEditor
-                entityType="UPCHARGE"
-                entityId={upchargeId ?? undefined}
-                label="Tags"
-                placeholder="Add tags..."
-              />
-            </Stack>
+            {/* Basic Fields */}
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Basic Information
+              </Typography>
+              <Stack spacing={2}>
+                <TextField
+                  label="UpCharge Name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  fullWidth
+                  required
+                  autoFocus
+                />
+                <TextField
+                  label="Note"
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
+                <ItemTagEditor
+                  entityType="UPCHARGE"
+                  entityId={upchargeId ?? undefined}
+                  label="Tags"
+                  placeholder="Add tags..."
+                />
+              </Stack>
+            </Box>
+
+            <Divider />
 
             {/* Pricing Section */}
             <Box>
@@ -704,6 +1230,189 @@ function EditUpChargeDialog({
                 </>
               )}
             </Box>
+
+            <Divider />
+
+            {/* Additional Details Section */}
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Additional Details
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Link additional detail fields to this upcharge. These fields
+                will appear when this upcharge is added to an estimate.
+              </Typography>
+
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                {/* Left: Search & Select */}
+                <Box sx={{ flex: 1 }}>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <TextField
+                      placeholder="Search additional details..."
+                      value={detailSearch}
+                      onChange={handleSearchChange}
+                      size="small"
+                      sx={{ flex: 1 }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon color="action" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: detailSearch && (
+                          <InputAdornment position="end">
+                            <IconButton
+                              size="small"
+                              onClick={handleClearSearch}
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    {tagsData?.tags && tagsData.tags.length > 0 && (
+                      <TagFilterSelect
+                        value={detailTagFilter}
+                        onChange={setDetailTagFilter}
+                        tags={tagsData.tags}
+                        label="Filter by Tags"
+                        minWidth={140}
+                        size="small"
+                      />
+                    )}
+                  </Box>
+
+                  <Paper
+                    variant="outlined"
+                    sx={{ maxHeight: 250, overflow: 'auto', minHeight: 150 }}
+                  >
+                    {isLoadingDetails ? (
+                      <Box
+                        sx={{ display: 'flex', justifyContent: 'center', p: 3 }}
+                      >
+                        <CircularProgress size={24} />
+                      </Box>
+                    ) : availableDetails.length === 0 ? (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ p: 2, textAlign: 'center' }}
+                      >
+                        {detailSearch || detailTagFilter.length > 0
+                          ? 'No matching additional details found'
+                          : 'All additional details have been linked'}
+                      </Typography>
+                    ) : (
+                      <List dense disablePadding>
+                        {availableDetails.map(detail => (
+                          <ListItem
+                            key={detail.id}
+                            sx={{
+                              cursor: 'pointer',
+                              '&:hover': { bgcolor: 'action.hover' },
+                            }}
+                            onClick={() => void handleLinkDetail(detail.id)}
+                          >
+                            <ListItemText
+                              primary={detail.title}
+                              secondary={
+                                UPCHARGE_INPUT_TYPE_LABELS[detail.inputType] ??
+                                detail.inputType
+                              }
+                            />
+                            {linkDetailsMutation.isPending && (
+                              <CircularProgress size={16} sx={{ ml: 1 }} />
+                            )}
+                          </ListItem>
+                        ))}
+                        <Box ref={loadMoreRef} sx={{ height: 1 }} />
+                        {isFetchingNextPage && (
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'center',
+                              p: 1,
+                            }}
+                          >
+                            <CircularProgress size={20} />
+                          </Box>
+                        )}
+                      </List>
+                    )}
+                  </Paper>
+                </Box>
+
+                {/* Right: Linked Details */}
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
+                    Linked Details ({linkedDetails.length})
+                  </Typography>
+                  {linkedDetails.length === 0 ? (
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 3,
+                        textAlign: 'center',
+                        bgcolor: 'action.hover',
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        No additional details linked. Additional details are
+                        optional.
+                      </Typography>
+                    </Paper>
+                  ) : (
+                    <Paper
+                      variant="outlined"
+                      sx={{ maxHeight: 250, overflow: 'auto' }}
+                    >
+                      <List dense disablePadding>
+                        {linkedDetails.map(detail => (
+                          <ListItem key={detail.fieldId}>
+                            <ListItemText
+                              primary={detail.title}
+                              secondary={
+                                UPCHARGE_INPUT_TYPE_LABELS[detail.inputType] ??
+                                detail.inputType
+                              }
+                            />
+                            <Chip
+                              label={
+                                UPCHARGE_INPUT_TYPE_LABELS[detail.inputType] ??
+                                detail.inputType
+                              }
+                              size="small"
+                              variant="outlined"
+                              sx={{ mr: 1 }}
+                            />
+                            <ListItemSecondaryAction>
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  void handleUnlinkDetail(detail.fieldId)
+                                }
+                                disabled={unlinkDetailMutation.isPending}
+                              >
+                                {unlinkDetailMutation.isPending ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <DeleteIcon fontSize="small" />
+                                )}
+                              </IconButton>
+                            </ListItemSecondaryAction>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Paper>
+                  )}
+                </Box>
+              </Box>
+            </Box>
           </Stack>
         )}
       </DialogContent>
@@ -734,7 +1443,14 @@ type EditAdditionalDetailDialogProps = {
   onClose: () => void;
   onSave: (
     detailId: string,
-    data: { title: string; inputType: string; isRequired: boolean },
+    data: Omit<
+      AdditionalDetailFieldData,
+      'title' | 'inputType' | 'isRequired'
+    > & {
+      title: string;
+      inputType: string;
+      isRequired: boolean;
+    },
     version: number,
   ) => Promise<void>;
   isLoading: boolean;
@@ -751,6 +1467,17 @@ function EditAdditionalDetailDialog({
   const [inputType, setInputType] = useState('text');
   const [isRequired, setIsRequired] = useState(false);
   const [version, setVersion] = useState(1);
+  const [placeholder, setPlaceholder] = useState('');
+  const [note, setNote] = useState('');
+  const [defaultValue, setDefaultValue] = useState('');
+  const [allowDecimal, setAllowDecimal] = useState(false);
+  const [pickerValues, setPickerValues] = useState<string[]>([]);
+  const [newPickerValue, setNewPickerValue] = useState('');
+  const [sizePickerConfig, setSizePickerConfig] = useState<SizePickerConfig>({
+    precision: 'inch',
+  });
+  const [unitedInchSuffix, setUnitedInchSuffix] = useState('');
+  const [dateDisplayFormat, setDateDisplayFormat] = useState('');
 
   const { data: detailData, isLoading: isLoadingDetail } =
     useAdditionalDetailDetail(detailId ?? '');
@@ -762,39 +1489,107 @@ function EditAdditionalDetailDialog({
       setInputType(detailData.field.inputType);
       setIsRequired(detailData.field.isRequired);
       setVersion(detailData.field.version);
+      setPlaceholder(detailData.field.placeholder ?? '');
+      setNote(detailData.field.note ?? '');
+      setDefaultValue(detailData.field.defaultValue ?? '');
+      setAllowDecimal(detailData.field.allowDecimal);
+      setPickerValues(detailData.field.pickerValues ?? []);
+      if (detailData.field.sizePickerConfig) {
+        setSizePickerConfig(detailData.field.sizePickerConfig);
+      } else {
+        setSizePickerConfig({ precision: 'inch' });
+      }
+      setUnitedInchSuffix(detailData.field.unitedInchConfig?.suffix ?? '');
+      setDateDisplayFormat(detailData.field.dateDisplayFormat ?? '');
     }
   }, [detailData]);
 
   const handleSubmit = async () => {
     if (!title.trim() || !detailId) return;
-    await onSave(
-      detailId,
-      {
-        title: title.trim(),
-        inputType,
-        isRequired,
-      },
-      version,
-    );
+    const data: AdditionalDetailFieldData = {
+      title: title.trim(),
+      inputType,
+      isRequired,
+      placeholder: placeholder.trim() || undefined,
+      note: note.trim() || undefined,
+      defaultValue: defaultValue.trim() || undefined,
+    };
+
+    // Add type-specific config
+    if (inputType === 'number' || inputType === 'currency') {
+      data.allowDecimal = allowDecimal;
+    }
+    if (inputType === 'picker') {
+      data.pickerValues = pickerValues.length > 0 ? pickerValues : undefined;
+    }
+    if (inputType === 'size_picker' || inputType === 'size_picker_3d') {
+      data.sizePickerConfig = sizePickerConfig;
+    }
+    if (inputType === 'united_inch') {
+      data.unitedInchConfig = unitedInchSuffix.trim()
+        ? { suffix: unitedInchSuffix.trim() }
+        : undefined;
+    }
+    if (
+      inputType === 'date' ||
+      inputType === 'time' ||
+      inputType === 'datetime'
+    ) {
+      data.dateDisplayFormat = dateDisplayFormat.trim() || undefined;
+    }
+
+    await onSave(detailId, data, version);
   };
 
   const handleClose = () => {
     setTitle('');
     setInputType('text');
     setIsRequired(false);
+    setPlaceholder('');
+    setNote('');
+    setDefaultValue('');
+    setAllowDecimal(false);
+    setPickerValues([]);
+    setNewPickerValue('');
+    setSizePickerConfig({ precision: 'inch' });
+    setUnitedInchSuffix('');
+    setDateDisplayFormat('');
     onClose();
   };
 
+  const handleAddPickerValue = () => {
+    if (
+      newPickerValue.trim() &&
+      !pickerValues.includes(newPickerValue.trim())
+    ) {
+      setPickerValues([...pickerValues, newPickerValue.trim()]);
+      setNewPickerValue('');
+    }
+  };
+
+  const handleRemovePickerValue = (value: string) => {
+    setPickerValues(pickerValues.filter(v => v !== value));
+  };
+
+  const showConfig = TYPES_WITH_CONFIG.includes(inputType);
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{ sx: { maxHeight: '90vh' } }}
+    >
       <DialogTitle>Edit Additional Detail</DialogTitle>
-      <DialogContent>
+      <DialogContent dividers>
         {isLoadingDetail ? (
           <Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress />
           </Box>
         ) : (
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {/* Basic Fields */}
             <TextField
               label="Title"
               value={title}
@@ -826,6 +1621,271 @@ function EditAdditionalDetailDialog({
               }
               label="Required field"
             />
+
+            {/* General Optional Fields */}
+            <TextField
+              label="Placeholder"
+              value={placeholder}
+              onChange={e => setPlaceholder(e.target.value)}
+              fullWidth
+              helperText="Text shown when field is empty"
+            />
+            <TextField
+              label="Helper Note"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              fullWidth
+              multiline
+              rows={2}
+              helperText="Instructions or context for this field"
+            />
+            <TextField
+              label="Default Value"
+              value={defaultValue}
+              onChange={e => setDefaultValue(e.target.value)}
+              fullWidth
+              helperText="Pre-filled value when adding to estimate"
+            />
+
+            {/* Type-Specific Configuration */}
+            {showConfig && (
+              <Box
+                sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, mt: 2 }}
+              >
+                <Typography variant="subtitle2" gutterBottom>
+                  Type Configuration
+                </Typography>
+
+                {/* Number/Currency: allowDecimal */}
+                {(inputType === 'number' || inputType === 'currency') && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={allowDecimal}
+                        onChange={e => setAllowDecimal(e.target.checked)}
+                      />
+                    }
+                    label="Allow decimal values"
+                  />
+                )}
+
+                {/* Picker: pickerValues */}
+                {inputType === 'picker' && (
+                  <Stack spacing={1}>
+                    <Typography variant="body2" color="text.secondary">
+                      Picker Options
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <TextField
+                        size="small"
+                        placeholder="Add option..."
+                        value={newPickerValue}
+                        onChange={e => setNewPickerValue(e.target.value)}
+                        onKeyPress={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddPickerValue();
+                          }
+                        }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleAddPickerValue}
+                        disabled={!newPickerValue.trim()}
+                      >
+                        Add
+                      </Button>
+                    </Box>
+                    {pickerValues.length > 0 && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 0.5,
+                          mt: 1,
+                        }}
+                      >
+                        {pickerValues.map(value => (
+                          <Chip
+                            key={value}
+                            label={value}
+                            onDelete={() => handleRemovePickerValue(value)}
+                            size="small"
+                          />
+                        ))}
+                      </Box>
+                    )}
+                    {pickerValues.length === 0 && (
+                      <Typography variant="caption" color="text.secondary">
+                        Add at least one option for the picker
+                      </Typography>
+                    )}
+                  </Stack>
+                )}
+
+                {/* Size Picker: precision and constraints */}
+                {(inputType === 'size_picker' ||
+                  inputType === 'size_picker_3d') && (
+                  <Stack spacing={2}>
+                    <TextField
+                      select
+                      label="Precision"
+                      value={sizePickerConfig.precision}
+                      onChange={e =>
+                        setSizePickerConfig({
+                          ...sizePickerConfig,
+                          precision: e.target.value,
+                        })
+                      }
+                      fullWidth
+                      size="small"
+                    >
+                      {SIZE_PICKER_PRECISION_OPTIONS.map(option => (
+                        <MenuItem key={option.value} value={option.value}>
+                          {option.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Min Width"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.minWidth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            minWidth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Max Width"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.maxWidth ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            maxWidth: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Min Height"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.minHeight ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            minHeight: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Max Height"
+                        type="number"
+                        size="small"
+                        value={sizePickerConfig.maxHeight ?? ''}
+                        onChange={e =>
+                          setSizePickerConfig({
+                            ...sizePickerConfig,
+                            maxHeight: e.target.value
+                              ? Number(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+                    {inputType === 'size_picker_3d' && (
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                          label="Min Depth"
+                          type="number"
+                          size="small"
+                          value={sizePickerConfig.minDepth ?? ''}
+                          onChange={e =>
+                            setSizePickerConfig({
+                              ...sizePickerConfig,
+                              minDepth: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          sx={{ flex: 1 }}
+                        />
+                        <TextField
+                          label="Max Depth"
+                          type="number"
+                          size="small"
+                          value={sizePickerConfig.maxDepth ?? ''}
+                          onChange={e =>
+                            setSizePickerConfig({
+                              ...sizePickerConfig,
+                              maxDepth: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          sx={{ flex: 1 }}
+                        />
+                      </Box>
+                    )}
+                  </Stack>
+                )}
+
+                {/* United Inch: suffix */}
+                {inputType === 'united_inch' && (
+                  <TextField
+                    label="Suffix"
+                    value={unitedInchSuffix}
+                    onChange={e => setUnitedInchSuffix(e.target.value)}
+                    fullWidth
+                    size="small"
+                    placeholder='e.g., "UI"'
+                    helperText="Text appended to the united inch value"
+                  />
+                )}
+
+                {/* Date/Time: format */}
+                {(inputType === 'date' ||
+                  inputType === 'time' ||
+                  inputType === 'datetime') && (
+                  <TextField
+                    label="Display Format"
+                    value={dateDisplayFormat}
+                    onChange={e => setDateDisplayFormat(e.target.value)}
+                    fullWidth
+                    size="small"
+                    placeholder={
+                      inputType === 'date'
+                        ? 'MM/dd/yyyy'
+                        : inputType === 'time'
+                          ? 'HH:mm'
+                          : 'MM/dd/yyyy HH:mm'
+                    }
+                    helperText="Format string for displaying the value"
+                  />
+                )}
+              </Box>
+            )}
+
+            {/* Tags */}
             <ItemTagEditor
               entityType="ADDITIONAL_DETAIL"
               entityId={detailId ?? undefined}
@@ -1298,9 +2358,9 @@ function UpChargesTab({
                   <TableCell>
                     <Tooltip
                       title={
-                        upcharge.images?.length
-                          ? `${upcharge.images.length} image(s)`
-                          : 'No images'
+                        upcharge.thumbnailImage
+                          ? upcharge.thumbnailImage.name
+                          : 'No image'
                       }
                     >
                       <Box
@@ -1317,10 +2377,10 @@ function UpChargesTab({
                           borderColor: 'divider',
                         }}
                       >
-                        {upcharge.images?.[0]?.thumbnailUrl ? (
+                        {upcharge.thumbnailImage?.thumbnailUrl ? (
                           <Box
                             component="img"
-                            src={upcharge.images[0].thumbnailUrl}
+                            src={upcharge.thumbnailImage.thumbnailUrl}
                             alt="Thumbnail"
                             sx={{
                               width: '100%',
@@ -1787,12 +2847,8 @@ export function LibraryPage(): React.ReactElement {
   );
 
   const handleCreateAdditionalDetail = useCallback(
-    async (title: string, inputType: string, isRequired: boolean) => {
-      await createAdditionalDetailMutation.mutateAsync({
-        title,
-        inputType,
-        isRequired,
-      });
+    async (data: AdditionalDetailFieldData) => {
+      await createAdditionalDetailMutation.mutateAsync(data);
       setShowAddAdditionalDetailDialog(false);
     },
     [createAdditionalDetailMutation],
@@ -1834,7 +2890,7 @@ export function LibraryPage(): React.ReactElement {
   const handleUpdateAdditionalDetail = useCallback(
     async (
       detailId: string,
-      data: { title: string; inputType: string; isRequired: boolean },
+      data: AdditionalDetailFieldData,
       version: number,
     ) => {
       await updateAdditionalDetailMutation.mutateAsync({

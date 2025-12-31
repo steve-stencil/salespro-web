@@ -45,7 +45,6 @@ import { ApiClientError } from '../../lib/api-client';
 
 import { AdditionalDetailsSection } from './sections/AdditionalDetailsSection';
 import { BasicInfoSection } from './sections/BasicInfoSection';
-import { ImagesSection } from './sections/ImagesSection';
 import { OfficesSection } from './sections/OfficesSection';
 import { OptionsSection } from './sections/OptionsSection';
 import { TagsSection } from './sections/TagsSection';
@@ -55,7 +54,6 @@ import type {
   LinkedAdditionalDetail,
   LinkedOption,
   LinkedUpCharge,
-  PendingImage,
   WizardAction,
   WizardState,
 } from '../../components/price-guide/wizard/WizardContext';
@@ -220,7 +218,6 @@ export function MsiEditPage(): React.ReactElement {
   const [expandedSections, setExpandedSections] = useState<string[]>([
     'basic-info',
     'tags',
-    'images',
     'offices',
     'options',
     'upcharges',
@@ -307,30 +304,6 @@ export function MsiEditPage(): React.ReactElement {
     },
     [],
   );
-
-  /**
-   * Handle file selection - stores the pending image in state.
-   * Actual upload happens on save.
-   */
-  const onFileSelected = useCallback((pendingImage: PendingImage) => {
-    dispatch({ type: 'SET_IMAGE', payload: pendingImage });
-  }, []);
-
-  /**
-   * Handle image removal.
-   * If removing an existing image, track its ID for deletion on save.
-   */
-  const onImageRemoved = useCallback(() => {
-    // If there's an existing image being removed, mark it for deletion
-    if (state.image?.type === 'existing') {
-      setImageIdsToDelete(prev => [...prev, state.image!.id]);
-    }
-    // If it's a pending image, revoke the preview URL to free memory
-    if (state.image?.type === 'pending') {
-      URL.revokeObjectURL(state.image.previewUrl);
-    }
-    dispatch({ type: 'REMOVE_IMAGE' });
-  }, [state.image]);
 
   const addOption = useCallback((option: LinkedOption) => {
     dispatch({ type: 'ADD_OPTION', payload: option });
@@ -640,8 +613,9 @@ export function MsiEditPage(): React.ReactElement {
                 state={state}
                 setBasicInfo={setBasicInfo}
                 setCategory={setCategory}
-                onFileSelected={onFileSelected}
-                onImageRemoved={onImageRemoved}
+                thumbnailImage={msiData?.item.thumbnailImage ?? null}
+                thumbnailImageId={thumbnailImageId}
+                onThumbnailChange={setThumbnailImageId}
               />
             </AccordionDetails>
           </Accordion>
@@ -661,28 +635,6 @@ export function MsiEditPage(): React.ReactElement {
             </AccordionSummary>
             <AccordionDetails>
               {msiId && <TagsSection msiId={msiId} />}
-            </AccordionDetails>
-          </Accordion>
-
-          {/* Images */}
-          <Accordion
-            expanded={expandedSections.includes('images')}
-            onChange={() => handleSectionToggle('images')}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="h6">Thumbnail Image</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {thumbnailImageId ? '(set)' : '(not set)'}
-                </Typography>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails>
-              <ImagesSection
-                thumbnailImage={msiData?.item.thumbnailImage ?? null}
-                thumbnailImageId={thumbnailImageId}
-                onThumbnailChange={setThumbnailImageId}
-              />
             </AccordionDetails>
           </Accordion>
 

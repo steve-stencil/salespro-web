@@ -28,8 +28,11 @@ import {
 import { OverridePricingGrid } from './OverridePricingGrid';
 import { transformToConfig } from './utils';
 
-import type { OverrideGridData } from './OverridePricingGrid';
-import type { UpChargePriceTypeConfig } from '@shared/types';
+import type {
+  OverrideGridData,
+  OfficeOverrideConfig,
+} from './OverridePricingGrid';
+import type { UpChargePriceTypeConfig, PriceType } from '@shared/types';
 
 // ============================================================================
 // Types
@@ -74,12 +77,13 @@ function createGridDataFromDefaults(
 ): OverrideGridData {
   const data: OverrideGridData = {};
   for (const config of defaultConfigs) {
-    data[config.priceTypeId] = {};
+    const priceTypeData: Record<string, { mode: 'use_default' }> = {};
     for (const office of offices) {
       // All cells use default mode - the CellDisplay component
       // will look up the actual default value from defaultConfigs
-      data[config.priceTypeId][office.id] = { mode: 'use_default' };
+      priceTypeData[office.id] = { mode: 'use_default' };
     }
+    data[config.priceTypeId] = priceTypeData;
   }
   return data;
 }
@@ -111,26 +115,27 @@ function transformOverrideToGrid(
   const data: OverrideGridData = {};
 
   for (const pt of priceTypes) {
-    data[pt.id] = {};
+    const priceTypeData: Record<string, OfficeOverrideConfig> = {};
     for (const office of offices) {
       const officeData = overridePricing.byOffice[office.id];
       const priceData = officeData?.prices[pt.id];
 
       if (!priceData) {
-        data[pt.id][office.id] = { mode: 'use_default' };
+        priceTypeData[office.id] = { mode: 'use_default' };
       } else if (priceData.isPercentage) {
-        data[pt.id][office.id] = {
+        priceTypeData[office.id] = {
           mode: 'percentage',
           percentageRate: priceData.amount,
           percentageBaseTypeIds: priceData.percentageBaseTypeIds,
         };
       } else {
-        data[pt.id][office.id] = {
+        priceTypeData[office.id] = {
           mode: 'fixed',
           fixedAmount: priceData.amount,
         };
       }
     }
+    data[pt.id] = priceTypeData;
   }
 
   return data;
@@ -157,12 +162,7 @@ type OptionOverrideCardProps = {
   option: OptionInfo;
   upchargeId: string;
   offices: Office[];
-  priceTypes: Array<{
-    id: string;
-    code: string;
-    name: string;
-    isActive: boolean;
-  }>;
+  priceTypes: PriceType[];
   defaultConfigs: UpChargePriceTypeConfig[];
   existingOverride?: {
     option: { id: string; name: string };
@@ -260,12 +260,14 @@ function OptionOverrideCard({
         upchargeId,
         optionId: option.id,
       });
-      setGridData(null);
+      // Reset to defaults after removing override
+      const initialData = createGridDataFromDefaults(defaultConfigs, offices);
+      setGridData(initialData);
       setHasChanges(false);
     } catch (err) {
       console.error('Failed to delete override:', err);
     }
-  }, [deleteOverrideMutation, upchargeId, option.id]);
+  }, [deleteOverrideMutation, upchargeId, option.id, defaultConfigs, offices]);
 
   const handleSave = useCallback(async () => {
     try {

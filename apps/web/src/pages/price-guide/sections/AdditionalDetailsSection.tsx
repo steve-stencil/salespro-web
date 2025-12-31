@@ -21,8 +21,10 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
+import { TagFilterSelect } from '../../../components/price-guide';
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useAdditionalDetailList } from '../../../hooks/usePriceGuide';
+import { useTagList } from '../../../hooks/useTags';
 
 import type {
   LinkedAdditionalDetail,
@@ -46,9 +48,16 @@ export type AdditionalDetailsSectionProps = {
 
 const INPUT_TYPE_LABELS: Record<string, string> = {
   text: 'Text',
+  textarea: 'Text Area',
   number: 'Number',
+  currency: 'Currency',
   picker: 'Picker',
+  size_picker: 'Size (2D)',
+  size_picker_3d: 'Size (3D)',
   date: 'Date',
+  time: 'Time',
+  datetime: 'Date & Time',
+  united_inch: 'United Inch',
   toggle: 'Toggle',
 };
 
@@ -65,9 +74,13 @@ export function AdditionalDetailsSection({
   removeAdditionalDetail,
 }: AdditionalDetailsSectionProps): React.ReactElement {
   const [search, setSearch] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const debouncedSearch = useDebouncedValue(search, 300);
+
+  // Fetch tags for filtering
+  const { data: tagsData } = useTagList();
 
   // Queries
   const {
@@ -79,6 +92,7 @@ export function AdditionalDetailsSection({
     error,
   } = useAdditionalDetailList({
     search: debouncedSearch || undefined,
+    tags: tagFilter.length > 0 ? tagFilter : undefined,
     limit: 20,
   });
 
@@ -140,28 +154,39 @@ export function AdditionalDetailsSection({
     <Box sx={{ display: 'flex', gap: 3 }}>
       {/* Left: Search & Select */}
       <Box sx={{ flex: 1 }}>
-        <TextField
-          placeholder="Search additional details..."
-          value={search}
-          onChange={handleSearchChange}
-          size="small"
-          fullWidth
-          sx={{ mb: 2 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-            endAdornment: search && (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={handleClearSearch}>
-                  <ClearIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <TextField
+            placeholder="Search additional details..."
+            value={search}
+            onChange={handleSearchChange}
+            size="small"
+            sx={{ flex: 1 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+              endAdornment: search && (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={handleClearSearch}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+          {tagsData?.tags && tagsData.tags.length > 0 && (
+            <TagFilterSelect
+              value={tagFilter}
+              onChange={setTagFilter}
+              tags={tagsData.tags}
+              label="Filter by Tags"
+              minWidth={140}
+              size="small"
+            />
+          )}
+        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -183,7 +208,7 @@ export function AdditionalDetailsSection({
               color="text.secondary"
               sx={{ p: 2, textAlign: 'center' }}
             >
-              {search
+              {search || tagFilter.length > 0
                 ? 'No matching additional details found'
                 : 'All additional details have been added'}
             </Typography>

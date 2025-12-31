@@ -687,6 +687,58 @@ export function useDeleteUpcharge() {
 }
 
 /**
+ * Hook to link additional detail fields to an upcharge.
+ */
+export function useLinkUpchargeAdditionalDetails() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      fieldIds,
+    }: {
+      upchargeId: string;
+      fieldIds: string[];
+    }) => priceGuideApi.linkUpchargeAdditionalDetails(upchargeId, fieldIds),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeDetail(upchargeId),
+      });
+      // Invalidate additional detail lists to update linkedUpChargeCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
+/**
+ * Hook to unlink an additional detail field from an upcharge.
+ */
+export function useUnlinkUpchargeAdditionalDetail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      upchargeId,
+      fieldId,
+    }: {
+      upchargeId: string;
+      fieldId: string;
+    }) => priceGuideApi.unlinkUpchargeAdditionalDetail(upchargeId, fieldId),
+    onSuccess: (_, { upchargeId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.upchargeDetail(upchargeId),
+      });
+      // Invalidate additional detail lists to update linkedUpChargeCount
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+    },
+  });
+}
+
+/**
  * Hook to fetch paginated additional details list.
  */
 export function useAdditionalDetailList(
@@ -713,6 +765,17 @@ export function useAdditionalDetailDetail(fieldId: string) {
   });
 }
 
+/** Size picker configuration type */
+type SizePickerConfigInput = {
+  precision: string;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  minDepth?: number;
+  maxDepth?: number;
+};
+
 /**
  * Hook to create an additional detail field.
  */
@@ -727,7 +790,11 @@ export function useCreateAdditionalDetail() {
       placeholder?: string;
       note?: string;
       defaultValue?: string;
+      allowDecimal?: boolean;
       pickerValues?: string[];
+      sizePickerConfig?: SizePickerConfigInput;
+      unitedInchConfig?: { suffix?: string };
+      dateDisplayFormat?: string;
     }) => priceGuideApi.createAdditionalDetail(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
@@ -756,13 +823,21 @@ export function useUpdateAdditionalDetail() {
         placeholder?: string | null;
         note?: string | null;
         defaultValue?: string | null;
+        allowDecimal?: boolean;
         pickerValues?: string[] | null;
+        sizePickerConfig?: SizePickerConfigInput | null;
+        unitedInchConfig?: { suffix?: string } | null;
+        dateDisplayFormat?: string | null;
         version: number;
       };
     }) => priceGuideApi.updateAdditionalDetail(fieldId, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Invalidate both the list and the specific detail query
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.additionalDetailLists(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.additionalDetailDetail(variables.fieldId),
       });
     },
   });
@@ -861,9 +936,13 @@ export function useUpdateImage() {
       imageId: string;
       data: { name?: string; description?: string | null; version: number };
     }) => priceGuideApi.updateImage(imageId, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Invalidate both the list and the specific detail query
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.imageLists(),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: priceGuideKeys.imageDetail(variables.imageId),
       });
     },
   });
@@ -970,11 +1049,14 @@ export function useUpdateOptionPricingBulk() {
 /**
  * Hook to fetch upcharge pricing details (defaults and overrides).
  */
-export function useUpchargePricing(upchargeId: string) {
+export function useUpchargePricing(
+  upchargeId: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: priceGuideKeys.upchargePricingDetail(upchargeId),
     queryFn: () => priceGuideApi.getUpchargePricing(upchargeId),
-    enabled: !!upchargeId,
+    enabled: !!upchargeId && (options?.enabled ?? true),
   });
 }
 

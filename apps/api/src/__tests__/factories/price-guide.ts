@@ -15,6 +15,8 @@ import {
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
   MeasureSheetItemOffice,
+  MeasureSheetItemAdditionalDetailField,
+  UpChargeAdditionalDetailField,
   Tag,
   ItemTag,
   File,
@@ -615,4 +617,48 @@ export async function setMsiThumbnail(
 ): Promise<void> {
   msi.thumbnailImage = image;
   await em.flush();
+}
+
+// ============================================================================
+// UpCharge Additional Detail Field Factory
+// ============================================================================
+
+/**
+ * Link an additional detail field to an upcharge
+ */
+export async function linkAdditionalDetailToUpCharge(
+  em: EntityManager,
+  upCharge: UpCharge,
+  additionalDetailField: AdditionalDetailField,
+  sortOrder: number = 0,
+): Promise<UpChargeAdditionalDetailField> {
+  const link = em.create(UpChargeAdditionalDetailField, {
+    id: uuid(),
+    upCharge,
+    additionalDetailField,
+    sortOrder,
+  });
+  em.persist(link);
+  await em.flush();
+  return link;
+}
+
+/**
+ * Link an additional detail field to a measure sheet item
+ */
+export async function linkAdditionalDetailToMeasureSheetItem(
+  em: EntityManager,
+  msi: MeasureSheetItem,
+  additionalDetailField: AdditionalDetailField,
+  sortOrder: number = 0,
+): Promise<MeasureSheetItemAdditionalDetailField> {
+  const link = em.create(MeasureSheetItemAdditionalDetailField, {
+    id: uuid(),
+    measureSheetItem: msi,
+    additionalDetailField,
+    sortOrder,
+  });
+  em.persist(link);
+  await em.flush();
+  return link;
 }

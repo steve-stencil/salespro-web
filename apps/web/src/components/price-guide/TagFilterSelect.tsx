@@ -83,14 +83,17 @@ export function TagFilterSelect({
       }
 
       if (selected.length === 1) {
-        const tag = getTagById(selected[0]);
-        if (tag) {
-          return (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ColorDot tagcolor={tag.color} />
-              <span>{tag.name}</span>
-            </Box>
-          );
+        const selectedId = selected[0];
+        if (selectedId) {
+          const tag = getTagById(selectedId);
+          if (tag) {
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ColorDot tagcolor={tag.color} />
+                <span>{tag.name}</span>
+              </Box>
+            );
+          }
         }
       }
 

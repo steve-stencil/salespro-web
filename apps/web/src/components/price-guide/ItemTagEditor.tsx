@@ -41,9 +41,11 @@ const DEFAULT_TAG_COLORS = [
 ];
 
 function getRandomColor(): string {
-  return DEFAULT_TAG_COLORS[
-    Math.floor(Math.random() * DEFAULT_TAG_COLORS.length)
-  ];
+  return (
+    DEFAULT_TAG_COLORS[Math.floor(Math.random() * DEFAULT_TAG_COLORS.length)] ??
+    DEFAULT_TAG_COLORS[0] ??
+    '#58D68D'
+  );
 }
 
 export type ItemTagEditorProps = {

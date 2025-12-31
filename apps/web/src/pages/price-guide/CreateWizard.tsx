@@ -71,6 +71,8 @@ export function CreateWizard(): React.ReactElement {
           type: 'SET_CATEGORY',
           payload: { categoryId, categoryName },
         }),
+      setImage: image => dispatch({ type: 'SET_IMAGE', payload: image }),
+      removeImage: () => dispatch({ type: 'REMOVE_IMAGE' }),
       addOption: option => dispatch({ type: 'ADD_OPTION', payload: option }),
       removeOption: optionId =>
         dispatch({ type: 'REMOVE_OPTION', payload: optionId }),

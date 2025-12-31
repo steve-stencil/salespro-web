@@ -506,6 +506,31 @@ export const priceGuideApi = {
     return apiClient.delete(url);
   },
 
+  /**
+   * Link additional detail fields to an upcharge.
+   */
+  linkUpchargeAdditionalDetails: async (
+    upchargeId: string,
+    fieldIds: string[],
+  ): Promise<{ success: boolean; linked: number; warnings: string[] }> => {
+    return apiClient.post(
+      `/price-guide/library/upcharges/${upchargeId}/additional-details`,
+      { fieldIds },
+    );
+  },
+
+  /**
+   * Unlink an additional detail field from an upcharge.
+   */
+  unlinkUpchargeAdditionalDetail: async (
+    upchargeId: string,
+    fieldId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/library/upcharges/${upchargeId}/additional-details/${fieldId}`,
+    );
+  },
+
   // ==========================================================================
   // Library - Additional Details
   // ==========================================================================
@@ -556,7 +581,19 @@ export const priceGuideApi = {
     placeholder?: string;
     note?: string;
     defaultValue?: string;
+    allowDecimal?: boolean;
     pickerValues?: string[];
+    sizePickerConfig?: {
+      precision: string;
+      minWidth?: number;
+      maxWidth?: number;
+      minHeight?: number;
+      maxHeight?: number;
+      minDepth?: number;
+      maxDepth?: number;
+    };
+    unitedInchConfig?: { suffix?: string };
+    dateDisplayFormat?: string;
   }): Promise<{
     message: string;
     field: { id: string; title: string; version: number };
@@ -576,7 +613,19 @@ export const priceGuideApi = {
       placeholder?: string | null;
       note?: string | null;
       defaultValue?: string | null;
+      allowDecimal?: boolean;
       pickerValues?: string[] | null;
+      sizePickerConfig?: {
+        precision: string;
+        minWidth?: number;
+        maxWidth?: number;
+        minHeight?: number;
+        maxHeight?: number;
+        minDepth?: number;
+        maxDepth?: number;
+      } | null;
+      unitedInchConfig?: { suffix?: string } | null;
+      dateDisplayFormat?: string | null;
       version: number;
     },
   ): Promise<{

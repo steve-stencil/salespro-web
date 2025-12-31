@@ -434,18 +434,19 @@ export function OverridePricingGrid({
   const handleBulkApply = useCallback(() => {
     if (!bulkEditColumn) return;
     const newData = { ...data };
-    newData[bulkEditColumn.priceTypeId] ??= {};
+    const priceTypeData: Record<string, OfficeOverrideConfig> =
+      newData[bulkEditColumn.priceTypeId] ?? {};
 
     for (const office of offices) {
       if (bulkMode === 'fixed') {
         const amount = parseFloat(bulkAmount) || 0;
-        newData[bulkEditColumn.priceTypeId][office.id] = {
+        priceTypeData[office.id] = {
           mode: 'fixed',
           fixedAmount: amount,
         };
       } else if (bulkMode === 'percentage') {
         const rate = (parseFloat(bulkRate) || 10) / 100;
-        newData[bulkEditColumn.priceTypeId][office.id] = {
+        priceTypeData[office.id] = {
           mode: 'percentage',
           percentageRate: rate,
           percentageBaseTypeIds:
@@ -455,11 +456,12 @@ export function OverridePricingGrid({
         };
       } else {
         // use_default
-        newData[bulkEditColumn.priceTypeId][office.id] = {
+        priceTypeData[office.id] = {
           mode: 'use_default',
         };
       }
     }
+    newData[bulkEditColumn.priceTypeId] = priceTypeData;
 
     onChange(newData);
     setBulkEditColumn(null);
@@ -515,10 +517,11 @@ export function OverridePricingGrid({
               // Reset all to default
               const resetData: OverrideGridData = {};
               for (const pt of activePriceTypes) {
-                resetData[pt.id] = {};
+                const ptData: Record<string, OfficeOverrideConfig> = {};
                 for (const office of offices) {
-                  resetData[pt.id][office.id] = { mode: 'use_default' };
+                  ptData[office.id] = { mode: 'use_default' };
                 }
+                resetData[pt.id] = ptData;
               }
               onChange(resetData);
             }}
