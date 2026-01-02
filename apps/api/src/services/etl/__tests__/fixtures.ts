@@ -8,7 +8,14 @@
 import { v4 as uuid } from 'uuid';
 
 import type { MigrationSessionStatus } from '../../../entities';
-import type { RawSourceOffice, LegacySourceOffice } from '../types';
+import type {
+  LegacyAdditionalDetailObject,
+  LegacyCategoryConfig,
+  LegacySourceOffice,
+  RawSourceMSI,
+  RawSourceOffice,
+  RawSourcePGI,
+} from '../types';
 
 // ============================================================================
 // Source Office Fixtures
@@ -220,4 +227,323 @@ export function createMockImportErrors(
     sourceId: `failed-office-${i + 1}`,
     error: `Import failed for office ${i + 1}: duplicate entry`,
   }));
+}
+
+// ============================================================================
+// Price Guide Fixtures
+// ============================================================================
+
+/**
+ * Create a mock legacy category config.
+ */
+export function createMockCategoryConfig(
+  overrides?: Partial<LegacyCategoryConfig>,
+): LegacyCategoryConfig {
+  return {
+    name: overrides?.name ?? `Category-${uuid().slice(0, 8)}`,
+    order: overrides?.order ?? 0,
+    type: overrides?.type ?? 'default',
+    objectId: overrides?.objectId,
+    isLocked: overrides?.isLocked,
+  };
+}
+
+/**
+ * Create multiple mock category configs.
+ */
+export function createMockCategoryConfigs(
+  count: number,
+): LegacyCategoryConfig[] {
+  return Array.from({ length: count }, (_, i) =>
+    createMockCategoryConfig({
+      name: `Category ${i + 1}`,
+      order: i + 1,
+    }),
+  );
+}
+
+/**
+ * Create a mock raw source MSI.
+ */
+export function createMockSourceMSI(
+  overrides?: Partial<RawSourceMSI>,
+): RawSourceMSI {
+  const objectId = overrides?.objectId ?? `msi-${uuid().slice(0, 8)}`;
+  return {
+    objectId,
+    itemName: overrides?.itemName ?? `Test MSI ${objectId}`,
+    itemNote: overrides?.itemNote,
+    category: overrides?.category ?? 'Default Category',
+    subCategory: overrides?.subCategory,
+    subSubCategories: overrides?.subSubCategories,
+    measurementType: overrides?.measurementType ?? 'each',
+    orderNumber_: overrides?.orderNumber_,
+    shouldShowSwitch: overrides?.shouldShowSwitch ?? false,
+    defaultQty: overrides?.defaultQty ?? 1,
+    formulaID: overrides?.formulaID,
+    qtyFormula: overrides?.qtyFormula,
+    image: overrides?.image,
+    items: overrides?.items,
+    accessories: overrides?.accessories,
+    includedOffices: overrides?.includedOffices,
+    additionalDetailObjects: overrides?.additionalDetailObjects,
+    tagTitle: overrides?.tagTitle,
+    tagInputType: overrides?.tagInputType,
+    tagRequired: overrides?.tagRequired,
+    tagPickerOptions: overrides?.tagPickerOptions,
+    tagParams: overrides?.tagParams,
+    placeholders: overrides?.placeholders,
+    sourceCompanyId:
+      overrides?.sourceCompanyId ?? `company-${uuid().slice(0, 8)}`,
+    createdAt: overrides?.createdAt ?? new Date().toISOString(),
+    updatedAt: overrides?.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+/**
+ * Create multiple mock source MSIs.
+ */
+export function createMockSourceMSIs(
+  count: number,
+  sourceCompanyId?: string,
+): RawSourceMSI[] {
+  const companyId = sourceCompanyId ?? `company-${uuid().slice(0, 8)}`;
+  return Array.from({ length: count }, (_, i) =>
+    createMockSourceMSI({
+      objectId: `msi-${i + 1}`,
+      itemName: `MSI ${i + 1}`,
+      category: 'Test Category',
+      subCategory: `Sub ${(i % 3) + 1}`,
+      sourceCompanyId: companyId,
+    }),
+  );
+}
+
+/**
+ * Create a mock raw source PGI (Option).
+ */
+export function createMockSourceOption(
+  overrides?: Partial<RawSourcePGI>,
+): RawSourcePGI {
+  const objectId = overrides?.objectId ?? `opt-${uuid().slice(0, 8)}`;
+  return {
+    objectId,
+    isAccessory: false,
+    displayTitle: overrides?.displayTitle ?? `Test Option ${objectId}`,
+    subCategory2: overrides?.subCategory2,
+    itemPrices: overrides?.itemPrices ?? [],
+    itemCodes: overrides?.itemCodes,
+    sourceCompanyId:
+      overrides?.sourceCompanyId ?? `company-${uuid().slice(0, 8)}`,
+    createdAt: overrides?.createdAt ?? new Date().toISOString(),
+    updatedAt: overrides?.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+/**
+ * Create a mock raw source PGI (UpCharge).
+ */
+export function createMockSourceUpCharge(
+  overrides?: Partial<RawSourcePGI>,
+): RawSourcePGI {
+  const objectId = overrides?.objectId ?? `uc-${uuid().slice(0, 8)}`;
+  return {
+    objectId,
+    isAccessory: true,
+    name: overrides?.name ?? `Test UpCharge ${objectId}`,
+    info: overrides?.info,
+    identifier: overrides?.identifier,
+    accessoryPrices: overrides?.accessoryPrices ?? [],
+    percentagePrice: overrides?.percentagePrice ?? false,
+    disabledParents: overrides?.disabledParents,
+    additionalDetails: overrides?.additionalDetails,
+    placeholders: overrides?.placeholders,
+    sourceCompanyId:
+      overrides?.sourceCompanyId ?? `company-${uuid().slice(0, 8)}`,
+    createdAt: overrides?.createdAt ?? new Date().toISOString(),
+    updatedAt: overrides?.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+/**
+ * Create multiple mock source options.
+ */
+export function createMockSourceOptions(
+  count: number,
+  sourceCompanyId?: string,
+): RawSourcePGI[] {
+  const companyId = sourceCompanyId ?? `company-${uuid().slice(0, 8)}`;
+  return Array.from({ length: count }, (_, i) =>
+    createMockSourceOption({
+      objectId: `opt-${i + 1}`,
+      displayTitle: `Option ${i + 1}`,
+      sourceCompanyId: companyId,
+      itemPrices: [
+        { officeId: 'office-1', total: 100 + i * 10 },
+        { officeId: 'office-2', total: 150 + i * 10 },
+      ],
+    }),
+  );
+}
+
+/**
+ * Create multiple mock source upcharges.
+ */
+export function createMockSourceUpCharges(
+  count: number,
+  sourceCompanyId?: string,
+): RawSourcePGI[] {
+  const companyId = sourceCompanyId ?? `company-${uuid().slice(0, 8)}`;
+  return Array.from({ length: count }, (_, i) =>
+    createMockSourceUpCharge({
+      objectId: `uc-${i + 1}`,
+      name: `UpCharge ${i + 1}`,
+      sourceCompanyId: companyId,
+    }),
+  );
+}
+
+/**
+ * Create a mock legacy additional detail object.
+ */
+export function createMockAdditionalDetail(
+  overrides?: Partial<LegacyAdditionalDetailObject>,
+): LegacyAdditionalDetailObject {
+  return {
+    objectId: overrides?.objectId ?? `ad-${uuid().slice(0, 8)}`,
+    title: overrides?.title ?? 'Test Field',
+    inputType: overrides?.inputType ?? 'default',
+    cellType: overrides?.cellType,
+    required: overrides?.required ?? false,
+    shouldCopy: overrides?.shouldCopy ?? false,
+    placeholder: overrides?.placeholder,
+    note: overrides?.note,
+    defaultValue: overrides?.defaultValue,
+    notAddedReplacement: overrides?.notAddedReplacement,
+    pickerValues: overrides?.pickerValues,
+    dateDisplayFormat: overrides?.dateDisplayFormat,
+    minSizePickerWidth: overrides?.minSizePickerWidth,
+    maxSizePickerWidth: overrides?.maxSizePickerWidth,
+    minSizePickerHeight: overrides?.minSizePickerHeight,
+    maxSizePickerHeight: overrides?.maxSizePickerHeight,
+    minSizePickerDepth: overrides?.minSizePickerDepth,
+    maxSizePickerDepth: overrides?.maxSizePickerDepth,
+    unitedInchSuffix: overrides?.unitedInchSuffix,
+    disableTemplatePhotoLinking: overrides?.disableTemplatePhotoLinking,
+  };
+}
+
+/**
+ * Create a mock MSI with full category hierarchy.
+ */
+export function createMockMSIWithHierarchy(
+  category: string,
+  subCategory?: string,
+  subSubCategories?: string,
+): RawSourceMSI {
+  return createMockSourceMSI({
+    category,
+    subCategory,
+    subSubCategories,
+  });
+}
+
+// ============================================================================
+// MongoDB Document Fixtures for Price Guide
+// ============================================================================
+
+/**
+ * Create a mock MongoDB MSI document structure.
+ */
+export function createMockMongoMSIDoc(
+  sourceCompanyId: string,
+  overrides?: Partial<{
+    _id: string;
+    itemName: string;
+    category: string;
+    subCategory: string;
+    _created_at: Date;
+  }>,
+): {
+  _id: string;
+  itemName: string;
+  category: string;
+  subCategory?: string;
+  measurementType: string;
+  _p_company: string;
+  _created_at: Date;
+  _updated_at: Date;
+} {
+  const now = new Date();
+  return {
+    _id: overrides?._id ?? `msi-${uuid().slice(0, 8)}`,
+    itemName: overrides?.itemName ?? 'Test MSI',
+    category: overrides?.category ?? 'Test Category',
+    subCategory: overrides?.subCategory,
+    measurementType: 'each',
+    _p_company: `Company$${sourceCompanyId}`,
+    _created_at: overrides?._created_at ?? now,
+    _updated_at: now,
+  };
+}
+
+/**
+ * Create a mock MongoDB PGI document structure.
+ */
+export function createMockMongoPGIDoc(
+  sourceCompanyId: string,
+  isAccessory: boolean,
+  overrides?: Partial<{
+    _id: string;
+    displayTitle: string;
+    name: string;
+    _created_at: Date;
+  }>,
+): {
+  _id: string;
+  isAccessory: boolean;
+  displayTitle?: string;
+  name?: string;
+  _p_company: string;
+  _created_at: Date;
+  _updated_at: Date;
+} {
+  const now = new Date();
+  return {
+    _id: overrides?._id ?? `pgi-${uuid().slice(0, 8)}`,
+    isAccessory,
+    displayTitle: isAccessory
+      ? undefined
+      : (overrides?.displayTitle ?? 'Test Option'),
+    name: isAccessory ? (overrides?.name ?? 'Test UpCharge') : undefined,
+    _p_company: `Company$${sourceCompanyId}`,
+    _created_at: overrides?._created_at ?? now,
+    _updated_at: now,
+  };
+}
+
+/**
+ * Create a mock MongoDB CustomConfig document structure.
+ */
+export function createMockMongoCustomConfigDoc(
+  overrides?: Partial<{
+    _id: string;
+    categories_: LegacyCategoryConfig[];
+  }>,
+): {
+  _id: string;
+  categories_: LegacyCategoryConfig[];
+  _created_at: Date;
+  _updated_at: Date;
+} {
+  const now = new Date();
+  return {
+    _id: overrides?._id ?? `config-${uuid().slice(0, 8)}`,
+    categories_: overrides?.categories_ ?? [
+      { name: 'Windows', order: 1, type: 'default' },
+      { name: 'Doors', order: 2, type: 'detail' },
+    ],
+    _created_at: now,
+    _updated_at: now,
+  };
 }
