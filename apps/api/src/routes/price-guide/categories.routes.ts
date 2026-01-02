@@ -37,7 +37,7 @@ const updateCategorySchema = z.object({
 
 const moveCategorySchema = z.object({
   newParentId: z.string().uuid().optional().nullable(),
-  sortOrder: z.number().int().min(0),
+  sortOrder: z.number().int(),
 });
 
 // ============================================================================

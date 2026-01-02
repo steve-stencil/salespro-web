@@ -136,7 +136,7 @@ const reorderSchema = z.object({
 const setThumbnailSchema = z.object({
   /** Image ID to set as thumbnail (null to clear) */
   imageId: z.string().uuid().nullable(),
-  version: z.number().int().min(1),
+  version: z.number().int().min(1).optional(),
 });
 
 // ============================================================================
@@ -1944,8 +1944,8 @@ router.put(
         return;
       }
 
-      // Optimistic locking check
-      if (msi.version !== version) {
+      // Optimistic locking check (only if version is provided)
+      if (version !== undefined && msi.version !== version) {
         res.status(409).json({
           error: 'Conflict',
           message: 'MSI was modified by another user',
