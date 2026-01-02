@@ -30,45 +30,7 @@ import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 
 import { makeRequest, waitForDatabase } from './helpers';
-
-// Mock storage adapter for tests - use a singleton to track calls
-const mockStorageAdapter = {
-  upload: vi.fn().mockResolvedValue({
-    key: 'test-key',
-    size: 1000,
-    etag: '"abc123"',
-  }),
-  download: vi.fn().mockResolvedValue({
-    // eslint-disable-next-line @typescript-eslint/require-await
-    [Symbol.asyncIterator]: async function* () {
-      yield Buffer.from('test content');
-    },
-  }),
-  delete: vi.fn().mockResolvedValue(undefined),
-  exists: vi.fn().mockResolvedValue(true),
-  getSignedDownloadUrl: vi
-    .fn()
-    .mockResolvedValue('https://example.com/signed-url'),
-  generatePresignedUpload: vi.fn().mockResolvedValue({
-    url: 'https://example.com/upload-url',
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/pdf' },
-    expiresAt: new Date(Date.now() + 900000),
-  }),
-};
-
-vi.mock('../../lib/storage', () => ({
-  getStorageAdapter: vi.fn(() => mockStorageAdapter),
-  isS3Configured: vi.fn().mockReturnValue(true),
-  generateStorageKey: vi.fn(
-    (companyId: string, fileId: string, ext: string) =>
-      `${companyId}/files/${fileId}.${ext}`,
-  ),
-  getFileExtension: vi.fn((filename: string) => filename.split('.').pop()),
-  isImageMimeType: vi.fn((mimeType: string) => mimeType.startsWith('image/')),
-  sanitizeFilename: vi.fn((filename: string) => filename),
-  isFileTypeAllowed: vi.fn(() => true),
-}));
+import { mockStorageAdapter } from './server-setup';
 
 // Mock thumbnail generation
 vi.mock('../../services/file/thumbnail', () => ({
@@ -549,8 +511,6 @@ describe('File Routes Integration Tests', () => {
     it('should delete file from storage when soft deleting', async () => {
       const orm = getORM();
       const em = orm.em.fork();
-      const { getStorageAdapter } = await import('../../lib/storage');
-      const mockStorage = getStorageAdapter();
 
       const file = em.create(File, {
         id: uuid(),
@@ -571,19 +531,18 @@ describe('File Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
 
-      // Wait for fire-and-forget deletion to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for fire-and-forget deletion and flush all pending promises
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await vi.waitFor(() => {
+        // Verify storage.delete was called for the main file
 
-      // Verify storage.delete was called for the main file
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(mockStorage.delete).toHaveBeenCalledWith(file.storageKey);
+        expect(mockStorageAdapter.delete).toHaveBeenCalledWith(file.storageKey);
+      });
     });
 
     it('should delete thumbnail from storage when soft deleting an image', async () => {
       const orm = getORM();
       const em = orm.em.fork();
-      const { getStorageAdapter } = await import('../../lib/storage');
-      const mockStorage = getStorageAdapter();
 
       const thumbnailKey = `${testCompany.id}/thumbnails/image_thumb.jpg`;
       const file = em.create(File, {
@@ -606,14 +565,14 @@ describe('File Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
 
-      // Wait for fire-and-forget deletion to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for fire-and-forget deletion and flush all pending promises
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await vi.waitFor(() => {
+        // Verify storage.delete was called for both main file and thumbnail
 
-      // Verify storage.delete was called for both main file and thumbnail
-      /* eslint-disable @typescript-eslint/unbound-method */
-      expect(mockStorage.delete).toHaveBeenCalledWith(file.storageKey);
-      expect(mockStorage.delete).toHaveBeenCalledWith(thumbnailKey);
-      /* eslint-enable @typescript-eslint/unbound-method */
+        expect(mockStorageAdapter.delete).toHaveBeenCalledWith(file.storageKey);
+        expect(mockStorageAdapter.delete).toHaveBeenCalledWith(thumbnailKey);
+      });
     });
 
     it('should still soft delete even if storage deletion fails', async () => {
