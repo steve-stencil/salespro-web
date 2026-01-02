@@ -1,5 +1,5 @@
-import { raw } from '@mikro-orm/postgresql';
 import { Router } from 'express';
+import { generateKeyBetween } from 'fractional-indexing';
 import { z } from 'zod';
 
 import {
@@ -157,11 +157,11 @@ function getCompanyContext(
  */
 function decodeCursor(
   cursor: string,
-): { sortOrder: number; id: string } | null {
+): { sortOrder: string; id: string } | null {
   try {
     const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
     const [sortOrder, id] = decoded.split(':');
-    return { sortOrder: parseFloat(sortOrder!), id: id! };
+    return { sortOrder: sortOrder!, id: id! };
   } catch {
     return null;
   }
@@ -170,7 +170,7 @@ function decodeCursor(
 /**
  * Encode cursor for pagination.
  */
-function encodeCursor(sortOrder: number, id: string): string {
+function encodeCursor(sortOrder: string, id: string): string {
   return Buffer.from(`${sortOrder}:${id}`).toString('base64');
 }
 
@@ -717,10 +717,6 @@ router.get(
           showSwitch: msi.showSwitch,
           formulaId: msi.formulaId,
           qtyFormula: msi.qtyFormula,
-          tagTitle: msi.tagTitle,
-          tagRequired: msi.tagRequired,
-          tagPickerOptions: msi.tagPickerOptions,
-          tagParams: msi.tagParams,
           sortOrder: msi.sortOrder,
           offices: offices.map(o => ({
             id: o.office.id,
@@ -847,14 +843,13 @@ router.post(
         }
       }
 
-      // Get next sort order
-      const maxSortOrder = await em
-        .createQueryBuilder(MeasureSheetItem, 'm')
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
-        .select(raw('max(m.sort_order) as max'))
-        .where({ company: company.id })
-        .execute<{ max: number | null }[]>();
-      const sortOrder = (maxSortOrder[0]?.max ?? -1) + 1;
+      // Get last sort order to append after it
+      const lastMsi = await em.findOne(
+        MeasureSheetItem,
+        { company: company.id, category: data.categoryId },
+        { orderBy: { sortOrder: 'DESC' } },
+      );
+      const sortOrder = generateKeyBetween(lastMsi?.sortOrder ?? null, null);
 
       // Create MSI
       const msi = new MeasureSheetItem();
@@ -867,10 +862,6 @@ router.post(
       msi.showSwitch = data.showSwitch;
       msi.formulaId = data.formulaId;
       msi.qtyFormula = data.qtyFormula;
-      msi.tagTitle = data.tagTitle;
-      msi.tagRequired = data.tagRequired;
-      msi.tagPickerOptions = data.tagPickerOptions;
-      msi.tagParams = data.tagParams;
       msi.sortOrder = sortOrder;
       msi.searchVector = `${data.name} ${data.note ?? ''}`.trim();
       msi.lastModifiedBy = em.getReference(User, user.id);
@@ -933,8 +924,8 @@ router.post(
           id: { $in: data.additionalDetailFieldIds },
           company: company.id,
         });
-        for (let i = 0; i < data.additionalDetailFieldIds.length; i++) {
-          const fieldId = data.additionalDetailFieldIds[i]!;
+        let prevSortKey: string | null = null;
+        for (const fieldId of data.additionalDetailFieldIds) {
           if (fields.some(f => f.id === fieldId)) {
             const link = new MeasureSheetItemAdditionalDetailField();
             link.measureSheetItem = msi;
@@ -942,7 +933,8 @@ router.post(
               AdditionalDetailField,
               fieldId,
             );
-            link.sortOrder = i;
+            link.sortOrder = generateKeyBetween(prevSortKey, null);
+            prevSortKey = link.sortOrder;
             em.persist(link);
           }
         }
@@ -1059,14 +1051,6 @@ router.put(
         msi.formulaId = data.formulaId ?? undefined;
       if (data.qtyFormula !== undefined)
         msi.qtyFormula = data.qtyFormula ?? undefined;
-      if (data.tagTitle !== undefined)
-        msi.tagTitle = data.tagTitle ?? undefined;
-      if (data.tagRequired !== undefined) msi.tagRequired = data.tagRequired;
-      if (data.tagPickerOptions !== undefined)
-        msi.tagPickerOptions = data.tagPickerOptions ?? undefined;
-      if (data.tagParams !== undefined)
-        msi.tagParams = data.tagParams ?? undefined;
-
       // Note: Images are now managed via PUT /:id/images endpoint
 
       // Update search vector
@@ -1650,8 +1634,14 @@ router.post(
         existingLinks.map(l => l.additionalDetailField.id),
       );
 
-      // Get max sort order
-      const maxSortOrder = Math.max(0, ...existingLinks.map(l => l.sortOrder));
+      // Get last sort key to append after
+      const lastSortKey =
+        existingLinks.length > 0
+          ? (existingLinks
+              .map(l => l.sortOrder)
+              .sort()
+              .pop() ?? null)
+          : null;
 
       // Validate and create new links
       const fields = await em.find(AdditionalDetailField, {
@@ -1660,7 +1650,7 @@ router.post(
       });
 
       let linked = 0;
-      let sortOrder = maxSortOrder + 1;
+      let prevSortKey = lastSortKey;
 
       for (const fieldId of fieldIds) {
         if (existingFieldIds.has(fieldId)) continue;
@@ -1674,7 +1664,8 @@ router.post(
           AdditionalDetailField,
           fieldId,
         );
-        link.sortOrder = sortOrder++;
+        link.sortOrder = generateKeyBetween(prevSortKey, null);
+        prevSortKey = link.sortOrder;
         em.persist(link);
         linked++;
       }

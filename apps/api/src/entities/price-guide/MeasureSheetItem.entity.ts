@@ -6,9 +6,12 @@ import {
   OneToMany,
   Collection,
   Index,
+  Enum,
   Opt,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
+
+import { QuantityMode } from './types';
 
 import type { Company } from '../Company.entity';
 import type { User } from '../User.entity';
@@ -63,6 +66,13 @@ export class MeasureSheetItem {
   @Property({ type: 'string', nullable: true })
   qtyFormula?: string;
 
+  /**
+   * How quantity is determined.
+   * MANUAL = user enters quantity, FORMULA = computed from qtyFormula.
+   */
+  @Enum({ items: () => QuantityMode })
+  quantityMode: Opt<QuantityMode> = QuantityMode.MANUAL;
+
   /** Default quantity */
   @Property({ type: 'decimal', precision: 12, scale: 4 })
   defaultQty: Opt<number> = 1;
@@ -73,27 +83,12 @@ export class MeasureSheetItem {
 
   /**
    * Fractional index for ordering.
-   * Uses decimal to allow inserting items between others without reordering.
+   * Uses string keys (e.g., "a0", "a0V") to allow inserting between items
+   * without reordering all subsequent items.
    */
-  @Property({ type: 'decimal', precision: 18, scale: 8 })
-  sortOrder: Opt<number> = 0;
-
-  // Custom tag fields
-  /** Custom field: Tag label */
-  @Property({ type: 'string', nullable: true })
-  tagTitle?: string;
-
-  /** Custom field: Whether tag is required */
-  @Property({ type: 'boolean' })
-  tagRequired: Opt<boolean> = false;
-
-  /** Custom field: Picker options array */
-  @Property({ type: 'json', nullable: true })
-  tagPickerOptions?: unknown[];
-
-  /** Custom field: Additional tag parameters */
-  @Property({ type: 'json', nullable: true })
-  tagParams?: Record<string, unknown>;
+  @Property({ type: 'string', length: 50 })
+  @Index()
+  sortOrder: Opt<string> = 'a0';
 
   /**
    * Full-text search vector (auto-generated).
@@ -108,6 +103,11 @@ export class MeasureSheetItem {
   @Property({ type: 'string', nullable: true })
   @Index()
   sourceId?: string;
+
+  /** Migration session that created this entity (for rollback support) */
+  @Property({ type: 'uuid', nullable: true })
+  @Index()
+  migrationSessionId?: string;
 
   /** Soft delete flag - false means item is deleted */
   @Property({ type: 'boolean' })

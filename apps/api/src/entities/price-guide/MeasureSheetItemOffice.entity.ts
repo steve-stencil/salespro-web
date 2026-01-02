@@ -32,6 +32,11 @@ export class MeasureSheetItemOffice {
   @ManyToOne('Office')
   office!: Office;
 
+  /** Migration session that created this entity (for rollback support) */
+  @Property({ type: 'uuid', nullable: true })
+  @Index()
+  migrationSessionId?: string;
+
   @Property({ type: 'Date' })
   createdAt: Opt<Date> = new Date();
 }

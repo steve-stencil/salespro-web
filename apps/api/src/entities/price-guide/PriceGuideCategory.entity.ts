@@ -56,9 +56,14 @@ export class PriceGuideCategory {
   @Enum({ items: () => PriceGuideCategoryType })
   categoryType: Opt<PriceGuideCategoryType> = PriceGuideCategoryType.DEFAULT;
 
-  /** Display order within parent category */
-  @Property({ type: 'integer' })
-  sortOrder: Opt<number> = 0;
+  /**
+   * Fractional index for ordering within parent category.
+   * Uses string keys (e.g., "a0", "a0V") to allow inserting between items
+   * without reordering all subsequent items.
+   */
+  @Property({ type: 'string', length: 50 })
+  @Index()
+  sortOrder: Opt<string> = 'a0';
 
   /**
    * Hierarchy depth (0=root, 1=sub, 2=drill-down, etc.).
@@ -87,6 +92,11 @@ export class PriceGuideCategory {
   @Property({ type: 'string', nullable: true })
   @Index()
   sourceId?: string;
+
+  /** Migration session that created this entity (for rollback support) */
+  @Property({ type: 'uuid', nullable: true })
+  @Index()
+  migrationSessionId?: string;
 
   @Property({ type: 'Date' })
   createdAt: Opt<Date> = new Date();

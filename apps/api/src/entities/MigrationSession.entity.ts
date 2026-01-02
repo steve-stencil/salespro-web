@@ -24,6 +24,10 @@ export enum MigrationSessionStatus {
   COMPLETED = 'completed',
   /** Import failed with errors */
   FAILED = 'failed',
+  /** Session was rolled back after completion */
+  ROLLED_BACK = 'rolled_back',
+  /** Rollback attempt failed */
+  ROLLBACK_FAILED = 'rollback_failed',
 }
 
 /**

@@ -131,6 +131,16 @@ export enum PriceChangeJobStatus {
   FAILED = 'failed',
 }
 
+/**
+ * How MSI quantity is determined.
+ */
+export enum QuantityMode {
+  /** User manually enters quantity (default) */
+  MANUAL = 'MANUAL',
+  /** Quantity computed from formula referencing other items */
+  FORMULA = 'FORMULA',
+}
+
 /** Status for pricing import jobs */
 export enum PricingImportJobStatus {
   PENDING = 'pending',
