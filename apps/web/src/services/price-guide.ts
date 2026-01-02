@@ -1162,20 +1162,41 @@ export const priceGuideApi = {
       ? `/price-guide/pricing/options/export?${queryString}`
       : '/price-guide/pricing/options/export';
 
-    const response = await apiClient.download(url);
+    const { data, filename } = await apiClient.download(url);
 
-    // Trigger browser download
-    const blob = new Blob([response], {
+    // Use filename from server or fallback to default
+    const downloadFilename =
+      filename ??
+      `option-prices-${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    // Trigger browser download using a more reliable method
+    const blob = new Blob([data], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
-    const downloadUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = `option-prices-${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(downloadUrl);
+
+    // Use navigator.msSaveBlob for IE/Edge compatibility, otherwise use link click
+    if ('msSaveBlob' in navigator) {
+      (
+        navigator as Navigator & {
+          msSaveBlob: (blob: Blob, name: string) => void;
+        }
+      ).msSaveBlob(blob, downloadFilename);
+    } else {
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = downloadFilename;
+      // Setting these attributes helps ensure the download attribute is respected
+      link.style.display = 'none';
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      // Small delay before cleanup to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+      }, 100);
+    }
   },
 
   /**

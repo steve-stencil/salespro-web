@@ -133,9 +133,13 @@ export function PricingImportDialog({
         setStep('preview');
       } catch (err) {
         console.error('Preview failed:', err);
-        setError(
-          'Failed to validate file. Please check the format and try again.',
-        );
+        // Try to get error message from API response
+        type ApiErrorType = { response?: { data?: { message?: string } } };
+        const apiError = err as ApiErrorType;
+        const errorMessage =
+          apiError.response?.data?.message ??
+          'Failed to validate file. Please check the format and try again.';
+        setError(errorMessage);
         setStep('upload');
       }
     },
