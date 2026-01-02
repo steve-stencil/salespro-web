@@ -175,6 +175,24 @@ export function PricingGrid({
     [pricing],
   );
 
+  /**
+   * Calculate total for an office (sum of all enabled price types).
+   */
+  const getOfficeTotal = useCallback(
+    (officeId: string): number => {
+      const officeData = pricing[officeId];
+      if (!officeData) return 0;
+
+      return priceTypes.reduce((sum, priceType) => {
+        // Only include enabled price types
+        if (!priceType.enabledOfficeIds.includes(officeId)) return sum;
+        const value = officeData[priceType.id];
+        return sum + (value ?? 0);
+      }, 0);
+    },
+    [pricing, priceTypes],
+  );
+
   // Check if a price type is enabled for an office
   const isPriceTypeEnabledForOffice = useCallback(
     (priceType: PriceType, officeId: string): boolean => {
@@ -300,6 +318,17 @@ export function PricingGrid({
                   </Box>
                 </TableCell>
               ))}
+              {/* Total Column Header */}
+              <TableCell
+                align="right"
+                sx={{
+                  fontWeight: 600,
+                  bgcolor: 'action.hover',
+                  minWidth: 100,
+                }}
+              >
+                Total
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -383,6 +412,20 @@ export function PricingGrid({
                     </TableCell>
                   );
                 })}
+                {/* Total Cell */}
+                <TableCell
+                  align="right"
+                  sx={{
+                    fontWeight: 600,
+                    bgcolor: 'action.selected',
+                    borderLeft: 1,
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    ${getOfficeTotal(office.id).toFixed(2)}
+                  </Typography>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

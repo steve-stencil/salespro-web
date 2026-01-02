@@ -535,6 +535,51 @@ export function OverridePricingGrid({
     );
   }, 0);
 
+  /**
+   * Calculate effective amount for a price type + office (considering overrides).
+   */
+  const getEffectiveAmount = useCallback(
+    (priceTypeId: string, officeId: string): number => {
+      const config = getConfig(priceTypeId, officeId);
+      const defaultConfig = getDefaultConfig(priceTypeId);
+
+      if (config.mode === 'use_default') {
+        if (!defaultConfig) return 0;
+        if (defaultConfig.mode === 'fixed') {
+          return defaultConfig.fixedAmounts?.[officeId] ?? 0;
+        }
+        // percentage mode
+        const rate = defaultConfig.percentageRate ?? 0;
+        const baseIds = defaultConfig.percentageBaseTypeIds ?? [];
+        return calculatePercentageAmount(rate, baseIds, samplePrices);
+      }
+
+      if (config.mode === 'fixed') {
+        return config.fixedAmount ?? 0;
+      }
+
+      // percentage mode
+      const rate = config.percentageRate ?? 0;
+      const baseIds = config.percentageBaseTypeIds ?? [];
+      return calculatePercentageAmount(rate, baseIds, samplePrices);
+    },
+    [samplePrices, defaultConfigs, data],
+  );
+
+  /**
+   * Calculate total for an office (sum of all enabled price types).
+   */
+  const getOfficeTotal = useCallback(
+    (officeId: string): number => {
+      return activePriceTypes.reduce((sum, priceType) => {
+        // Only include enabled price types
+        if (!isPriceTypeEnabledForOffice(priceType, officeId)) return sum;
+        return sum + getEffectiveAmount(priceType.id, officeId);
+      }, 0);
+    },
+    [activePriceTypes, isPriceTypeEnabledForOffice, getEffectiveAmount],
+  );
+
   return (
     <Box>
       {customCount > 0 && (
@@ -619,6 +664,17 @@ export function OverridePricingGrid({
                   </Box>
                 </TableCell>
               ))}
+              {/* Total Column Header */}
+              <TableCell
+                align="center"
+                sx={{
+                  fontWeight: 600,
+                  bgcolor: 'action.hover',
+                  minWidth: 100,
+                }}
+              >
+                Total
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -675,6 +731,20 @@ export function OverridePricingGrid({
                     </TableCell>
                   );
                 })}
+                {/* Total Cell */}
+                <TableCell
+                  align="center"
+                  sx={{
+                    fontWeight: 600,
+                    bgcolor: 'action.selected',
+                    borderLeft: 1,
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    ${getOfficeTotal(office.id).toFixed(2)}
+                  </Typography>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

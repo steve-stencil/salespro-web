@@ -521,6 +521,43 @@ export function DefaultPricingGrid({
     return config.mode === 'percentage' ? ' (%)' : '';
   };
 
+  /**
+   * Calculate effective amount for a price type + office.
+   */
+  const getEffectiveAmount = useCallback(
+    (config: UpChargePriceTypeConfig, officeId: string): number => {
+      if (config.mode === 'fixed') {
+        return config.fixedAmounts?.[officeId] ?? 0;
+      }
+      // Percentage mode
+      const rate = config.percentageRate ?? 0;
+      const baseIds = config.percentageBaseTypeIds ?? [];
+      return calculatePercentageAmount(rate, baseIds, samplePrices);
+    },
+    [samplePrices],
+  );
+
+  /**
+   * Calculate total for an office (sum of all enabled price types).
+   */
+  const getOfficeTotal = useCallback(
+    (officeId: string): number => {
+      return activePriceTypes.reduce((sum, priceType) => {
+        // Only include enabled price types
+        if (!isPriceTypeEnabledForOffice(priceType, officeId)) return sum;
+        const config = getConfig(priceType.id);
+        if (!config) return sum;
+        return sum + getEffectiveAmount(config, officeId);
+      }, 0);
+    },
+    [
+      activePriceTypes,
+      isPriceTypeEnabledForOffice,
+      getConfig,
+      getEffectiveAmount,
+    ],
+  );
+
   return (
     <Box>
       <TableContainer component={Paper} variant="outlined">
@@ -578,6 +615,17 @@ export function DefaultPricingGrid({
                   </Box>
                 </TableCell>
               ))}
+              {/* Total Column Header */}
+              <TableCell
+                align="center"
+                sx={{
+                  fontWeight: 600,
+                  bgcolor: 'action.hover',
+                  minWidth: 100,
+                }}
+              >
+                Total
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -631,6 +679,20 @@ export function DefaultPricingGrid({
                     </TableCell>
                   );
                 })}
+                {/* Total Cell */}
+                <TableCell
+                  align="center"
+                  sx={{
+                    fontWeight: 600,
+                    bgcolor: 'action.selected',
+                    borderLeft: 1,
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    ${getOfficeTotal(office.id).toFixed(2)}
+                  </Typography>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
