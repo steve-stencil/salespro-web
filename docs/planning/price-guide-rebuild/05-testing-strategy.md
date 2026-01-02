@@ -651,3 +651,4 @@ pnpm test:e2e --ui
 - [Implementation Phases](./06-implementation-phases.md) - When testing is set up
 - [API Specifications](./03-api-specifications.md) - What to test
 - [Migration Strategy](./02-migration-strategy.md) - Migration test focus
+

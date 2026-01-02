@@ -94,3 +94,4 @@ export class Migration20251230100000_tags extends Migration {
     this.addSql(`DROP TABLE IF EXISTS "tag" CASCADE;`);
   }
 }
+

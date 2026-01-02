@@ -274,3 +274,4 @@ Some legacy V1 features may not be migrated 1:1:
 - [00-index.md](./00-index.md) - Main plan overview
 - [07-design-decisions.md](./07-design-decisions.md) - Why these boundaries were set
 - [02-migration-strategy.md](./02-migration-strategy.md) - What IS migrated
+

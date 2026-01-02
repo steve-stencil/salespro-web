@@ -12,12 +12,19 @@ import { getORM } from '../../../lib/db';
 import { PERMISSIONS } from '../../../lib/permissions';
 import { requireAuth, requirePermission } from '../../../middleware';
 
+import exportImportRoutes from './export-import.routes';
+
 import type { Company } from '../../../entities';
 import type { AuthenticatedRequest } from '../../../middleware/requireAuth';
 import type { EntityManager } from '@mikro-orm/postgresql';
 import type { Request, Response, Router as RouterType } from 'express';
 
 const router: RouterType = Router();
+
+// ============================================================================
+// Export/Import Routes (must be mounted FIRST - static paths before :optionId)
+// ============================================================================
+router.use('/', exportImportRoutes);
 
 // ============================================================================
 // Validation Schemas
@@ -88,10 +95,10 @@ router.get(
         return;
       }
 
-      // Get all prices for this option
+      // Get all current prices for this option (effectiveDate is null)
       const prices = await em.find(
         OptionPrice,
-        { option: optionId },
+        { option: optionId, effectiveDate: null },
         {
           populate: ['office', 'priceType'],
           orderBy: { office: { name: 'ASC' }, priceType: { sortOrder: 'ASC' } },
@@ -263,6 +270,7 @@ router.put(
             priceData.priceTypeId,
           );
           priceRecord.amount = priceData.amount;
+          priceRecord.effectiveDate = null;
           em.persist(priceRecord);
         }
       }
@@ -386,6 +394,7 @@ router.put(
               priceData.priceTypeId,
             );
             priceRecord.amount = priceData.amount;
+            priceRecord.effectiveDate = null;
             em.persist(priceRecord);
           }
           updatedCount++;

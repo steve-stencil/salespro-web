@@ -510,3 +510,4 @@ If some items fail to load in infinite scroll:
 ## Next Steps
 
 Continue to [Item Detail Page](./04-item-detail-page.md) for the single MSI view.
+

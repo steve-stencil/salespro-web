@@ -89,6 +89,15 @@ export enum PriceChangeJobStatus {
   FAILED = 'failed',
 }
 
+/** Status for pricing import jobs */
+export enum PricingImportJobStatus {
+  PENDING = 'pending',
+  VALIDATING = 'validating',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
 /** Target type for mass price change jobs */
 export enum PriceChangeTargetType {
   OPTIONS = 'options',

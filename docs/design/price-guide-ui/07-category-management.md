@@ -520,3 +520,4 @@ Click on category name or use context menu:
 ## Next Steps
 
 Continue to [Relationship Visualization](./08-relationship-visualization.md) for where-used patterns.
+

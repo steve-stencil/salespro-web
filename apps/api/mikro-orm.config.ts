@@ -47,6 +47,7 @@ import {
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  PricingImportJob,
   Tag,
   ItemTag,
 } from './src/entities';
@@ -106,6 +107,7 @@ export default defineConfig({
     UpChargePricePercentageBase,
     PriceChangeLog,
     PriceChangeJob,
+    PricingImportJob,
     Tag,
     ItemTag,
   ],

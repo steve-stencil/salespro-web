@@ -20,3 +20,4 @@ export function useColorMode(): ColorModeContextType {
   }
   return context;
 }
+

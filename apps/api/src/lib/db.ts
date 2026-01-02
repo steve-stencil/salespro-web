@@ -49,6 +49,7 @@ import {
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  PricingImportJob,
   Tag,
   ItemTag,
 } from '../entities';
@@ -105,6 +106,7 @@ const entities = [
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  PricingImportJob,
   Tag,
   ItemTag,
 ];

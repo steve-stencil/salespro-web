@@ -60,9 +60,11 @@ import {
   useCategoryTree,
   useLinkOptions,
   useLinkUpcharges,
+  useLinkAdditionalDetails,
   useSyncOffices,
   useUnlinkOption,
   useUnlinkUpcharge,
+  useUnlinkAdditionalDetail,
   priceGuideKeys,
 } from '../../hooks/usePriceGuide';
 import { useTagList } from '../../hooks/useTags';
@@ -90,9 +92,11 @@ type MsiExpandedContentProps = {
   onLinkOffices: () => void;
   onLinkOptions: () => void;
   onLinkUpcharges: () => void;
+  onLinkAdditionalDetails: () => void;
   onUnlinkOffice: (officeId: string, officeName: string) => void;
   onUnlinkOption: (optionId: string, optionName: string) => void;
   onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
+  onUnlinkAdditionalDetail: (fieldId: string, title: string) => void;
 };
 
 function MsiExpandedContent({
@@ -100,9 +104,11 @@ function MsiExpandedContent({
   onLinkOffices,
   onLinkOptions,
   onLinkUpcharges,
+  onLinkAdditionalDetails,
   onUnlinkOffice,
   onUnlinkOption,
   onUnlinkUpcharge,
+  onUnlinkAdditionalDetail,
 }: MsiExpandedContentProps): React.ReactElement {
   const navigate = useNavigate();
   const { data, isLoading } = useMsiDetail(msiId);
@@ -110,6 +116,7 @@ function MsiExpandedContent({
   const offices = data?.item.offices ?? [];
   const options = data?.item.options ?? [];
   const upcharges = data?.item.upcharges ?? [];
+  const additionalDetails = data?.item.additionalDetails ?? [];
 
   return (
     <Box>
@@ -117,7 +124,11 @@ function MsiExpandedContent({
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: '1fr 1fr',
+            md: '1fr 1fr 1fr 1fr',
+          },
           gap: 3,
         }}
       >
@@ -162,6 +173,22 @@ function MsiExpandedContent({
             }
           }}
         />
+        <LinkedItemsList
+          title="Additional Details"
+          itemType="additionalDetail"
+          items={additionalDetails}
+          isLoading={isLoading}
+          onLinkClick={onLinkAdditionalDetails}
+          onViewItem={() =>
+            void navigate('/price-guide/library?tab=additional-details')
+          }
+          onUnlinkItem={fieldId => {
+            const detail = additionalDetails.find(d => d.fieldId === fieldId);
+            if (detail) {
+              onUnlinkAdditionalDetail(fieldId, detail.title);
+            }
+          }}
+        />
       </Box>
 
       {/* Footer with ID */}
@@ -191,9 +218,11 @@ type MsiCardWrapperProps = {
   onLinkOffices: () => void;
   onLinkOptions: () => void;
   onLinkUpcharges: () => void;
+  onLinkAdditionalDetails: () => void;
   onUnlinkOffice: (officeId: string, officeName: string) => void;
   onUnlinkOption: (optionId: string, optionName: string) => void;
   onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
+  onUnlinkAdditionalDetail: (fieldId: string, title: string) => void;
   onThumbnailClick: () => void;
   isThumbnailLoading: boolean;
 };
@@ -211,9 +240,11 @@ function MsiCardWrapper({
   onLinkOffices,
   onLinkOptions,
   onLinkUpcharges,
+  onLinkAdditionalDetails,
   onUnlinkOffice,
   onUnlinkOption,
   onUnlinkUpcharge,
+  onUnlinkAdditionalDetail,
   onThumbnailClick,
   isThumbnailLoading,
 }: MsiCardWrapperProps): React.ReactElement {
@@ -293,9 +324,11 @@ function MsiCardWrapper({
           onLinkOffices={onLinkOffices}
           onLinkOptions={onLinkOptions}
           onLinkUpcharges={onLinkUpcharges}
+          onLinkAdditionalDetails={onLinkAdditionalDetails}
           onUnlinkOffice={onUnlinkOffice}
           onUnlinkOption={onUnlinkOption}
           onUnlinkUpcharge={onUnlinkUpcharge}
+          onUnlinkAdditionalDetail={onUnlinkAdditionalDetail}
         />
       }
     />
@@ -333,7 +366,7 @@ export function CatalogPage(): React.ReactElement {
   // Unlink confirmation state
   const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
   const [unlinkItem, setUnlinkItem] = useState<{
-    type: 'office' | 'option' | 'upcharge';
+    type: 'office' | 'option' | 'upcharge' | 'additionalDetail';
     msiId: string;
     msiName: string;
     itemId: string;
@@ -375,9 +408,11 @@ export function CatalogPage(): React.ReactElement {
   // Mutations
   const linkOptionsMutation = useLinkOptions();
   const linkUpchargesMutation = useLinkUpcharges();
+  const linkDetailsMutation = useLinkAdditionalDetails();
   const syncOfficesMutation = useSyncOffices();
   const unlinkOptionMutation = useUnlinkOption();
   const unlinkUpchargeMutation = useUnlinkUpcharge();
+  const unlinkDetailMutation = useUnlinkAdditionalDetail();
 
   // Flatten categories for dropdown
   const flatCategories = useMemo(() => {
@@ -474,6 +509,16 @@ export function CatalogPage(): React.ReactElement {
       disabledOptionIds: upchargeDisabledOptions[u.upchargeId] ?? [],
     }));
   }, [linkPickerMsiData, upchargeDisabledOptions]);
+
+  // Currently linked additional details for the dialog
+  const linkedAdditionalDetailsForDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.additionalDetails.map(d => ({
+      id: d.fieldId,
+      title: d.title,
+      inputType: d.inputType,
+    }));
+  }, [linkPickerMsiData]);
 
   // Handler to update disabled options for an upcharge
   const handleUpdateDisabledOptions = useCallback(
@@ -677,6 +722,12 @@ export function CatalogPage(): React.ReactElement {
               upchargeIds: [itemId],
             });
             break;
+          case 'additionalDetail':
+            await linkDetailsMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              fieldIds: [itemId],
+            });
+            break;
         }
       } catch (err) {
         console.error('Failed to link item:', err);
@@ -689,6 +740,7 @@ export function CatalogPage(): React.ReactElement {
       syncOfficesMutation,
       linkOptionsMutation,
       linkUpchargesMutation,
+      linkDetailsMutation,
     ],
   );
 
@@ -720,6 +772,12 @@ export function CatalogPage(): React.ReactElement {
               upchargeId: itemId,
             });
             break;
+          case 'additionalDetail':
+            await unlinkDetailMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              fieldId: itemId,
+            });
+            break;
         }
       } catch (err) {
         console.error('Failed to unlink item:', err);
@@ -732,13 +790,14 @@ export function CatalogPage(): React.ReactElement {
       syncOfficesMutation,
       unlinkOptionMutation,
       unlinkUpchargeMutation,
+      unlinkDetailMutation,
     ],
   );
 
   // Unlink handlers (for confirmation dialog when unlinking from expanded card)
   const openUnlinkDialog = useCallback(
     (
-      type: 'office' | 'option' | 'upcharge',
+      type: 'office' | 'option' | 'upcharge' | 'additionalDetail',
       msiId: string,
       msiName: string,
       itemId: string,
@@ -772,10 +831,16 @@ export function CatalogPage(): React.ReactElement {
           msiId: unlinkItem.msiId,
           optionId: unlinkItem.itemId,
         });
-      } else {
+      } else if (unlinkItem.type === 'upcharge') {
         await unlinkUpchargeMutation.mutateAsync({
           msiId: unlinkItem.msiId,
           upchargeId: unlinkItem.itemId,
+        });
+      } else {
+        // unlinkItem.type === 'additionalDetail'
+        await unlinkDetailMutation.mutateAsync({
+          msiId: unlinkItem.msiId,
+          fieldId: unlinkItem.itemId,
         });
       }
       setUnlinkDialogOpen(false);
@@ -788,6 +853,7 @@ export function CatalogPage(): React.ReactElement {
     linkPickerMsiData,
     unlinkOptionMutation,
     unlinkUpchargeMutation,
+    unlinkDetailMutation,
     syncOfficesMutation,
   ]);
 
@@ -1160,6 +1226,9 @@ export function CatalogPage(): React.ReactElement {
               onLinkOffices={() => openLinkPicker('office', msi.id)}
               onLinkOptions={() => openLinkPicker('option', msi.id)}
               onLinkUpcharges={() => openLinkPicker('upcharge', msi.id)}
+              onLinkAdditionalDetails={() =>
+                openLinkPicker('additionalDetail', msi.id)
+              }
               onUnlinkOffice={(officeId, officeName) =>
                 openUnlinkDialog(
                   'office',
@@ -1185,6 +1254,15 @@ export function CatalogPage(): React.ReactElement {
                   msi.name,
                   upchargeId,
                   upchargeName,
+                )
+              }
+              onUnlinkAdditionalDetail={(fieldId, title) =>
+                openUnlinkDialog(
+                  'additionalDetail',
+                  msi.id,
+                  msi.name,
+                  fieldId,
+                  title,
                 )
               }
             />
@@ -1224,13 +1302,14 @@ export function CatalogPage(): React.ReactElement {
         onBulkDelete={() => setBulkDeleteDialogOpen(true)}
       />
 
-      {/* Link Picker Dialog (unified for offices, options, upcharges) */}
+      {/* Link Picker Dialog (unified for offices, options, upcharges, additional details) */}
       <LinkPickerDialog
         open={linkPickerOpen}
         itemType={linkPickerType}
         linkedOffices={linkedOfficesForDialog}
         linkedOptions={linkedOptionsForDialog}
         linkedUpcharges={linkedUpchargesForDialog}
+        linkedAdditionalDetails={linkedAdditionalDetailsForDialog}
         msiOptions={msiOptionsForUpchargeDialog}
         onLink={itemId => void handleLinkItem(itemId)}
         onUnlink={itemId => void handleUnlinkItemFromDialog(itemId)}
@@ -1239,12 +1318,14 @@ export function CatalogPage(): React.ReactElement {
         isLinking={
           syncOfficesMutation.isPending ||
           linkOptionsMutation.isPending ||
-          linkUpchargesMutation.isPending
+          linkUpchargesMutation.isPending ||
+          linkDetailsMutation.isPending
         }
         isUnlinking={
           syncOfficesMutation.isPending ||
           unlinkOptionMutation.isPending ||
-          unlinkUpchargeMutation.isPending
+          unlinkUpchargeMutation.isPending ||
+          unlinkDetailMutation.isPending
         }
       />
 
@@ -1262,7 +1343,8 @@ export function CatalogPage(): React.ReactElement {
         isLoading={
           syncOfficesMutation.isPending ||
           unlinkOptionMutation.isPending ||
-          unlinkUpchargeMutation.isPending
+          unlinkUpchargeMutation.isPending ||
+          unlinkDetailMutation.isPending
         }
       />
 

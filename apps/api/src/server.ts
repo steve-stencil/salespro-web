@@ -9,8 +9,10 @@ import pinoHttp from 'pino-http';
 
 import { connectDB } from './lib/db';
 import { errorHandler } from './lib/errors';
+import { getJobQueue, stopJobQueue } from './lib/job-queue';
 import { getSessionMiddleware } from './lib/session';
 import routes from './routes';
+import { registerPricingImportWorker } from './workers';
 
 import type { Express, RequestHandler } from 'express';
 import type { ErrorRequestHandler } from 'express';
@@ -33,9 +35,44 @@ const logger = pino({
 let sessionMiddleware: RequestHandler | null = null;
 
 app.use(helmet());
+
+/**
+ * CORS origin validator - allows any localhost port in development
+ */
+const corsOrigin = (
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void,
+) => {
+  // Allow requests with no origin (like mobile apps or Postman)
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  // In development, allow any localhost/127.0.0.1 origin
+  const isDev = process.env['NODE_ENV'] !== 'production';
+  const isLocalhost =
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:');
+
+  if (isDev && isLocalhost) {
+    callback(null, true);
+    return;
+  }
+
+  // In production, check against CORS_ORIGIN
+  const allowedOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
+  if (origin === allowedOrigin) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error('Not allowed by CORS'));
+};
+
 app.use(
   cors({
-    origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:5173',
+    origin: corsOrigin,
     credentials: true,
   }),
 );
@@ -77,8 +114,39 @@ export async function createServer(): Promise<Server> {
   // Initialize session middleware (requires ORM to be initialized)
   sessionMiddleware = getSessionMiddleware();
 
+  // Initialize job queue and register workers
+  try {
+    const boss = await getJobQueue();
+    await registerPricingImportWorker(boss);
+    logger.info('Job queue and workers initialized');
+  } catch (err) {
+    logger.error(
+      { err },
+      'Failed to initialize job queue - background jobs disabled',
+    );
+  }
+
   // Create HTTP server
   const server = createHttpServer(app);
+
+  // Graceful shutdown handler
+  const shutdown = async (signal: string) => {
+    logger.info(`${signal} received, shutting down gracefully`);
+
+    // Stop accepting new connections
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
+
+    // Stop job queue
+    await stopJobQueue();
+
+    // Exit after cleanup
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 
   // Start server
   const port = process.env['PORT'] ?? 4000;

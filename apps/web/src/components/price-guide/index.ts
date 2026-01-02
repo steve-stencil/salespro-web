@@ -8,6 +8,8 @@ export { BulkDeleteDialog } from './BulkDeleteDialog';
 export { BulkEditDialog } from './BulkEditDialog';
 export { ExportDialog } from './ExportDialog';
 export { ImportDialog } from './ImportDialog';
+export { PricingExportDialog } from './PricingExportDialog';
+export { PricingImportDialog } from './PricingImportDialog';
 
 // Conflict Resolution
 export { ConflictResolutionModal } from './ConflictResolutionModal';

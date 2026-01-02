@@ -61,6 +61,7 @@ export { UpChargePricePercentageBase } from './UpChargePricePercentageBase.entit
 // Operational entities
 export { PriceChangeLog } from './PriceChangeLog.entity';
 export { PriceChangeJob } from './PriceChangeJob.entity';
+export { PricingImportJob } from './PricingImportJob.entity';
 
 // Types and enums
 export {
@@ -69,6 +70,7 @@ export {
   SizePickerPrecision,
   PriceChangeJobStatus,
   PriceChangeTargetType,
+  PricingImportJobStatus,
   TaggableEntityType,
   PARENT_PRICE_TYPE_CODES,
   PARENT_PRICE_TYPE_LABELS,
@@ -82,3 +84,5 @@ export type {
   PriceChangeOperation,
   ParentPriceTypeCode,
 } from './types';
+
+export type { ImportError } from './PricingImportJob.entity';

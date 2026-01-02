@@ -43,3 +43,4 @@ export class Migration20251231100000_add_price_guide_image_to_taggable_entity_ty
     `);
   }
 }
+

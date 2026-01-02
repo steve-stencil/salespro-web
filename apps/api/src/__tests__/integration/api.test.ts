@@ -33,7 +33,11 @@ describe('API Integration Tests', () => {
 
   describe('CORS and Security Headers', () => {
     it('should include CORS headers', async () => {
-      const response = await makeRequest().get('/api/healthz').expect(200);
+      // Must send Origin header to trigger CORS response headers
+      const response = await makeRequest()
+        .get('/api/healthz')
+        .set('Origin', 'http://localhost:5173')
+        .expect(200);
 
       expect(response.headers).toHaveProperty('access-control-allow-origin');
     });

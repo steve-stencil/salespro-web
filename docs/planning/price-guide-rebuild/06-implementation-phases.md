@@ -480,3 +480,4 @@
 - [API Specifications](./03-api-specifications.md) - Route details
 - [UI Specifications](./04-ui-specifications.md) - Page designs
 - [Testing Strategy](./05-testing-strategy.md) - Test coverage requirements
+

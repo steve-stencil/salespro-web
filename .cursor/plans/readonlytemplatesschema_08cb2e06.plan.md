@@ -26,13 +26,13 @@ This plan’s parity target is **the iOS “Select templates → Fill forms driv
 - photo selector cells (select/reorder/remove photos as values)
 - drawing/sketch capture cells (store image as value) if present in templates
 - **Cross-field updates** when a controlling field changes (dynamic recalculation / refresh).
-- **Maintainable implementation**: replicate iOS behavior, but do _not_ copy iOS structure; build clean, testable modules.
+- **Maintainable implementation**: replicate iOS behavior, but do *not* copy iOS structure; build clean, testable modules.
 
 ### Out of scope (explicitly not promised by this plan)
 
 - Full PDF preview/sign/send flows (including DocuSign, email verification, brochure selection, payments, etc.).
 
-> Note: Some `contractData` cell types launch complex sub-flows (e.g., payment capture). If these appear in templates and you want _true_ parity, we must either implement them or explicitly block those templates/cells in web. This plan assumes **implement**, unless we later blacklist cell types at ingestion.---
+> Note: Some `contractData` cell types launch complex sub-flows (e.g., payment capture). If these appear in templates and you want *true* parity, we must either implement them or explicitly block those templates/cells in web. This plan assumes **implement**, unless we later blacklist cell types at ingestion.---
 
 ## iOS source-of-truth map (where to copy behavior from)
 
@@ -117,7 +117,7 @@ So the best DB approach is:
 
 ### 1) `ContractTemplate` (core catalog record)
 
-This table exists to support _fast listing/filtering_ (the iOS `loadContracts` equivalent) and stable identity.**Columns (normalized, indexed):**
+This table exists to support *fast listing/filtering* (the iOS `loadContracts` equivalent) and stable identity.**Columns (normalized, indexed):**
 
 - `id` (uuid, PK)
 - `company_id` (uuid, required, indexed)
@@ -544,5 +544,3 @@ Key iOS behaviors to reproduce in web:
 We keep these in JSONB exactly as the engine expects.---
 
 ## Implementation Todos (updated to your read-only constraint)
-
-- `schema-contract-template`: Implement `ContractTemplate` entity + migrations + indexes (JSONB payload + indexed filter columns)

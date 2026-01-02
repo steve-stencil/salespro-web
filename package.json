@@ -29,7 +29,11 @@
     "db:seed": "pnpm --filter api db:seed --",
     "db:seed:force": "pnpm --filter api db:seed -- --force",
     "db:migrate": "pnpm --filter api migration:up",
-    "sync:worktree-env": "bash scripts/sync-worktree-env.sh"
+    "worktree": "bash scripts/worktree-manager.sh",
+    "worktree:list": "bash scripts/worktree-manager.sh list",
+    "worktree:status": "bash scripts/worktree-manager.sh status",
+    "worktree:sync": "bash scripts/worktree-manager.sh sync",
+    "worktree:ports": "bash scripts/worktree-manager.sh ports"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",

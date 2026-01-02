@@ -592,3 +592,4 @@ Shows background job progress.
 - [API Specifications](./03-api-specifications.md) - Backend endpoints
 - [Implementation Phases](./06-implementation-phases.md) - When UI is built
 - [Testing Strategy](./05-testing-strategy.md) - E2E test coverage
+

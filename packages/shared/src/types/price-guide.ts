@@ -1042,3 +1042,86 @@ export type SetItemTagsResponse = {
   message: string;
   tags: TagSummary[];
 };
+
+// ============================================================================
+// Pricing Import/Export Types
+// ============================================================================
+
+/** Export filter options for pricing spreadsheet */
+export type PricingExportFilters = {
+  /** Filter to specific offices */
+  officeIds?: string[];
+  /** Filter to specific options */
+  optionIds?: string[];
+  /**
+   * Filter to options in these categories (via MSI links).
+   * CASCADES: includes all descendant categories automatically.
+   */
+  categoryIds?: string[];
+  /** Filter to options with these tags */
+  tagIds?: string[];
+};
+
+/** Import error entry */
+export type PricingImportError = {
+  /** Row number in spreadsheet (1-indexed, excluding header) */
+  row: number;
+  /** Column name where error occurred */
+  column: string;
+  /** Human-readable error message */
+  message: string;
+};
+
+/** Import preview response */
+export type PricingImportPreview = {
+  /** Whether the file is valid for import */
+  valid: boolean;
+  /** Summary counts */
+  summary: {
+    totalRows: number;
+    toCreate: number;
+    toUpdate: number;
+    toSkip: number;
+    errors: number;
+  };
+  /** Validation errors */
+  errors: PricingImportError[];
+  /** Preview of changes (first 50 rows) */
+  preview: Array<{
+    row: number;
+    action: 'create' | 'update' | 'skip';
+    optionName: string;
+    officeName: string;
+    changes?: Record<string, { from: number; to: number }>;
+  }>;
+};
+
+/** Import result response (synchronous import) */
+export type PricingImportResult = {
+  success: boolean;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: PricingImportError[];
+};
+
+/** Import job status (asynchronous import) */
+export type PricingImportJobStatus = {
+  id: string;
+  status: 'pending' | 'validating' | 'processing' | 'completed' | 'failed';
+  filename: string;
+  totalRows: number | null;
+  processedRows: number;
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  errors: PricingImportError[] | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+/** Import response (could be sync result or async job) */
+export type PricingImportResponse =
+  | PricingImportResult
+  | { jobId: string; status: 'pending'; message: string };

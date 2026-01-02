@@ -180,6 +180,36 @@ export class ApiClient {
   }
 
   /**
+   * Downloads a file as a blob.
+   * Use this for binary file downloads (e.g., Excel exports).
+   * Returns both the data and the filename from Content-Disposition header.
+   */
+  async download(
+    endpoint: string,
+  ): Promise<{ data: ArrayBuffer; filename: string | null }> {
+    const response = await axiosInstance.get<ArrayBuffer>(endpoint, {
+      responseType: 'arraybuffer',
+    });
+
+    // Extract filename from Content-Disposition header if present
+    const contentDisposition = response.headers['content-disposition'] as
+      | string
+      | undefined;
+    let filename: string | null = null;
+    if (contentDisposition) {
+      // Try to extract filename from: attachment; filename="option-prices-2024-01-01.xlsx"
+      const filenameMatch = contentDisposition.match(
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
+      );
+      if (filenameMatch?.[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    return { data: response.data, filename };
+  }
+
+  /**
    * Health check endpoint.
    */
   async healthCheck(): Promise<{ status: string }> {

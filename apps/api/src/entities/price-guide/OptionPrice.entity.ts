@@ -46,7 +46,7 @@ export class OptionPrice {
 
   /** Future pricing support - null means current/default price */
   @Property({ type: 'Date', nullable: true })
-  effectiveDate?: Date;
+  effectiveDate: Date | null = null;
 
   /** Optimistic locking version - incremented on each update */
   @Property({ type: 'integer', version: true })
