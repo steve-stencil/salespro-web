@@ -12,6 +12,18 @@ import { officeServices } from './services';
 
 import type { MigrationSession } from './types';
 
+// Re-export price guide hooks from the hooks folder
+export {
+  useSourceConnection,
+  usePriceGuideSourceCounts,
+  usePriceGuideSourceItems,
+  useOfficeMappings,
+  usePriceGuideImportedStatus,
+  usePriceGuideSession,
+  useCreatePriceGuideSession,
+  usePriceGuideImport,
+} from './hooks/usePriceGuideImport';
+
 /**
  * Hook to get source office count.
  */
