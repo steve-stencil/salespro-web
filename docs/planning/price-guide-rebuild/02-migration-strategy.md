@@ -685,3 +685,4 @@ HAVING COUNT(pb.id) = 0;
 - [Data Model](./01-data-model.md) - Entity specifications
 - [API Specifications](./03-api-specifications.md) - Migration wizard routes
 - [Testing Strategy](./05-testing-strategy.md) - Migration test coverage
+

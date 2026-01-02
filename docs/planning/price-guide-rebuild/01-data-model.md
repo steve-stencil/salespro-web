@@ -650,3 +650,4 @@ const results = await em
 - [Migration Strategy](./02-migration-strategy.md) - How legacy data maps to these entities
 - [API Specifications](./03-api-specifications.md) - Routes for CRUD operations
 - [Design Decisions](./07-design-decisions.md) - Rationale for key choices
+

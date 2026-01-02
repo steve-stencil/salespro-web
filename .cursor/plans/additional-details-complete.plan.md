@@ -42,25 +42,41 @@ This plan completes the Additional Detail Fields feature for the price guide lib
 ## Input Types Reference
 
 | Input Type     | Value            | Config Fields             |
+
 | -------------- | ---------------- | ------------------------- |
+
 | Text           | `text`           | -                         |
+
 | Text Area      | `textarea`       | -                         |
+
 | Number         | `number`         | `allowDecimal`            |
+
 | Currency       | `currency`       | `allowDecimal`            |
+
 | Picker         | `picker`         | `pickerValues[]`          |
+
 | Size Picker    | `size_picker`    | `sizePickerConfig`        |
+
 | Size Picker 3D | `size_picker_3d` | `sizePickerConfig`        |
+
 | Date           | `date`           | `dateDisplayFormat`       |
+
 | Time           | `time`           | `dateDisplayFormat`       |
+
 | DateTime       | `datetime`       | `dateDisplayFormat`       |
+
 | United Inch    | `united_inch`    | `unitedInchConfig.suffix` |
 
 ## Phase Summary
 
 | Phase | Focus                          | Status      |
+
 | ----- | ------------------------------ | ----------- |
+
 | 1     | Backend - UpCharge linking API | ✅ Complete |
+
 | 2     | Frontend - Enhanced dialogs    | ✅ Complete |
+
 | 3     | Quality Assurance              | ✅ Complete |
 
 ## Phase 1: Backend - UpCharge Linking API
@@ -84,9 +100,7 @@ Add to `INPUT_TYPE_OPTIONS` in `LibraryPage.tsx`:
 
 ### Type-Specific Configuration
 
-For each input type, add configuration fields:
-
-**Picker:**
+For each input type, add configuration fields:**Picker:**
 
 - `pickerValues` - Array of picker options (text input to add/remove values)
 
@@ -115,4 +129,3 @@ Add to all dialogs:
 - `placeholder` - Input placeholder text
 - `note` - Helper text for the field
 - `defaultValue` - Default value
-- `notAddedReplacement` - Text shown when value is empty

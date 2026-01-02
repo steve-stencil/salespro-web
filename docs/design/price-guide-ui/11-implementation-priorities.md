@@ -352,3 +352,4 @@ For UI/UX questions, refer back to the persona (Maya Chen) mindset:
 - Are we warning users about impact?
 - Is this pattern consistent with similar features?
 - Will this scale to 500+ items?
+

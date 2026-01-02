@@ -607,3 +607,4 @@ pnpm --filter web e2e --ui
 - [ ] Tests pass individually and together
 - [ ] Linting passes on all test files
 - [ ] Coverage meets 80% minimum threshold
+

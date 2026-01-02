@@ -388,3 +388,4 @@ If data integrity issues are detected:
 ## Next Steps
 
 Continue to [Bulk Operations](./09-bulk-operations.md) for mass edit and mass price change interfaces.
+

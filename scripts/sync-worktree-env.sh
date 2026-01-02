@@ -82,3 +82,4 @@ for worktree_path in "$WORKTREES_DIR/$REPO_NAME"/*/; do
 done
 
 echo -e "${GREEN}✅ Done! All worktrees synced.${NC}"
+

@@ -129,3 +129,4 @@ For existing data:
 
 - [Shopify Product Variants](https://help.shopify.com/en/manual/products/variants) - Industry example of "minimum one variant" pattern
 - Internal discussion: Price Guide simplification (2024-12-29)
+

@@ -14,4 +14,5 @@ export type {
   LinkedOffice as LinkPickerLinkedOffice,
   LinkedOption as LinkPickerLinkedOption,
   LinkedUpcharge as LinkPickerLinkedUpcharge,
+  LinkedDetail as LinkPickerLinkedDetail,
 } from './LinkPickerDialog';

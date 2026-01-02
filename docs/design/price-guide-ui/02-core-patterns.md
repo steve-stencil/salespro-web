@@ -562,3 +562,4 @@ src/components/price-guide/
 ## Next Steps
 
 Continue to [Catalog Page](./03-catalog-page.md) for the main MSI browsing interface.
+

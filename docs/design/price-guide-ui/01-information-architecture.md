@@ -431,3 +431,4 @@ Each list page has contextual filters:
 ## Next Steps
 
 Continue to [Core Patterns](./02-core-patterns.md) for reusable UI components.
+

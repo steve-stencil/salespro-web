@@ -127,3 +127,4 @@ describe('TagChip', () => {
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 });
+

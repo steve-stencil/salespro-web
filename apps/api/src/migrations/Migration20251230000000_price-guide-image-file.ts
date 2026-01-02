@@ -105,3 +105,4 @@ export class Migration20251230000000 extends Migration {
     );
   }
 }
+

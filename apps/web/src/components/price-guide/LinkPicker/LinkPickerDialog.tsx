@@ -1,6 +1,6 @@
 /**
  * LinkPickerDialog - Dialog wrapper for LinkableItemPicker.
- * Provides a consistent UI for linking Offices, Options, and UpCharges to MSIs.
+ * Provides a consistent UI for linking Offices, Options, UpCharges, and Additional Details to MSIs.
  */
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -22,16 +22,28 @@ import { useCallback, useMemo, useState, useEffect } from 'react';
 
 import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import { useOfficesList } from '../../../hooks/useOffices';
-import { useOptionList, useUpchargeList } from '../../../hooks/usePriceGuide';
+import {
+  useOptionList,
+  useUpchargeList,
+  useAdditionalDetailList,
+} from '../../../hooks/usePriceGuide';
 import { LinkableItemPicker } from '../../../pages/price-guide/sections/LinkableItemPicker';
 
-import type { OptionSummary, UpChargeSummary } from '@shared/types';
+import type {
+  OptionSummary,
+  UpChargeSummary,
+  AdditionalDetailFieldSummary,
+} from '@shared/types';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type LinkPickerDialogType = 'office' | 'option' | 'upcharge';
+export type LinkPickerDialogType =
+  | 'office'
+  | 'option'
+  | 'upcharge'
+  | 'additionalDetail';
 
 export type LinkedOffice = {
   id: string;
@@ -50,6 +62,12 @@ export type LinkedUpcharge = {
   disabledOptionIds: string[];
 };
 
+export type LinkedDetail = {
+  id: string;
+  title: string;
+  inputType: string;
+};
+
 export type LinkPickerDialogProps = {
   /** Whether the dialog is open */
   open: boolean;
@@ -61,6 +79,8 @@ export type LinkPickerDialogProps = {
   linkedOptions?: LinkedOption[];
   /** Currently linked upcharges (when itemType is 'upcharge') */
   linkedUpcharges?: LinkedUpcharge[];
+  /** Currently linked additional details (when itemType is 'additionalDetail') */
+  linkedAdditionalDetails?: LinkedDetail[];
   /** All options linked to the MSI (for disabled options dropdown in upcharge mode) */
   msiOptions?: Array<{ id: string; name: string; brand: string | null }>;
   /** Callback when an item is linked */
@@ -118,6 +138,15 @@ const itemTypeConfig: Record<
     searchPlaceholder: 'Search upcharges...',
     emptyAvailableMessage: 'No matching upcharges found',
     emptyLinkedMessage: 'No upcharges linked yet.',
+    enableTagFilter: true,
+  },
+  additionalDetail: {
+    title: 'Link Additional Details',
+    availableLabel: 'Available Details',
+    linkedLabel: 'Linked Details',
+    searchPlaceholder: 'Search additional details...',
+    emptyAvailableMessage: 'No matching details found',
+    emptyLinkedMessage: 'No additional details linked yet.',
     enableTagFilter: true,
   },
 };
@@ -235,7 +264,7 @@ function UpChargeCard({
 // ============================================================================
 
 /**
- * Dialog for linking Offices, Options, or UpCharges to an MSI.
+ * Dialog for linking Offices, Options, UpCharges, or Additional Details to an MSI.
  * Uses the LinkableItemPicker component for consistent UI.
  */
 export function LinkPickerDialog({
@@ -244,6 +273,7 @@ export function LinkPickerDialog({
   linkedOffices = [],
   linkedOptions = [],
   linkedUpcharges = [],
+  linkedAdditionalDetails = [],
   msiOptions = [],
   onLink,
   onUnlink,
@@ -297,75 +327,145 @@ export function LinkPickerDialog({
     limit: 20,
   });
 
+  // Fetch additional details (only when itemType is 'additionalDetail')
+  const {
+    data: detailsData,
+    isLoading: isLoadingDetails,
+    isFetchingNextPage: isFetchingMoreDetails,
+    hasNextPage: hasMoreDetails,
+    fetchNextPage: fetchMoreDetails,
+    error: detailsError,
+  } = useAdditionalDetailList({
+    search: debouncedSearch || undefined,
+    tags: tagFilter.length > 0 ? tagFilter : undefined,
+    limit: 20,
+  });
+
   // Select the appropriate data based on itemType
-  const isLoading =
-    itemType === 'office'
-      ? isLoadingOffices
-      : itemType === 'option'
-        ? isLoadingOptions
-        : isLoadingUpcharges;
+  const isLoading = (() => {
+    switch (itemType) {
+      case 'office':
+        return isLoadingOffices;
+      case 'option':
+        return isLoadingOptions;
+      case 'upcharge':
+        return isLoadingUpcharges;
+      case 'additionalDetail':
+        return isLoadingDetails;
+    }
+  })();
 
-  const isFetchingNextPage =
-    itemType === 'office'
-      ? false
-      : itemType === 'option'
-        ? isFetchingMoreOptions
-        : isFetchingMoreUpcharges;
+  const isFetchingNextPage = (() => {
+    switch (itemType) {
+      case 'office':
+        return false;
+      case 'option':
+        return isFetchingMoreOptions;
+      case 'upcharge':
+        return isFetchingMoreUpcharges;
+      case 'additionalDetail':
+        return isFetchingMoreDetails;
+    }
+  })();
 
-  const hasNextPage =
-    itemType === 'office'
-      ? false
-      : itemType === 'option'
-        ? hasMoreOptions
-        : hasMoreUpcharges;
+  const hasNextPage = (() => {
+    switch (itemType) {
+      case 'office':
+        return false;
+      case 'option':
+        return hasMoreOptions;
+      case 'upcharge':
+        return hasMoreUpcharges;
+      case 'additionalDetail':
+        return hasMoreDetails;
+    }
+  })();
 
-  const fetchNextPage =
-    itemType === 'office'
-      ? () => {}
-      : itemType === 'option'
-        ? fetchMoreOptions
-        : fetchMoreUpcharges;
+  const fetchNextPage = (() => {
+    switch (itemType) {
+      case 'office':
+        return () => {};
+      case 'option':
+        return fetchMoreOptions;
+      case 'upcharge':
+        return fetchMoreUpcharges;
+      case 'additionalDetail':
+        return fetchMoreDetails;
+    }
+  })();
 
-  const error =
-    itemType === 'office'
-      ? null
-      : itemType === 'option'
-        ? optionsError
-        : upchargesError;
+  const error = (() => {
+    switch (itemType) {
+      case 'office':
+        return null;
+      case 'option':
+        return optionsError;
+      case 'upcharge':
+        return upchargesError;
+      case 'additionalDetail':
+        return detailsError;
+    }
+  })();
 
   // Get all items and filter by search for offices (client-side filtering)
   const allItems = useMemo(() => {
-    if (itemType === 'office') {
-      if (!officesData?.offices) return [] as OfficeItem[];
-      const offices = officesData.offices.map(o => ({
-        id: o.id,
-        name: o.name,
-      }));
-      // Client-side search filtering for offices
-      if (debouncedSearch) {
-        const searchLower = debouncedSearch.toLowerCase();
-        return offices.filter(o => o.name.toLowerCase().includes(searchLower));
+    switch (itemType) {
+      case 'office': {
+        if (!officesData?.offices) return [] as OfficeItem[];
+        const offices = officesData.offices.map(o => ({
+          id: o.id,
+          name: o.name,
+        }));
+        // Client-side search filtering for offices
+        if (debouncedSearch) {
+          const searchLower = debouncedSearch.toLowerCase();
+          return offices.filter(o =>
+            o.name.toLowerCase().includes(searchLower),
+          );
+        }
+        return offices;
       }
-      return offices;
-    } else if (itemType === 'option') {
-      if (!optionsData?.pages) return [] as OptionSummary[];
-      return optionsData.pages.flatMap(page => page.items);
-    } else {
-      if (!upchargesData?.pages) return [] as UpChargeSummary[];
-      return upchargesData.pages.flatMap(page => page.items);
+      case 'option': {
+        if (!optionsData?.pages) return [] as OptionSummary[];
+        return optionsData.pages.flatMap(page => page.items);
+      }
+      case 'upcharge': {
+        if (!upchargesData?.pages) return [] as UpChargeSummary[];
+        return upchargesData.pages.flatMap(page => page.items);
+      }
+      case 'additionalDetail': {
+        if (!detailsData?.pages) return [] as AdditionalDetailFieldSummary[];
+        return detailsData.pages.flatMap(page => page.items);
+      }
     }
-  }, [itemType, officesData, optionsData, upchargesData, debouncedSearch]);
+  }, [
+    itemType,
+    officesData,
+    optionsData,
+    upchargesData,
+    detailsData,
+    debouncedSearch,
+  ]);
 
   // Get linked items based on itemType
   const linkedItems = useMemo(() => {
-    if (itemType === 'office') {
-      return linkedOffices;
-    } else if (itemType === 'option') {
-      return linkedOptions;
-    } else {
-      return linkedUpcharges;
+    switch (itemType) {
+      case 'office':
+        return linkedOffices;
+      case 'option':
+        return linkedOptions;
+      case 'upcharge':
+        return linkedUpcharges;
+      case 'additionalDetail':
+        return linkedAdditionalDetails;
     }
-  }, [itemType, linkedOffices, linkedOptions, linkedUpcharges]);
+  }, [
+    itemType,
+    linkedOffices,
+    linkedOptions,
+    linkedUpcharges,
+    linkedAdditionalDetails,
+  ]);
 
   // Handlers for search and tag filter changes
   const handleSearchChange = useCallback((searchValue: string) => {
@@ -378,7 +478,13 @@ export function LinkPickerDialog({
 
   // Link/unlink handlers
   const handleLinkItem = useCallback(
-    (item: OfficeItem | OptionSummary | UpChargeSummary) => {
+    (
+      item:
+        | OfficeItem
+        | OptionSummary
+        | UpChargeSummary
+        | AdditionalDetailFieldSummary,
+    ) => {
       onLink(item.id);
     },
     [onLink],
@@ -433,8 +539,8 @@ export function LinkPickerDialog({
       return (
         <LinkableItemPicker<OfficeItem, LinkedOffice>
           // Data
-          availableItems={allItems}
-          linkedItems={linkedItems}
+          availableItems={allItems as OfficeItem[]}
+          linkedItems={linkedItems as LinkedOffice[]}
           // Callbacks
           onLinkItem={handleLinkItem}
           onUnlinkItem={handleUnlinkItem}
@@ -501,7 +607,7 @@ export function LinkPickerDialog({
           fetchNextPage={() => void fetchNextPage()}
         />
       );
-    } else {
+    } else if (itemType === 'upcharge') {
       return (
         <LinkableItemPicker<UpChargeSummary, LinkedUpcharge>
           // Data
@@ -520,6 +626,45 @@ export function LinkPickerDialog({
           getLinkedItemSecondary={() => undefined}
           // Custom render for linked upcharges
           renderLinkedItem={renderLinkedUpcharge}
+          // Labels
+          searchPlaceholder={config.searchPlaceholder}
+          availableLabel={config.availableLabel}
+          linkedLabel={config.linkedLabel}
+          emptyAvailableMessage={config.emptyAvailableMessage}
+          emptyLinkedMessage={config.emptyLinkedMessage}
+          // Configuration
+          enableTagFilter={config.enableTagFilter}
+          maxHeight={350}
+          minHeight={250}
+          // Loading states
+          isLoading={isLoading}
+          isLinking={isLinking}
+          isUnlinking={isUnlinking}
+          error={!!error}
+          // Infinite scroll
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          fetchNextPage={() => void fetchNextPage()}
+        />
+      );
+    } else {
+      // additionalDetail
+      return (
+        <LinkableItemPicker<AdditionalDetailFieldSummary, LinkedDetail>
+          // Data
+          availableItems={allItems as AdditionalDetailFieldSummary[]}
+          linkedItems={linkedItems as LinkedDetail[]}
+          // Callbacks
+          onLinkItem={handleLinkItem}
+          onUnlinkItem={handleUnlinkItem}
+          onSearchChange={handleSearchChange}
+          onTagFilterChange={handleTagFilterChange}
+          // Display - Available items
+          getAvailableItemPrimary={item => item.title}
+          getAvailableItemSecondary={item => `Type: ${item.inputType}`}
+          // Display - Linked items
+          getLinkedItemPrimary={item => item.title}
+          getLinkedItemSecondary={item => `Type: ${item.inputType}`}
           // Labels
           searchPlaceholder={config.searchPlaceholder}
           availableLabel={config.availableLabel}

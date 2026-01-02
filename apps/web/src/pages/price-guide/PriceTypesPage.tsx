@@ -789,3 +789,4 @@ export function PriceTypesPage(): React.ReactElement {
     </Box>
   );
 }
+

@@ -31,7 +31,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import { TagChip } from '../../components/price-guide';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
@@ -73,20 +73,91 @@ type ColorPickerProps = {
   onChange: (color: string) => void;
 };
 
+/**
+ * Validates and normalizes a hex color string.
+ * Returns the normalized color or null if invalid.
+ */
+function normalizeHexColor(input: string): string | null {
+  const trimmed = input.trim();
+  // Add # if missing
+  const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+  // Valid hex patterns: #RGB, #RRGGBB
+  const hexPattern = /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/;
+  if (!hexPattern.test(withHash)) return null;
+  return withHash.toUpperCase();
+}
+
+/**
+ * Checks if the color is a preset color.
+ */
+function isPresetColor(color: string): boolean {
+  return TAG_COLORS.some(
+    preset => preset.value.toUpperCase() === color.toUpperCase(),
+  );
+}
+
 function ColorPicker({
   value,
   onChange,
 }: ColorPickerProps): React.ReactElement {
+  const [customHexInput, setCustomHexInput] = useState(value);
+  const [hexError, setHexError] = useState<string | null>(null);
+
+  const isCustomSelected = !isPresetColor(value);
+
+  // Sync input when value changes externally (e.g., when editing an existing tag)
+  useEffect(() => {
+    setCustomHexInput(value);
+  }, [value]);
+
+  /**
+   * Handles selecting a preset color.
+   */
+  const handlePresetSelect = (presetColor: string) => {
+    onChange(presetColor);
+    setHexError(null);
+  };
+
+  /**
+   * Handles changes from the native color picker input.
+   */
+  const handleNativeColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newColor = e.target.value.toUpperCase();
+    setCustomHexInput(newColor);
+    onChange(newColor);
+    setHexError(null);
+  };
+
+  /**
+   * Handles manual hex input changes.
+   */
+  const handleHexInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    setCustomHexInput(inputValue);
+
+    const normalized = normalizeHexColor(inputValue);
+    if (normalized) {
+      onChange(normalized);
+      setHexError(null);
+    } else if (inputValue.length > 0) {
+      setHexError('Invalid hex color');
+    } else {
+      setHexError(null);
+    }
+  };
+
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Color
       </Typography>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+
+      {/* Preset Colors */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
         {TAG_COLORS.map(color => (
           <Tooltip key={color.value} title={color.label}>
             <Box
-              onClick={() => onChange(color.value)}
+              onClick={() => handlePresetSelect(color.value)}
               sx={{
                 width: 32,
                 height: 32,
@@ -95,7 +166,9 @@ function ColorPicker({
                 cursor: 'pointer',
                 border: 3,
                 borderColor:
-                  value === color.value ? 'primary.main' : 'transparent',
+                  value.toUpperCase() === color.value.toUpperCase()
+                    ? 'primary.main'
+                    : 'transparent',
                 transition: 'border-color 0.2s, transform 0.2s',
                 '&:hover': {
                   transform: 'scale(1.1)',
@@ -104,6 +177,93 @@ function ColorPicker({
             />
           </Tooltip>
         ))}
+      </Box>
+
+      {/* Custom Color Section */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          p: 1.5,
+          borderRadius: 1,
+          bgcolor: isCustomSelected ? 'action.selected' : 'action.hover',
+          border: 1,
+          borderColor: isCustomSelected ? 'primary.main' : 'divider',
+          transition: 'all 0.2s',
+        }}
+      >
+        {/* Native Color Picker */}
+        <Tooltip title="Pick custom color">
+          <Box
+            component="label"
+            sx={{
+              position: 'relative',
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              cursor: 'pointer',
+              overflow: 'hidden',
+              border: 2,
+              borderColor: 'divider',
+              '&:hover': {
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: value,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <EditIcon
+                sx={{
+                  fontSize: 16,
+                  color: 'white',
+                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+                }}
+              />
+            </Box>
+            <input
+              type="color"
+              value={value}
+              onChange={handleNativeColorChange}
+              style={{
+                position: 'absolute',
+                opacity: 0,
+                width: '100%',
+                height: '100%',
+                cursor: 'pointer',
+                top: 0,
+                left: 0,
+              }}
+            />
+          </Box>
+        </Tooltip>
+
+        {/* Hex Input */}
+        <TextField
+          size="small"
+          label="Hex Color"
+          value={customHexInput}
+          onChange={handleHexInputChange}
+          error={!!hexError}
+          helperText={hexError}
+          placeholder="#FF5500"
+          sx={{ width: 140 }}
+          InputProps={{
+            sx: { fontFamily: 'monospace' },
+          }}
+        />
+
+        <Typography variant="caption" color="text.secondary">
+          Custom
+        </Typography>
       </Box>
     </Box>
   );

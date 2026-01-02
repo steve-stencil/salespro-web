@@ -17,3 +17,4 @@ export type ColorModeContextType = {
 export const ColorModeContext = createContext<ColorModeContextType | undefined>(
   undefined,
 );
+

@@ -59,3 +59,4 @@ export class Tag {
   @OneToMany('ItemTag', 'tag')
   itemTags = new Collection<ItemTag>(this);
 }
+
