@@ -133,14 +133,14 @@ export function getCategoryPath(
 }
 
 /**
- * Count total MSIs in a category tree (including children)
+ * Count total MSIs in a category tree (including children).
+ * Note: If using CategoryTreeNode from the API, you can simply use node.msiCount
+ * which already includes the cascading total.
  */
 export function countMsisInCategory(node: CategoryTreeNode): number {
-  let count = node.msiCount;
-  for (const child of node.children) {
-    count += countMsisInCategory(child);
-  }
-  return count;
+  // msiCount from the API already includes cascading counts,
+  // so we can return it directly
+  return node.msiCount;
 }
 
 /**
@@ -250,20 +250,22 @@ export function createSearchDebouncer(
 // ============================================================================
 
 /**
- * Encode cursor for pagination
+ * Encode cursor for pagination.
+ * Uses btoa for browser/Node compatibility.
  */
 export function encodeCursor(sortOrder: number, id: string): string {
-  return Buffer.from(`${sortOrder}:${id}`).toString('base64');
+  return btoa(`${sortOrder}:${id}`);
 }
 
 /**
- * Decode cursor from pagination
+ * Decode cursor from pagination.
+ * Uses atob for browser/Node compatibility.
  */
 export function decodeCursor(
   cursor: string,
 ): { sortOrder: number; id: string } | null {
   try {
-    const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
+    const decoded = atob(cursor);
     const parts = decoded.split(':');
     if (parts.length < 2) return null;
     const sortOrderStr = parts[0];

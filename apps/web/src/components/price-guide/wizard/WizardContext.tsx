@@ -1,6 +1,6 @@
 /**
  * Shared Wizard Context.
- * Used by both CreateWizard and EditWizard.
+ * Used by CreateWizard and MsiEditPage.
  */
 
 import { createContext, useContext } from 'react';
@@ -30,6 +30,29 @@ export type LinkedAdditionalDetail = {
 /** Pricing data: officeId -> priceTypeId -> amount */
 export type MsiPricingData = Record<string, Record<string, number>>;
 
+/** Existing uploaded image (has ID and server URLs) */
+export type ExistingImage = {
+  type: 'existing';
+  /** File ID for the uploaded image */
+  id: string;
+  /** Presigned URL for full-size image */
+  url: string;
+  /** Presigned URL for thumbnail */
+  thumbnailUrl: string | null;
+};
+
+/** Pending image file (not yet uploaded, local preview only) */
+export type PendingImage = {
+  type: 'pending';
+  /** The file to be uploaded */
+  file: File;
+  /** Local preview URL created via URL.createObjectURL() */
+  previewUrl: string;
+};
+
+/** Image data for MSI thumbnail - either existing or pending */
+export type MsiImage = ExistingImage | PendingImage;
+
 export type WizardState = {
   // Step 1: Basic Info
   name: string;
@@ -43,6 +66,8 @@ export type WizardState = {
   tagRequired: boolean;
   tagPickerOptions: string[];
   officeIds: string[];
+  /** Product thumbnail image */
+  image: MsiImage | null;
 
   // Step 2: Options
   options: LinkedOption[];
@@ -68,6 +93,10 @@ export type WizardAction =
       type: 'SET_CATEGORY';
       payload: { categoryId: string; categoryName: string };
     }
+  | { type: 'SET_IMAGE'; payload: MsiImage }
+  | { type: 'REMOVE_IMAGE' }
+  | { type: 'ADD_OFFICE'; payload: string }
+  | { type: 'REMOVE_OFFICE'; payload: string }
   | { type: 'ADD_OPTION'; payload: LinkedOption }
   | { type: 'REMOVE_OPTION'; payload: string }
   | { type: 'ADD_UPCHARGE'; payload: LinkedUpCharge }
@@ -100,6 +129,7 @@ export const initialWizardState: WizardState = {
   tagRequired: false,
   tagPickerOptions: [],
   officeIds: [],
+  image: null,
   options: [],
   upcharges: [],
   additionalDetails: [],
@@ -125,6 +155,10 @@ export function wizardReducer(
         categoryId: action.payload.categoryId,
         categoryName: action.payload.categoryName,
       };
+    case 'SET_IMAGE':
+      return { ...state, image: action.payload };
+    case 'REMOVE_IMAGE':
+      return { ...state, image: null };
     case 'ADD_OPTION':
       if (state.options.some(o => o.id === action.payload.id)) {
         return state;
@@ -205,6 +239,8 @@ export type WizardContextType = {
   dispatch: React.Dispatch<WizardAction>;
   setBasicInfo: (info: Partial<WizardState>) => void;
   setCategory: (categoryId: string, categoryName: string) => void;
+  setImage: (image: MsiImage) => void;
+  removeImage: () => void;
   addOption: (option: LinkedOption) => void;
   removeOption: (optionId: string) => void;
   addUpcharge: (upcharge: LinkedUpCharge) => void;
@@ -222,7 +258,7 @@ export const WizardContext = createContext<WizardContextType | null>(null);
 
 /**
  * Hook to access wizard context.
- * Must be used within a wizard provider (CreateWizard or EditWizard).
+ * Must be used within a wizard provider (CreateWizard).
  */
 export function useWizard(): WizardContextType {
   const context = useContext(WizardContext);

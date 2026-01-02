@@ -30,7 +30,6 @@ import { RequirePermission } from '../components/PermissionGuard';
 import { RoleCard } from '../components/roles/RoleCard';
 import { RoleDetailDialog } from '../components/roles/RoleDetailDialog';
 import { RoleEditDialog } from '../components/roles/RoleEditDialog';
-import { useAuth } from '../hooks/useAuth';
 import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
 import { useRolesList, useDeleteRole } from '../hooks/useRoles';
 import { handleApiError } from '../lib/api-client';
@@ -38,8 +37,8 @@ import { handleApiError } from '../lib/api-client';
 import type { Role, CreateRoleRequest } from '../types/users';
 import type { SelectChangeEvent } from '@mui/material/Select';
 
-/** Filter options for role type */
-type RoleTypeFilter = 'all' | 'system' | 'company' | 'platform';
+/** Filter options for role type (excludes platform - those are in Platform Roles page) */
+type RoleTypeFilter = 'all' | 'system' | 'company';
 
 /** Sort options for roles */
 type RoleSortOption = 'name-asc' | 'name-desc' | 'created-desc' | 'permissions';
@@ -88,25 +87,17 @@ export function RolesPage(): React.ReactElement {
   const { data: rolesData, isLoading, refetch } = useRolesList();
   const deleteRoleMutation = useDeleteRole();
   const { hasPermission } = useUserPermissions();
-  const { user } = useAuth();
 
   // Permission flags for UI rendering
   const canCreateRole = hasPermission(PERMISSIONS.ROLE_CREATE);
   const canUpdateRole = hasPermission(PERMISSIONS.ROLE_UPDATE);
   const canDeleteRole = hasPermission(PERMISSIONS.ROLE_DELETE);
-  // Use user type instead of permission check - only internal users can view platform roles
-  const canViewPlatformRoles = user?.userType === 'internal';
 
-  // Filter and sort roles
+  // Filter and sort roles (platform roles are excluded - those are in Platform Roles page)
   const filteredRoles = useMemo(() => {
     if (!rolesData?.roles) return [];
 
     let roles = [...rolesData.roles];
-
-    // Filter out platform roles for non-platform admins
-    if (!canViewPlatformRoles) {
-      roles = roles.filter(role => role.type !== 'platform');
-    }
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -124,16 +115,8 @@ export function RolesPage(): React.ReactElement {
       roles = roles.filter(role => role.type === typeFilter);
     }
 
-    // Apply sorting (platform roles always last)
+    // Apply sorting
     roles.sort((a, b) => {
-      // Platform roles go to the end
-      const aIsPlatform = a.type === 'platform' ? 1 : 0;
-      const bIsPlatform = b.type === 'platform' ? 1 : 0;
-      if (aIsPlatform !== bIsPlatform) {
-        return aIsPlatform - bIsPlatform;
-      }
-
-      // Secondary sort by selected option
       switch (sortOption) {
         case 'name-asc':
           return a.displayName.localeCompare(b.displayName);
@@ -151,13 +134,7 @@ export function RolesPage(): React.ReactElement {
     });
 
     return roles;
-  }, [
-    rolesData?.roles,
-    searchQuery,
-    typeFilter,
-    sortOption,
-    canViewPlatformRoles,
-  ]);
+  }, [rolesData?.roles, searchQuery, typeFilter, sortOption]);
 
   /**
    * Clear all filters.
@@ -332,9 +309,6 @@ export function RolesPage(): React.ReactElement {
             <MenuItem value="all">All Types</MenuItem>
             <MenuItem value="company">Custom Only</MenuItem>
             <MenuItem value="system">System Only</MenuItem>
-            {canViewPlatformRoles && (
-              <MenuItem value="platform">Platform Only</MenuItem>
-            )}
           </Select>
         </FormControl>
 

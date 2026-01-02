@@ -13,6 +13,7 @@ import { v4 as uuid } from 'uuid';
 import type { Company } from '../Company.entity';
 import type { User } from '../User.entity';
 import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
+import type { PriceGuideImage } from './PriceGuideImage.entity';
 import type { UpChargeAdditionalDetailField } from './UpChargeAdditionalDetailField.entity';
 import type { UpChargeDisabledOption } from './UpChargeDisabledOption.entity';
 import type { UpChargePrice } from './UpChargePrice.entity';
@@ -50,10 +51,6 @@ export class UpCharge {
   /** Namespace identifier for placeholders (future use) */
   @Property({ type: 'string', nullable: true })
   identifier?: string;
-
-  /** Product thumbnail URL */
-  @Property({ type: 'string', nullable: true })
-  imageUrl?: string;
 
   /**
    * Denormalized count of linked MSIs.
@@ -100,4 +97,9 @@ export class UpCharge {
   /** Price breakdowns (default and option-specific overrides) */
   @OneToMany('UpChargePrice', 'upCharge')
   prices = new Collection<UpChargePrice>(this);
+
+  /** Thumbnail image from shared image library */
+  @ManyToOne('PriceGuideImage', { nullable: true })
+  @Index()
+  thumbnailImage?: PriceGuideImage;
 }

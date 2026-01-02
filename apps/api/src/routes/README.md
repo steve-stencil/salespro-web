@@ -214,6 +214,74 @@ Office-level settings and integrations:
 | POST   | `/internal-users/:id/companies`            | Add company restriction          |
 | DELETE | `/internal-users/:id/companies/:companyId` | Remove company restriction       |
 
+### Tags (`/api/price-guide/tags`)
+
+Tag management for organizing price guide items (Options, UpCharges, Additional Details).
+
+| Method | Endpoint                                  | Description                          |
+| ------ | ----------------------------------------- | ------------------------------------ |
+| GET    | `/price-guide/tags`                       | List all tags (with optional search) |
+| GET    | `/price-guide/tags/:id`                   | Get tag details                      |
+| POST   | `/price-guide/tags`                       | Create a new tag                     |
+| PUT    | `/price-guide/tags/:id`                   | Update a tag (name, color)           |
+| DELETE | `/price-guide/tags/:id`                   | Soft delete a tag                    |
+| GET    | `/price-guide/tags/items/:entityType/:id` | Get tags for a specific item         |
+| PUT    | `/price-guide/tags/items/:entityType/:id` | Set tags for an item (replaces all)  |
+
+**Entity Types:** `OPTION`, `UPCHARGE`, `ADDITIONAL_DETAIL`
+
+**Example - Set tags for an option:**
+
+```bash
+PUT /api/price-guide/tags/items/OPTION/550e8400-e29b-41d4-a716-446655440000
+{
+  "tagIds": ["tag-uuid-1", "tag-uuid-2"]
+}
+```
+
+**Tag Filtering:** Library routes (`/price-guide/library/options`, `/upcharges`, `/additional-details`, `/images`) accept a `tags` query parameter for filtering:
+
+```bash
+GET /api/price-guide/library/options?tags=tag-uuid-1,tag-uuid-2
+```
+
+### Price Guide Images (`/api/price-guide/library/images`)
+
+Image library for price guide items (MSIs and UpCharges).
+
+| Method | Endpoint                                     | Description                         |
+| ------ | -------------------------------------------- | ----------------------------------- |
+| GET    | `/price-guide/library/images`                | List images (paginated, filtered)   |
+| GET    | `/price-guide/library/images/:id`            | Get image details                   |
+| POST   | `/price-guide/library/images`                | Upload new image                    |
+| PUT    | `/price-guide/library/images/:id`            | Update image metadata               |
+| DELETE | `/price-guide/library/images/:id`            | Delete image (force=true to unlink) |
+| GET    | `/price-guide/library/images/:id/where-used` | Get MSIs/UpCharges using image      |
+
+**Thumbnail Management:**
+
+| Method | Endpoint                                         | Description                  |
+| ------ | ------------------------------------------------ | ---------------------------- |
+| PUT    | `/price-guide/measure-sheet-items/:id/thumbnail` | Set MSI thumbnail image      |
+| PUT    | `/price-guide/library/upcharges/:id/thumbnail`   | Set UpCharge thumbnail image |
+
+**Example - Set MSI thumbnail:**
+
+```bash
+PUT /api/price-guide/measure-sheet-items/:id/thumbnail
+{
+  "imageId": "image-uuid-or-null",
+  "version": 1
+}
+```
+
+**Query Parameters for Image Listing:**
+
+- `search` - Text search in image names
+- `tags` - Comma-separated tag IDs for filtering
+- `cursor` - Pagination cursor
+- `limit` - Page size (default 50, max 100)
+
 ## Patterns
 
 ### Route Handler Structure

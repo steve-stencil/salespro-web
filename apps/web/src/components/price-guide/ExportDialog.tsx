@@ -234,7 +234,7 @@ export function ExportDialog({
           <Box
             sx={{
               p: 2,
-              bgcolor: 'grey.100',
+              bgcolor: 'action.hover',
               borderRadius: 1,
             }}
           >

@@ -14,6 +14,7 @@ import { v4 as uuid } from 'uuid';
 import type { Company } from './Company.entity';
 import type { OfficeIntegration } from './OfficeIntegration.entity';
 import type { OfficeSettings } from './OfficeSettings.entity';
+import type { OfficePriceType } from './price-guide/OfficePriceType.entity';
 
 /**
  * Office entity representing a named grouping within a Company.
@@ -62,4 +63,8 @@ export class Office {
   /** Third-party integrations for this office */
   @OneToMany('OfficeIntegration', 'office')
   integrations = new Collection<OfficeIntegration>(this);
+
+  /** Price types assigned to this office */
+  @OneToMany('OfficePriceType', 'office')
+  priceTypes = new Collection<OfficePriceType>(this);
 }

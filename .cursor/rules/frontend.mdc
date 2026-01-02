@@ -69,6 +69,48 @@ globs:
 - Implement request/response interceptors for auth tokens, error handling, and logging.
 - Cache API responses appropriately with TanStack Query.
 
+# TanStack Query Best Practices
+
+## CRITICAL: Cache Invalidation After Mutations
+
+**When creating or updating mutation hooks, ALWAYS invalidate ALL related query caches in `onSuccess`:**
+
+1. **List queries** - Invalidate to refresh lists showing the updated item
+2. **Detail queries** - Invalidate to refresh any open detail views with fresh data
+3. **Related entity queries** - Invalidate if mutation affects counts or linked data on other entities
+
+### Example Pattern
+
+```typescript
+// ❌ BAD - Only invalidates list, detail view shows stale data
+export function useUpdateItem() {
+  return useMutation({
+    mutationFn: ({ id, data }) => api.updateItem(id, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: keys.lists() });
+    },
+  });
+}
+
+// ✅ GOOD - Invalidates both list AND the specific detail query
+export function useUpdateItem() {
+  return useMutation({
+    mutationFn: ({ id, data }) => api.updateItem(id, data),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: keys.lists() });
+      void queryClient.invalidateQueries({ queryKey: keys.detail(variables.id) });
+    },
+  });
+}
+```
+
+### Checklist for Mutation Hooks
+
+- [ ] Invalidate list queries
+- [ ] Invalidate specific detail query using `variables` from `onSuccess`
+- [ ] Invalidate related entity queries if counts/links are affected
+- [ ] Consider using `queryClient.setQueryData` for optimistic updates
+
 # Performance & Optimization
 
 - Use code splitting with React.lazy() for route-based components.

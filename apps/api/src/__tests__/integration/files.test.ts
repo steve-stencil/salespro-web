@@ -543,6 +543,115 @@ describe('File Routes Integration Tests', () => {
 
       expect(response.status).toBe(404);
     });
+
+    it('should delete file from storage when soft deleting', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+      const { getStorageAdapter } = await import('../../lib/storage');
+      const mockStorage = getStorageAdapter();
+
+      const file = em.create(File, {
+        id: uuid(),
+        filename: 'storage-delete-test.pdf',
+        storageKey: `${testCompany.id}/files/storage-delete-test.pdf`,
+        mimeType: 'application/pdf',
+        size: 1024,
+        visibility: FileVisibility.COMPANY,
+        status: FileStatus.ACTIVE,
+        company: testCompany,
+        uploadedBy: testUser,
+      });
+      await em.persistAndFlush(file);
+
+      const response = await makeRequest()
+        .delete(`/api/files/${file.id}`)
+        .set('Cookie', cookie);
+
+      expect(response.status).toBe(200);
+
+      // Wait a tick for fire-and-forget deletion to be called
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Verify storage.delete was called for the main file
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(mockStorage.delete).toHaveBeenCalledWith(file.storageKey);
+    });
+
+    it('should delete thumbnail from storage when soft deleting an image', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+      const { getStorageAdapter } = await import('../../lib/storage');
+      const mockStorage = getStorageAdapter();
+
+      const thumbnailKey = `${testCompany.id}/thumbnails/image_thumb.jpg`;
+      const file = em.create(File, {
+        id: uuid(),
+        filename: 'image-with-thumbnail.jpg',
+        storageKey: `${testCompany.id}/files/image-with-thumbnail.jpg`,
+        mimeType: 'image/jpeg',
+        size: 1024,
+        visibility: FileVisibility.COMPANY,
+        status: FileStatus.ACTIVE,
+        thumbnailKey,
+        company: testCompany,
+        uploadedBy: testUser,
+      });
+      await em.persistAndFlush(file);
+
+      const response = await makeRequest()
+        .delete(`/api/files/${file.id}`)
+        .set('Cookie', cookie);
+
+      expect(response.status).toBe(200);
+
+      // Wait a tick for fire-and-forget deletion to be called
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Verify storage.delete was called for both main file and thumbnail
+      /* eslint-disable @typescript-eslint/unbound-method */
+      expect(mockStorage.delete).toHaveBeenCalledWith(file.storageKey);
+      expect(mockStorage.delete).toHaveBeenCalledWith(thumbnailKey);
+      /* eslint-enable @typescript-eslint/unbound-method */
+    });
+
+    it('should still soft delete even if storage deletion fails', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+      const { getStorageAdapter } = await import('../../lib/storage');
+      const mockStorage = getStorageAdapter();
+
+      // Make storage.delete reject
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      vi.mocked(mockStorage.delete).mockRejectedValueOnce(
+        new Error('Storage unavailable'),
+      );
+
+      const file = em.create(File, {
+        id: uuid(),
+        filename: 'storage-error-test.pdf',
+        storageKey: `${testCompany.id}/files/storage-error-test.pdf`,
+        mimeType: 'application/pdf',
+        size: 1024,
+        visibility: FileVisibility.COMPANY,
+        status: FileStatus.ACTIVE,
+        company: testCompany,
+        uploadedBy: testUser,
+      });
+      await em.persistAndFlush(file);
+
+      const response = await makeRequest()
+        .delete(`/api/files/${file.id}`)
+        .set('Cookie', cookie);
+
+      // Should still succeed (soft delete happens first)
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('File deleted');
+
+      // Verify file is soft deleted in DB
+      const deletedFile = await em.findOne(File, { id: file.id });
+      expect(deletedFile?.status).toBe(FileStatus.DELETED);
+      expect(deletedFile?.deletedAt).toBeDefined();
+    });
   });
 
   describe('Permission checks', () => {

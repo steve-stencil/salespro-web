@@ -9,6 +9,7 @@ import type { Router as ExpressRouter } from 'express';
 const router: ExpressRouter = Router();
 
 // Option pricing management
+// Note: All MSI pricing flows through options. See ADR-003.
 router.use('/options', optionPricingRoutes);
 
 // Upcharge pricing management (defaults and overrides)

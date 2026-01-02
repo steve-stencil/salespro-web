@@ -221,7 +221,7 @@ export function ImportDialog({
           alignItems: 'center',
           gap: 2,
           p: 2,
-          bgcolor: 'grey.100',
+          bgcolor: 'action.hover',
           borderRadius: 1,
         }}
       >

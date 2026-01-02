@@ -288,7 +288,8 @@ export class FileService {
   }
 
   /**
-   * Soft delete a file.
+   * Soft delete a file and remove it from storage.
+   * Uses fire-and-forget pattern for storage deletion to not block API response.
    */
   async deleteFile(fileId: string, companyId: string): Promise<void> {
     const file = await this.em.findOne(File, {
@@ -304,9 +305,70 @@ export class FileService {
       );
     }
 
+    // Soft delete first (ensures DB is consistent even if storage fails)
     file.status = FileStatus.DELETED;
     file.deletedAt = new Date();
     await this.em.flush();
+
+    // Physical deletion (fire and forget - errors logged but don't fail the request)
+    const storage = getStorageAdapter();
+
+    // Delete main file from storage
+    storage.delete(file.storageKey).catch(err => {
+      console.error(`Failed to delete file from storage: ${file.storageKey}`, {
+        error: err,
+        fileId: file.id,
+      });
+    });
+
+    // Delete thumbnail if exists
+    if (file.thumbnailKey) {
+      storage.delete(file.thumbnailKey).catch(err => {
+        console.error(
+          `Failed to delete thumbnail from storage: ${file.thumbnailKey}`,
+          { error: err, fileId: file.id },
+        );
+      });
+    }
+  }
+
+  /**
+   * Permanently delete a soft-deleted file from storage and database.
+   * Used by cleanup jobs to purge files after retention period.
+   *
+   * @param fileId - File ID to hard delete
+   * @returns true if deleted, false if not found
+   */
+  async hardDeleteFile(fileId: string): Promise<boolean> {
+    const file = await this.em.findOne(File, {
+      id: fileId,
+      status: FileStatus.DELETED,
+    });
+
+    if (!file) {
+      return false;
+    }
+
+    const storage = getStorageAdapter();
+
+    // Delete from storage (continue even if storage fails)
+    try {
+      await storage.delete(file.storageKey);
+      if (file.thumbnailKey) {
+        await storage.delete(file.thumbnailKey);
+      }
+    } catch (err) {
+      console.error(`Hard delete storage error for file ${fileId}:`, {
+        error: err,
+        storageKey: file.storageKey,
+        thumbnailKey: file.thumbnailKey,
+      });
+      // Continue to remove DB record even if storage fails
+    }
+
+    // Remove from database
+    await this.em.removeAndFlush(file);
+    return true;
   }
 
   /** Validate file upload parameters. */

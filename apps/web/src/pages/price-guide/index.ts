@@ -5,11 +5,12 @@
 export { CatalogPage } from './CatalogPage';
 export { CategoryManagementPage } from './CategoryManagementPage';
 export { CreateWizard } from './CreateWizard';
-export { EditWizard } from './EditWizard';
 export { LibraryPage } from './LibraryPage';
 export { MigrationWizardPage } from './MigrationWizardPage';
-export { MsiDetailPage } from './MsiDetailPage';
+export { MsiEditPage } from './MsiEditPage';
 export { PricingPage } from './PricingPage';
+export { TagManagementPage } from './TagManagementPage';
+export { PriceTypesPage } from './PriceTypesPage';
 export { ToolsPage } from './ToolsPage';
 
 // Re-export wizard context hook and types from shared context

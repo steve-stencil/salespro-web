@@ -83,7 +83,7 @@ export function DeleteMsiDialog({
         <Box
           sx={{
             p: 2,
-            bgcolor: 'grey.100',
+            bgcolor: 'action.hover',
             borderRadius: 1,
             mb: 3,
           }}

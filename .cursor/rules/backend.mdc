@@ -16,8 +16,6 @@ globs:
 - Add proper CORS configuration for production environments.
 
 # Database & Entities
-
-- Use MikroORM entities in `apps/api/src/entities/*`. Keep entities focused.
 - Use PostgreSQL as the database with MikroORM as the ORM.
 - Always define proper indexes using `@Index()` decorator for query performance.
 - Use MikroORM's unit of work pattern for transactional operations.

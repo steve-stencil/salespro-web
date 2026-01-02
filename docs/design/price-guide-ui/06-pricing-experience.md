@@ -182,84 +182,207 @@ Dropdown to copy all prices from one office to another:
 
 UpCharge pricing is more complex because it supports:
 
-1. Fixed pricing (like options)
-2. Percentage-based pricing
-3. Option-specific overrides
+1. **Per-price-type mode selection** - Each price type (Materials, Labor, Tax, Other) can independently be Fixed or Percentage
+2. **Percentage-based calculations** - Calculate as a percentage of the parent option's price
+3. **Selectable percentage base** - Choose which parent option price types to include in the percentage calculation
+4. **Option-specific overrides** - Override default pricing for specific options
 
-### Layout with Mode Toggle
+### Layout with Per-Price-Type Configuration
+
+The key insight: **each price type can have its own pricing mode**. This enables powerful mixed configurations like:
+
+- Materials: 10% of parent (Materials + Labor)
+- Labor: Fixed $25
+- Other: Fixed $10
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ UPCHARGE: Low-E Glass                                                       │
+│ UPCHARGE: Installation Kit                                                   │
+│ Required installation materials • Used in 25 MSIs                           │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ DEFAULT PRICING CONFIGURATION                                                │
+│ Configure pricing mode for each price type independently                     │
+│                                                                              │
+│ ┌─ Price Type Configuration ─────────────────────────────────────────────┐  │
+│ │                                                                         │  │
+│ │ MATERIALS                                                               │  │
+│ │ ┌──────────────────────────────────────────────────────────────────┐   │  │
+│ │ │ Mode: [Percentage ▼]                                              │   │  │
+│ │ │                                                                   │   │  │
+│ │ │ Rate: [ 10 ]%  of parent option's:                               │   │  │
+│ │ │       [☑] Materials  [☑] Labor  [☐] Tax  [☐] Other               │   │  │
+│ │ └──────────────────────────────────────────────────────────────────┘   │  │
+│ │                                                                         │  │
+│ │ LABOR                                                                   │  │
+│ │ ┌──────────────────────────────────────────────────────────────────┐   │  │
+│ │ │ Mode: [Fixed ▼]                                                   │   │  │
+│ │ │                                                                   │   │  │
+│ │ │ Amount per office:                                                │   │  │
+│ │ │ Denver: [$25.00  ]  Boulder: [$27.00  ]  Ft Collins: [$24.00  ]  │   │  │
+│ │ │ CO Springs: [$25.00  ]                                            │   │  │
+│ │ │                                         [Fill All Offices: $___] │   │  │
+│ │ └──────────────────────────────────────────────────────────────────┘   │  │
+│ │                                                                         │  │
+│ │ TAX                                                                     │  │
+│ │ ┌──────────────────────────────────────────────────────────────────┐   │  │
+│ │ │ Mode: [Not Used ▼]  (This price type has no value for upcharge)  │   │  │
+│ │ └──────────────────────────────────────────────────────────────────┘   │  │
+│ │                                                                         │  │
+│ │ OTHER                                                                   │  │
+│ │ ┌──────────────────────────────────────────────────────────────────┐   │  │
+│ │ │ Mode: [Fixed ▼]                                                   │   │  │
+│ │ │                                                                   │   │  │
+│ │ │ Amount per office:                                                │   │  │
+│ │ │ Denver: [$10.00  ]  Boulder: [$10.00  ]  Ft Collins: [$10.00  ]  │   │  │
+│ │ │ CO Springs: [$10.00  ]                                            │   │  │
+│ │ │                                         [Fill All Offices: $___] │   │  │
+│ │ └──────────────────────────────────────────────────────────────────┘   │  │
+│ │                                                                         │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ CALCULATED TOTAL PREVIEW                                                     │
+│ Example with Pella Premium @ Denver (M: $200, L: $150, T: $35, O: $0)       │
+│                                                                              │
+│ • Materials: 10% × ($200 + $150) = $35.00                                   │
+│ • Labor: $25.00 (fixed)                                                     │
+│ • Tax: $0.00 (not used)                                                     │
+│ • Other: $10.00 (fixed)                                                     │
+│ ─────────────────────────────────────────────────────────────────────       │
+│ TOTAL: $70.00                                                                │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ OPTION-SPECIFIC OVERRIDES                                                    │
+│ Override any price type configuration for specific options  [+ Add Override]│
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Mode Selector Dropdown
+
+Each price type has a mode dropdown with three options:
+
+```
+┌───────────────────────┐
+│ Mode: [Fixed       ▼] │
+├───────────────────────┤
+│ ○ Fixed               │  Set specific dollar amounts per office
+│ ○ Percentage          │  Calculate as % of parent option
+│ ○ Not Used            │  No value for this price type
+└───────────────────────┘
+```
+
+### Fixed Mode Configuration
+
+When a price type is set to "Fixed":
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ LABOR                                                                        │
+│ ┌──────────────────────────────────────────────────────────────────────────┐ │
+│ │ Mode: [Fixed ▼]                                                          │ │
+│ │                                                                          │ │
+│ │ Set fixed amounts per office:                                            │ │
+│ │                                                                          │ │
+│ │ ┌──────────────────────────────────────────────────────────────────────┐ │ │
+│ │ │ Denver         [$25.00     ]                                         │ │ │
+│ │ │ Boulder        [$27.00     ]                                         │ │ │
+│ │ │ Fort Collins   [$24.00     ]                                         │ │ │
+│ │ │ CO Springs     [$25.00     ]                                         │ │ │
+│ │ └──────────────────────────────────────────────────────────────────────┘ │ │
+│ │                                                                          │ │
+│ │ Quick fill: [$       ] [Apply to All Offices]                           │ │
+│ │                                                                          │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Percentage Mode Configuration
+
+When a price type is set to "Percentage":
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ MATERIALS                                                                    │
+│ ┌──────────────────────────────────────────────────────────────────────────┐ │
+│ │ Mode: [Percentage ▼]                                                     │ │
+│ │                                                                          │ │
+│ │ This price type is calculated as a percentage of the parent option.     │ │
+│ │                                                                          │ │
+│ │ Percentage rate:  [ 10 ] %                                               │ │
+│ │                                                                          │ │
+│ │ Calculate percentage of these parent option price types:                 │ │
+│ │ ┌──────────────────────────────────────────────────────────────────────┐ │ │
+│ │ │ [☑] Materials     Sum parent's Materials in calculation              │ │ │
+│ │ │ [☑] Labor         Sum parent's Labor in calculation                  │ │ │
+│ │ │ [☐] Tax           (not included)                                     │ │ │
+│ │ │ [☐] Other         (not included)                                     │ │ │
+│ │ └──────────────────────────────────────────────────────────────────────┘ │ │
+│ │                                                                          │ │
+│ │ ⚠ At least one price type must be selected for percentage base         │ │
+│ │                                                                          │ │
+│ │ Preview: With Pella Premium @ Denver (M: $200, L: $150)                 │ │
+│ │          10% × ($200 + $150) = $35.00                                   │ │
+│ │                                                                          │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### All Fixed Mode (Simple Case)
+
+For simpler upcharges where all price types use fixed amounts, the UI collapses to a familiar grid:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ UPCHARGE: Low-E Glass                                                        │
 │ Energy efficient coating • Used in 25 MSIs                                  │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ PRICING MODE                                                                 │
-│ ┌─────────────────────────────┐  ┌─────────────────────────────┐            │
-│ │ (•) Fixed Amount            │  │ ( ) Percentage              │            │
-│ │ Set specific dollar amounts │  │ Calculate as % of option   │            │
-│ └─────────────────────────────┘  └─────────────────────────────┘            │
+│ PRICING MODE SUMMARY                                                         │
+│ All price types: Fixed amounts                        [Switch to Advanced]  │
 │                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ DEFAULT PRICING                                                              │
 │ Applied when no option-specific override exists                              │
 │                                                                              │
-│              │ Materials  │ Labor      │ TOTAL                              │
-│ ─────────────┼────────────┼────────────┼──────────                          │
-│ Denver       │ $50.00     │ $35.00     │ $85.00                             │
-│ Boulder      │ $52.00     │ $38.00     │ $90.00                             │
-│ Fort Collins │ $48.00     │ $34.00     │ $82.00                             │
-│ CO Springs   │ $49.00     │ $35.00     │ $84.00                             │
+│              │ Materials  │ Labor      │ Tax       │ Other    │ TOTAL      │
+│ ─────────────┼────────────┼────────────┼───────────┼──────────┼────────────│
+│ Denver       │ $50.00     │ $35.00     │ $0.00     │ $0.00    │ $85.00     │
+│ Boulder      │ $52.00     │ $38.00     │ $0.00     │ $0.00    │ $90.00     │
+│ Fort Collins │ $48.00     │ $34.00     │ $0.00     │ $0.00    │ $82.00     │
+│ CO Springs   │ $49.00     │ $35.00     │ $0.00     │ $0.00    │ $84.00     │
 │                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ OPTION-SPECIFIC OVERRIDES                                                   │
 │ Override default pricing for specific options      [+ Add Override]         │
 │                                                                              │
-│ ┌─ Override: Pella Premium ────────────────────────────────────────────┐    │
-│ │              │ Materials  │ Labor      │ TOTAL                        │    │
-│ │ ─────────────┼────────────┼────────────┼──────────                    │    │
-│ │ Denver       │ $55.00     │ $40.00     │ $95.00   (+$10 vs default)  │    │
-│ │ Boulder      │ $58.00     │ $42.00     │ $100.00  (+$10 vs default)  │    │
-│ │                                                         [Remove Override] │    │
-│ └──────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Percentage Mode
+### All Percentage Mode (Simple Case)
 
-When "Percentage" mode is selected:
+When all price types use the same percentage:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ UPCHARGE: Grilles                                                           │
+│ UPCHARGE: Grilles                                                            │
 │ Decorative window grilles • Used in 15 MSIs                                 │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ PRICING MODE                                                                 │
-│ ┌─────────────────────────────┐  ┌─────────────────────────────┐            │
-│ │ ( ) Fixed Amount            │  │ (•) Percentage              │            │
-│ └─────────────────────────────┘  └─────────────────────────────┘            │
+│ PRICING MODE SUMMARY                                                         │
+│ All price types: 10% of (Materials + Labor)           [Switch to Advanced]  │
 │                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ PERCENTAGE CONFIGURATION                                                     │
 │                                                                              │
 │ This upcharge is calculated as:                                              │
 │                                                                              │
-│    [  10  ] %  of the selected option's price                               │
-│                                                                              │
-│ Include these price components in the calculation:                           │
-│ ┌───────────────────────────────────────────────────────────────────────┐   │
-│ │ [☑] Materials                                                          │   │
-│ │ [☑] Labor                                                              │   │
-│ │ [☐] Tax                                                                │   │
-│ │ [☐] Other                                                              │   │
-│ └───────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│ ⚠ At least one price component must be selected                            │
+│    [  10  ] %  of the selected option's:  [☑] Materials  [☑] Labor          │
+│                                           [☐] Tax        [☐] Other          │
 │                                                                              │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ CALCULATED PRICES PREVIEW                                                   │
+│ CALCULATED PRICES PREVIEW                                                    │
 │ Example calculations based on current option prices                          │
 │                                                                              │
 │ When selected with Pella Premium @ Denver:                                  │
@@ -272,8 +395,39 @@ When "Percentage" mode is selected:
 │ Materials: $120.00 + Labor: $80.00 = $200.00 (base)                         │
 │ Grilles: 10% × $200.00 = $20.00                                             │
 │                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ OPTION-SPECIFIC OVERRIDES                                                   │
+│ Override pricing for specific options              [+ Add Override]         │
+│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Advanced Mode Toggle
+
+Users can switch between simplified and advanced modes:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PRICING MODE                                                                │
+│ ┌─────────────────────────────┐  ┌─────────────────────────────────────┐   │
+│ │ (•) Simple                  │  │ ( ) Advanced (per price type)       │   │
+│ │ Same mode for all types     │  │ Different mode per price type      │   │
+│ └─────────────────────────────┘  └─────────────────────────────────────┘   │
+│                                                                             │
+│ Simple mode applies the selected configuration to all price types.         │
+│ Advanced mode lets you configure each price type independently.            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+When switching from Simple to Advanced:
+
+- Current configuration is copied to all price types
+- User can then customize individual price types
+
+When switching from Advanced to Simple:
+
+- Warning if configurations differ: "This will replace per-type settings"
+- User chooses which configuration to apply to all
 
 ### Adding Option Override
 
@@ -296,12 +450,64 @@ When clicking "Add Override":
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ ℹ Override pricing lets you charge different amounts when this upcharge    │
-│   is used with a specific option.                                           │
+│   is used with a specific option. Each price type can have its own         │
+│   override configuration (fixed or percentage).                             │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                        [Cancel]  [Create Override]          │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Option Override with Per-Price-Type Configuration
+
+Once an override is created, each price type can be configured independently:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ OPTION-SPECIFIC OVERRIDES                                                    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ┌─ Override: Pella Premium ──────────────────────────────────────────────┐  │
+│ │                                                                         │  │
+│ │ This override applies when the upcharge is used with Pella Premium.    │  │
+│ │                                                                         │  │
+│ │ MATERIALS: [Percentage ▼]  15% of [☑]M [☑]L [☐]T [☐]O                  │  │
+│ │            Preview: 15% × $350 = $52.50                                │  │
+│ │                                                                         │  │
+│ │ LABOR:     [Fixed ▼]                                                   │  │
+│ │            Denver: $30  Boulder: $32  Ft Collins: $29  CO Springs: $30 │  │
+│ │                                                                         │  │
+│ │ TAX:       [Not Used ▼]                                                │  │
+│ │                                                                         │  │
+│ │ OTHER:     [Use Default ▼]  (Inherits from default pricing: $10 fixed) │  │
+│ │                                                                         │  │
+│ │ ─────────────────────────────────────────────────────────────────────  │  │
+│ │ Total preview @ Denver with Pella: $52.50 + $30 + $0 + $10 = $92.50   │  │
+│ │ (Default total would be: $70.00)                                       │  │
+│ │                                                                         │  │
+│ │                                                      [Remove Override]  │  │
+│ └─────────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│                                                          [+ Add Override]   │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Override Mode Options
+
+For option-specific overrides, there's an additional "Use Default" mode:
+
+```
+┌───────────────────────────┐
+│ Mode: [Use Default     ▼] │
+├───────────────────────────┤
+│ ○ Fixed                   │  Set specific dollar amounts
+│ ○ Percentage              │  Calculate as % of parent option
+│ ○ Not Used                │  No value for this price type
+│ ○ Use Default             │  Inherit from default pricing ← NEW
+└───────────────────────────┘
+```
+
+"Use Default" is only available in option overrides - it means "don't override this price type, use whatever the default configuration is."
 
 ---
 
@@ -475,8 +681,9 @@ When accessing pricing from an MSI detail page:
 │                                                                              │
 │ UPCHARGE PRICING SUMMARY                                                    │
 │ ┌────────────────────────────────────────────────────────────────────────┐  │
-│ │ Low-E Glass    │ Fixed: $82-$90 per office                            │  │
-│ │ Grilles        │ 10% of (Materials + Labor)                           │  │
+│ │ Low-E Glass    │ All Fixed: $82-$90 per office                        │  │
+│ │ Grilles        │ All 10% of (Materials + Labor)                       │  │
+│ │ Installation   │ Mixed: M=10% of M+L, L=$25 fixed, O=$10 fixed        │  │
 │ │                                                       [Edit UpCharges] │  │
 │ └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │

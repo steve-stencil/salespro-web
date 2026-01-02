@@ -17,11 +17,15 @@ import type { MeasureSheetItemOffice } from './MeasureSheetItemOffice.entity';
 import type { MeasureSheetItemOption } from './MeasureSheetItemOption.entity';
 import type { MeasureSheetItemUpCharge } from './MeasureSheetItemUpCharge.entity';
 import type { PriceGuideCategory } from './PriceGuideCategory.entity';
+import type { PriceGuideImage } from './PriceGuideImage.entity';
 
 /**
  * MeasureSheetItem entity - the main line item that sales reps add to estimates.
- * Contains product configuration, pricing links, and custom tag fields.
+ * Contains product configuration and custom tag fields.
  * Uses optimistic locking via version field for concurrent edit protection.
+ *
+ * Note: All MSIs require at least one linked option. Pricing comes from
+ * OptionPrice entities, not from the MSI directly. See ADR-003.
  */
 @Entity()
 @Index({ properties: ['company', 'category'] })
@@ -50,10 +54,6 @@ export class MeasureSheetItem {
   /** Measurement type - user-defined string (e.g., "sqft", "linft", "each") */
   @Property({ type: 'string', length: 50 })
   measurementType!: string;
-
-  /** Product thumbnail URL */
-  @Property({ type: 'string', nullable: true })
-  imageUrl?: string;
 
   /** Quantity formula identifier */
   @Property({ type: 'string', nullable: true })
@@ -143,4 +143,9 @@ export class MeasureSheetItem {
   @OneToMany('MeasureSheetItemAdditionalDetailField', 'measureSheetItem')
   additionalDetailFields =
     new Collection<MeasureSheetItemAdditionalDetailField>(this);
+
+  /** Thumbnail image from shared image library */
+  @ManyToOne('PriceGuideImage', { nullable: true })
+  @Index()
+  thumbnailImage?: PriceGuideImage;
 }

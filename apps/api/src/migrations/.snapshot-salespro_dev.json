@@ -2998,279 +2998,6 @@
           "nullable": false,
           "mappedType": "uuid"
         },
-        "up_charge_id": {
-          "name": "up_charge_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "option_id": {
-          "name": "option_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": true,
-          "mappedType": "uuid"
-        },
-        "office_id": {
-          "name": "office_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "price_type_id": {
-          "name": "price_type_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "amount": {
-          "name": "amount",
-          "type": "numeric(12,2)",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "precision": 12,
-          "scale": 2,
-          "default": "0",
-          "mappedType": "decimal"
-        },
-        "is_percentage": {
-          "name": "is_percentage",
-          "type": "boolean",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "default": "false",
-          "mappedType": "boolean"
-        },
-        "version": {
-          "name": "version",
-          "type": "int",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "default": "1",
-          "mappedType": "integer"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamptz",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "length": 6,
-          "mappedType": "datetime"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamptz",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "length": 6,
-          "mappedType": "datetime"
-        }
-      },
-      "name": "up_charge_price",
-      "schema": "public",
-      "indexes": [
-        {
-          "keyName": "up_charge_price_up_charge_id_office_id_price_type_id_index",
-          "columnNames": ["up_charge_id", "office_id", "price_type_id"],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "up_charge_price_up_charge_id_option_id_office_id_p_41026_index",
-          "columnNames": [
-            "up_charge_id",
-            "option_id",
-            "office_id",
-            "price_type_id"
-          ],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "up_charge_price_up_charge_id_option_id_office_id__4b77f_unique",
-          "columnNames": [
-            "up_charge_id",
-            "option_id",
-            "office_id",
-            "price_type_id"
-          ],
-          "composite": true,
-          "constraint": true,
-          "primary": false,
-          "unique": true
-        },
-        {
-          "keyName": "up_charge_price_pkey",
-          "columnNames": ["id"],
-          "composite": false,
-          "constraint": true,
-          "primary": true,
-          "unique": true
-        }
-      ],
-      "checks": [],
-      "foreignKeys": {
-        "up_charge_price_up_charge_id_foreign": {
-          "constraintName": "up_charge_price_up_charge_id_foreign",
-          "columnNames": ["up_charge_id"],
-          "localTableName": "public.up_charge_price",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.up_charge",
-          "updateRule": "cascade"
-        },
-        "up_charge_price_option_id_foreign": {
-          "constraintName": "up_charge_price_option_id_foreign",
-          "columnNames": ["option_id"],
-          "localTableName": "public.up_charge_price",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.price_guide_option",
-          "deleteRule": "set null",
-          "updateRule": "cascade"
-        },
-        "up_charge_price_office_id_foreign": {
-          "constraintName": "up_charge_price_office_id_foreign",
-          "columnNames": ["office_id"],
-          "localTableName": "public.up_charge_price",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.office",
-          "updateRule": "cascade"
-        },
-        "up_charge_price_price_type_id_foreign": {
-          "constraintName": "up_charge_price_price_type_id_foreign",
-          "columnNames": ["price_type_id"],
-          "localTableName": "public.up_charge_price",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.price_object_type",
-          "updateRule": "cascade"
-        }
-      },
-      "nativeEnums": {}
-    },
-    {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "up_charge_price_id": {
-          "name": "up_charge_price_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "price_type_id": {
-          "name": "price_type_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamptz",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "length": 6,
-          "mappedType": "datetime"
-        }
-      },
-      "name": "up_charge_price_percentage_base",
-      "schema": "public",
-      "indexes": [
-        {
-          "keyName": "up_charge_price_percentage_base_up_charge_price_id_index",
-          "columnNames": ["up_charge_price_id"],
-          "composite": false,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "up_charge_price_percentage_base_up_charge_price_i_06eb8_unique",
-          "columnNames": ["up_charge_price_id", "price_type_id"],
-          "composite": true,
-          "constraint": true,
-          "primary": false,
-          "unique": true
-        },
-        {
-          "keyName": "up_charge_price_percentage_base_pkey",
-          "columnNames": ["id"],
-          "composite": false,
-          "constraint": true,
-          "primary": true,
-          "unique": true
-        }
-      ],
-      "checks": [],
-      "foreignKeys": {
-        "up_charge_price_percentage_base_up_charge_price_id_foreign": {
-          "constraintName": "up_charge_price_percentage_base_up_charge_price_id_foreign",
-          "columnNames": ["up_charge_price_id"],
-          "localTableName": "public.up_charge_price_percentage_base",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.up_charge_price",
-          "updateRule": "cascade"
-        },
-        "up_charge_price_percentage_base_price_type_id_foreign": {
-          "constraintName": "up_charge_price_percentage_base_price_type_id_foreign",
-          "columnNames": ["price_type_id"],
-          "localTableName": "public.up_charge_price_percentage_base",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.price_object_type",
-          "updateRule": "cascade"
-        }
-      },
-      "nativeEnums": {}
-    },
-    {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
         "option_id": {
           "name": "option_id",
           "type": "uuid",
@@ -3416,144 +3143,6 @@
           "localTableName": "public.option_price",
           "referencedColumnNames": ["id"],
           "referencedTableName": "public.price_object_type",
-          "updateRule": "cascade"
-        }
-      },
-      "nativeEnums": {}
-    },
-    {
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "option_price_id": {
-          "name": "option_price_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": true,
-          "mappedType": "uuid"
-        },
-        "up_charge_price_id": {
-          "name": "up_charge_price_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": true,
-          "mappedType": "uuid"
-        },
-        "old_amount": {
-          "name": "old_amount",
-          "type": "numeric(12,2)",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "precision": 12,
-          "scale": 2,
-          "mappedType": "decimal"
-        },
-        "new_amount": {
-          "name": "new_amount",
-          "type": "numeric(12,2)",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "precision": 12,
-          "scale": 2,
-          "mappedType": "decimal"
-        },
-        "changed_by_id": {
-          "name": "changed_by_id",
-          "type": "uuid",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "mappedType": "uuid"
-        },
-        "changed_at": {
-          "name": "changed_at",
-          "type": "timestamptz",
-          "unsigned": false,
-          "autoincrement": false,
-          "primary": false,
-          "nullable": false,
-          "length": 6,
-          "mappedType": "datetime"
-        }
-      },
-      "name": "price_change_log",
-      "schema": "public",
-      "indexes": [
-        {
-          "keyName": "price_change_log_changed_by_id_changed_at_index",
-          "columnNames": ["changed_by_id", "changed_at"],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "price_change_log_up_charge_price_id_changed_at_index",
-          "columnNames": ["up_charge_price_id", "changed_at"],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "price_change_log_option_price_id_changed_at_index",
-          "columnNames": ["option_price_id", "changed_at"],
-          "composite": true,
-          "constraint": false,
-          "primary": false,
-          "unique": false
-        },
-        {
-          "keyName": "price_change_log_pkey",
-          "columnNames": ["id"],
-          "composite": false,
-          "constraint": true,
-          "primary": true,
-          "unique": true
-        }
-      ],
-      "checks": [],
-      "foreignKeys": {
-        "price_change_log_option_price_id_foreign": {
-          "constraintName": "price_change_log_option_price_id_foreign",
-          "columnNames": ["option_price_id"],
-          "localTableName": "public.price_change_log",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.option_price",
-          "deleteRule": "set null",
-          "updateRule": "cascade"
-        },
-        "price_change_log_up_charge_price_id_foreign": {
-          "constraintName": "price_change_log_up_charge_price_id_foreign",
-          "columnNames": ["up_charge_price_id"],
-          "localTableName": "public.price_change_log",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.up_charge_price",
-          "deleteRule": "set null",
-          "updateRule": "cascade"
-        },
-        "price_change_log_changed_by_id_foreign": {
-          "constraintName": "price_change_log_changed_by_id_foreign",
-          "columnNames": ["changed_by_id"],
-          "localTableName": "public.price_change_log",
-          "referencedColumnNames": ["id"],
-          "referencedTableName": "public.user",
           "updateRule": "cascade"
         }
       },
@@ -4793,6 +4382,459 @@
           "referencedColumnNames": ["id"],
           "referencedTableName": "public.user",
           "deleteRule": "set null",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "up_charge_id": {
+          "name": "up_charge_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "option_id": {
+          "name": "option_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "uuid"
+        },
+        "measure_sheet_item_id": {
+          "name": "measure_sheet_item_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "uuid"
+        },
+        "office_id": {
+          "name": "office_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "uuid"
+        },
+        "price_type_id": {
+          "name": "price_type_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(12,2)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "precision": 12,
+          "scale": 2,
+          "default": "0",
+          "mappedType": "decimal"
+        },
+        "is_percentage": {
+          "name": "is_percentage",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "false",
+          "mappedType": "boolean"
+        },
+        "version": {
+          "name": "version",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "1",
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        }
+      },
+      "name": "up_charge_price",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "up_charge_price_measure_sheet_item_id_index",
+          "columnNames": ["measure_sheet_item_id"],
+          "composite": false,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "up_charge_price_up_charge_id_office_id_price_type_id_index",
+          "columnNames": ["up_charge_id", "office_id", "price_type_id"],
+          "composite": true,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "up_charge_price_up_charge_id_option_id_office_id_p_41026_index",
+          "columnNames": [
+            "up_charge_id",
+            "option_id",
+            "office_id",
+            "price_type_id"
+          ],
+          "composite": true,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "up_charge_price_up_charge_id_option_id_measure_she_d81d9_index",
+          "columnNames": [
+            "up_charge_id",
+            "option_id",
+            "measure_sheet_item_id",
+            "office_id",
+            "price_type_id"
+          ],
+          "composite": true,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "up_charge_price_up_charge_id_option_id_measure_sh_7fdec_unique",
+          "columnNames": [
+            "up_charge_id",
+            "option_id",
+            "measure_sheet_item_id",
+            "office_id",
+            "price_type_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "up_charge_price_pkey",
+          "columnNames": ["id"],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "up_charge_price_up_charge_id_foreign": {
+          "constraintName": "up_charge_price_up_charge_id_foreign",
+          "columnNames": ["up_charge_id"],
+          "localTableName": "public.up_charge_price",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.up_charge",
+          "updateRule": "cascade"
+        },
+        "up_charge_price_option_id_foreign": {
+          "constraintName": "up_charge_price_option_id_foreign",
+          "columnNames": ["option_id"],
+          "localTableName": "public.up_charge_price",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.price_guide_option",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        },
+        "up_charge_price_measure_sheet_item_id_foreign": {
+          "constraintName": "up_charge_price_measure_sheet_item_id_foreign",
+          "columnNames": ["measure_sheet_item_id"],
+          "localTableName": "public.up_charge_price",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.measure_sheet_item",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        },
+        "up_charge_price_office_id_foreign": {
+          "constraintName": "up_charge_price_office_id_foreign",
+          "columnNames": ["office_id"],
+          "localTableName": "public.up_charge_price",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.office",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        },
+        "up_charge_price_price_type_id_foreign": {
+          "constraintName": "up_charge_price_price_type_id_foreign",
+          "columnNames": ["price_type_id"],
+          "localTableName": "public.up_charge_price",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.price_object_type",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "up_charge_price_id": {
+          "name": "up_charge_price_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "price_type_id": {
+          "name": "price_type_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        }
+      },
+      "name": "up_charge_price_percentage_base",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "up_charge_price_percentage_base_up_charge_price_id_index",
+          "columnNames": ["up_charge_price_id"],
+          "composite": false,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "up_charge_price_percentage_base_up_charge_price_i_06eb8_unique",
+          "columnNames": ["up_charge_price_id", "price_type_id"],
+          "composite": true,
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "up_charge_price_percentage_base_pkey",
+          "columnNames": ["id"],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "up_charge_price_percentage_base_up_charge_price_id_foreign": {
+          "constraintName": "up_charge_price_percentage_base_up_charge_price_id_foreign",
+          "columnNames": ["up_charge_price_id"],
+          "localTableName": "public.up_charge_price_percentage_base",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.up_charge_price",
+          "updateRule": "cascade"
+        },
+        "up_charge_price_percentage_base_price_type_id_foreign": {
+          "constraintName": "up_charge_price_percentage_base_price_type_id_foreign",
+          "columnNames": ["price_type_id"],
+          "localTableName": "public.up_charge_price_percentage_base",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.price_object_type",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "option_price_id": {
+          "name": "option_price_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "uuid"
+        },
+        "up_charge_price_id": {
+          "name": "up_charge_price_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "uuid"
+        },
+        "old_amount": {
+          "name": "old_amount",
+          "type": "numeric(12,2)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "precision": 12,
+          "scale": 2,
+          "mappedType": "decimal"
+        },
+        "new_amount": {
+          "name": "new_amount",
+          "type": "numeric(12,2)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "precision": 12,
+          "scale": 2,
+          "mappedType": "decimal"
+        },
+        "changed_by_id": {
+          "name": "changed_by_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "uuid"
+        },
+        "changed_at": {
+          "name": "changed_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        }
+      },
+      "name": "price_change_log",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "price_change_log_changed_by_id_changed_at_index",
+          "columnNames": ["changed_by_id", "changed_at"],
+          "composite": true,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "price_change_log_up_charge_price_id_changed_at_index",
+          "columnNames": ["up_charge_price_id", "changed_at"],
+          "composite": true,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "price_change_log_option_price_id_changed_at_index",
+          "columnNames": ["option_price_id", "changed_at"],
+          "composite": true,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
+          "keyName": "price_change_log_pkey",
+          "columnNames": ["id"],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "price_change_log_option_price_id_foreign": {
+          "constraintName": "price_change_log_option_price_id_foreign",
+          "columnNames": ["option_price_id"],
+          "localTableName": "public.price_change_log",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.option_price",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        },
+        "price_change_log_up_charge_price_id_foreign": {
+          "constraintName": "price_change_log_up_charge_price_id_foreign",
+          "columnNames": ["up_charge_price_id"],
+          "localTableName": "public.price_change_log",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.up_charge_price",
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        },
+        "price_change_log_changed_by_id_foreign": {
+          "constraintName": "price_change_log_changed_by_id_foreign",
+          "columnNames": ["changed_by_id"],
+          "localTableName": "public.price_change_log",
+          "referencedColumnNames": ["id"],
+          "referencedTableName": "public.user",
           "updateRule": "cascade"
         }
       },

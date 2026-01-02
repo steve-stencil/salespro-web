@@ -6,22 +6,21 @@
 import AddIcon from '@mui/icons-material/Add';
 import CategoryIcon from '@mui/icons-material/Category';
 import ClearIcon from '@mui/icons-material/Clear';
+import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import FilterListIcon from '@mui/icons-material/FilterList';
+import EditIcon from '@mui/icons-material/Edit';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import SearchIcon from '@mui/icons-material/Search';
 import UploadIcon from '@mui/icons-material/Upload';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
-import Collapse from '@mui/material/Collapse';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -33,6 +32,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { flattenCategoryTree } from '@shared/utils';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,12 +40,33 @@ import {
   BulkActionsToolbar,
   BulkDeleteDialog,
   BulkEditDialog,
+  CountBadge,
+  EntityCard,
+  EntityCardSkeleton,
   ExportDialog,
+  ImagePicker,
   ImportDialog,
+  LinkPickerDialog,
+  LinkedItemsList,
+  TagDots,
+  TagFilterSelect,
+  UnlinkConfirmation,
 } from '../../components/price-guide';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useOfficesList } from '../../hooks/useOffices';
-import { useMsiList, useCategoryTree } from '../../hooks/usePriceGuide';
+import {
+  useMsiList,
+  useMsiDetail,
+  useCategoryTree,
+  useLinkOptions,
+  useLinkUpcharges,
+  useSyncOffices,
+  useUnlinkOption,
+  useUnlinkUpcharge,
+  priceGuideKeys,
+} from '../../hooks/usePriceGuide';
+import { useTagList } from '../../hooks/useTags';
+import { priceGuideApi } from '../../services/price-guide';
 
 import type {
   ExportOptions,
@@ -53,26 +74,131 @@ import type {
   BulkDeleteResult,
   BulkEditOptions,
   BulkEditResult,
+  LinkPickerDialogType,
+  MenuAction,
+  SelectedImageData,
 } from '../../components/price-guide';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { MeasureSheetItemSummary } from '@shared/types';
 
 // ============================================================================
-// MSI Card Component
+// MSI Expanded Content Component
 // ============================================================================
 
-type MsiCardProps = {
+type MsiExpandedContentProps = {
+  msiId: string;
+  onLinkOffices: () => void;
+  onLinkOptions: () => void;
+  onLinkUpcharges: () => void;
+  onUnlinkOffice: (officeId: string, officeName: string) => void;
+  onUnlinkOption: (optionId: string, optionName: string) => void;
+  onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
+};
+
+function MsiExpandedContent({
+  msiId,
+  onLinkOffices,
+  onLinkOptions,
+  onLinkUpcharges,
+  onUnlinkOffice,
+  onUnlinkOption,
+  onUnlinkUpcharge,
+}: MsiExpandedContentProps): React.ReactElement {
+  const navigate = useNavigate();
+  const { data, isLoading } = useMsiDetail(msiId);
+
+  const offices = data?.item.offices ?? [];
+  const options = data?.item.options ?? [];
+  const upcharges = data?.item.upcharges ?? [];
+
+  return (
+    <Box>
+      {/* Linked Items Grid */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+          gap: 3,
+        }}
+      >
+        <LinkedItemsList
+          title="Offices"
+          itemType="office"
+          items={offices}
+          isLoading={isLoading}
+          onLinkClick={onLinkOffices}
+          onUnlinkItem={officeId => {
+            const office = offices.find(o => o.id === officeId);
+            if (office) {
+              onUnlinkOffice(officeId, office.name);
+            }
+          }}
+        />
+        <LinkedItemsList
+          title="Options"
+          itemType="option"
+          items={options}
+          isLoading={isLoading}
+          onLinkClick={onLinkOptions}
+          onViewItem={() => void navigate('/price-guide/library?tab=options')}
+          onUnlinkItem={optionId => {
+            const option = options.find(o => o.optionId === optionId);
+            if (option) {
+              onUnlinkOption(optionId, option.name);
+            }
+          }}
+        />
+        <LinkedItemsList
+          title="UpCharges"
+          itemType="upcharge"
+          items={upcharges}
+          isLoading={isLoading}
+          onLinkClick={onLinkUpcharges}
+          onViewItem={() => void navigate('/price-guide/library?tab=upcharges')}
+          onUnlinkItem={upchargeId => {
+            const upcharge = upcharges.find(u => u.upchargeId === upchargeId);
+            if (upcharge) {
+              onUnlinkUpcharge(upchargeId, upcharge.name);
+            }
+          }}
+        />
+      </Box>
+
+      {/* Footer with ID */}
+      <Box sx={{ mt: 2, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="caption" color="text.disabled">
+          ID: {msiId}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+// ============================================================================
+// MSI Card Wrapper Component
+// ============================================================================
+
+type MsiCardWrapperProps = {
   msi: MeasureSheetItemSummary;
   isExpanded: boolean;
   isSelected: boolean;
   onToggleExpand: () => void;
   onToggleSelect: () => void;
-  onView: (msiId: string) => void;
-  onEdit: (msiId: string) => void;
-  onPricing: (msiId: string) => void;
+  onView: () => void;
+  onEdit: () => void;
+  onPricing: () => void;
+  onDelete: () => void;
+  onLinkOffices: () => void;
+  onLinkOptions: () => void;
+  onLinkUpcharges: () => void;
+  onUnlinkOffice: (officeId: string, officeName: string) => void;
+  onUnlinkOption: (optionId: string, optionName: string) => void;
+  onUnlinkUpcharge: (upchargeId: string, upchargeName: string) => void;
+  onThumbnailClick: () => void;
+  isThumbnailLoading: boolean;
 };
 
-function MsiCard({
+function MsiCardWrapper({
   msi,
   isExpanded,
   isSelected,
@@ -81,145 +207,98 @@ function MsiCard({
   onView,
   onEdit,
   onPricing,
-}: MsiCardProps): React.ReactElement {
-  return (
-    <Card
-      sx={{
-        mb: 1,
-        bgcolor: isSelected ? 'action.selected' : undefined,
-        '&:hover': { bgcolor: isSelected ? 'action.selected' : 'action.hover' },
-        transition: 'background-color 0.2s',
-      }}
-    >
-      <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-        {/* Main Row */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-          }}
-        >
-          {/* Checkbox */}
-          <Checkbox
-            checked={isSelected}
-            onChange={onToggleSelect}
-            onClick={e => e.stopPropagation()}
-            size="small"
-          />
+  onDelete,
+  onLinkOffices,
+  onLinkOptions,
+  onLinkUpcharges,
+  onUnlinkOffice,
+  onUnlinkOption,
+  onUnlinkUpcharge,
+  onThumbnailClick,
+  isThumbnailLoading,
+}: MsiCardWrapperProps): React.ReactElement {
+  const menuActions: MenuAction[] = [
+    {
+      label: 'View Details',
+      onClick: onView,
+      icon: <VisibilityIcon fontSize="small" />,
+    },
+    {
+      label: 'Edit',
+      onClick: onEdit,
+      icon: <EditIcon fontSize="small" />,
+    },
+    {
+      label: 'Pricing',
+      onClick: onPricing,
+      icon: <LocalOfferIcon fontSize="small" />,
+    },
+    {
+      label: 'Delete',
+      onClick: onDelete,
+      icon: <DeleteIcon fontSize="small" />,
+      dividerBefore: true,
+      color: 'error',
+    },
+  ];
 
-          {/* Expand Icon */}
-          <IconButton size="small" onClick={onToggleExpand}>
-            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </IconButton>
-
-          {/* Name & Category - Clickable */}
-          <Box
-            sx={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
-            onClick={() => onView(msi.id)}
-          >
-            <Typography variant="subtitle1" noWrap fontWeight={500}>
-              {msi.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {msi.category.fullPath}
-            </Typography>
-          </Box>
-
-          {/* Measurement Type */}
-          <Chip
-            label={msi.measurementType}
-            size="small"
-            variant="outlined"
-            sx={{ minWidth: 80 }}
-          />
-
-          {/* Counts */}
-          <Stack direction="row" spacing={1} sx={{ minWidth: 150 }}>
-            <Chip
-              label={`${msi.optionCount} opt`}
-              size="small"
-              color={msi.optionCount > 0 ? 'primary' : 'default'}
-              variant={msi.optionCount > 0 ? 'filled' : 'outlined'}
-            />
-            <Chip
-              label={`${msi.upchargeCount} uc`}
-              size="small"
-              color={msi.upchargeCount > 0 ? 'secondary' : 'default'}
-              variant={msi.upchargeCount > 0 ? 'filled' : 'outlined'}
-            />
-          </Stack>
-
-          {/* Office Count */}
-          <Chip
-            label={`${msi.officeCount} office${msi.officeCount !== 1 ? 's' : ''}`}
-            size="small"
-            variant="outlined"
-            sx={{ minWidth: 80 }}
-          />
+  const badges = (
+    <>
+      <CountBadge
+        count={msi.officeCount}
+        variant="office"
+        items={msi.officeNames}
+      />
+      <CountBadge
+        count={msi.optionCount}
+        variant="option"
+        items={msi.optionNames}
+      />
+      <CountBadge
+        count={msi.upchargeCount}
+        variant="upcharge"
+        items={msi.upchargeNames}
+      />
+      {msi.tags && msi.tags.length > 0 && (
+        <Box sx={{ ml: 1 }}>
+          <TagDots tags={msi.tags} maxDots={5} />
         </Box>
-
-        {/* Expanded Content */}
-        <Collapse in={isExpanded}>
-          <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => onView(msi.id)}
-              >
-                View Details
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => onEdit(msi.id)}
-              >
-                Edit
-              </Button>
-              <Button
-                size="small"
-                variant="text"
-                onClick={() => onPricing(msi.id)}
-              >
-                Pricing
-              </Button>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ ml: 'auto' }}
-              >
-                ID: {msi.id}
-              </Typography>
-            </Stack>
-          </Box>
-        </Collapse>
-      </CardContent>
-    </Card>
+      )}
+    </>
   );
-}
 
-// ============================================================================
-// Loading Skeleton
-// ============================================================================
+  // Use the thumbnail image (if set)
+  const thumbnailUrl =
+    msi.thumbnailImage?.thumbnailUrl ?? msi.thumbnailImage?.imageUrl ?? null;
 
-function MsiCardSkeleton(): React.ReactElement {
   return (
-    <Card sx={{ mb: 1 }}>
-      <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Skeleton variant="circular" width={32} height={32} />
-          <Box sx={{ flex: 1 }}>
-            <Skeleton variant="text" width="60%" height={24} />
-            <Skeleton variant="text" width="40%" height={20} />
-          </Box>
-          <Skeleton variant="rounded" width={80} height={24} />
-          <Skeleton variant="rounded" width={60} height={24} />
-          <Skeleton variant="rounded" width={60} height={24} />
-          <Skeleton variant="rounded" width={80} height={24} />
-        </Box>
-      </CardContent>
-    </Card>
+    <EntityCard
+      entityType="msi"
+      name={msi.name}
+      subtitle={msi.category.fullPath}
+      thumbnailUrl={thumbnailUrl}
+      onThumbnailClick={onThumbnailClick}
+      isThumbnailLoading={isThumbnailLoading}
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
+      isSelected={isSelected}
+      onToggleSelect={onToggleSelect}
+      showCheckbox={false}
+      onClick={onView}
+      badges={badges}
+      menuActions={menuActions}
+      expandedContent={
+        <MsiExpandedContent
+          msiId={msi.id}
+          onLinkOffices={onLinkOffices}
+          onLinkOptions={onLinkOptions}
+          onLinkUpcharges={onLinkUpcharges}
+          onUnlinkOffice={onUnlinkOffice}
+          onUnlinkOption={onUnlinkOption}
+          onUnlinkUpcharge={onUnlinkUpcharge}
+        />
+      }
+    />
   );
 }
 
@@ -229,11 +308,13 @@ function MsiCardSkeleton(): React.ReactElement {
 
 export function CatalogPage(): React.ReactElement {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // State
   const [search, setSearch] = useState('');
-  const [categoryId, setCategoryId] = useState<string>('');
-  const [officeId, setOfficeId] = useState<string>('');
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [officeIds, setOfficeIds] = useState<string[]>([]);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -242,6 +323,28 @@ export function CatalogPage(): React.ReactElement {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
+
+  // Link picker dialog state (uses new LinkPickerDialog for all types)
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+  const [linkPickerType, setLinkPickerType] =
+    useState<LinkPickerDialogType>('option');
+  const [linkPickerMsiId, setLinkPickerMsiId] = useState<string>('');
+
+  // Unlink confirmation state
+  const [unlinkDialogOpen, setUnlinkDialogOpen] = useState(false);
+  const [unlinkItem, setUnlinkItem] = useState<{
+    type: 'office' | 'option' | 'upcharge';
+    msiId: string;
+    msiName: string;
+    itemId: string;
+    itemName: string;
+  } | null>(null);
+
+  // Thumbnail upload state
+  // Image picker state for thumbnail selection
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [imagePickerMsiId, setImagePickerMsiId] = useState<string | null>(null);
+  const [imagePickerSaving, setImagePickerSaving] = useState(false);
 
   // Debounced search
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -252,6 +355,7 @@ export function CatalogPage(): React.ReactElement {
   // Queries
   const { data: categoryData } = useCategoryTree();
   const { data: officesData } = useOfficesList();
+  const { data: tagsData } = useTagList();
 
   const {
     data: msiData,
@@ -262,16 +366,48 @@ export function CatalogPage(): React.ReactElement {
     error,
   } = useMsiList({
     search: debouncedSearch || undefined,
-    categoryId: categoryId || undefined,
-    officeId: officeId || undefined,
+    categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
+    officeIds: officeIds.length > 0 ? officeIds : undefined,
+    tags: tagIds.length > 0 ? tagIds : undefined,
     limit: 20,
   });
+
+  // Mutations
+  const linkOptionsMutation = useLinkOptions();
+  const linkUpchargesMutation = useLinkUpcharges();
+  const syncOfficesMutation = useSyncOffices();
+  const unlinkOptionMutation = useUnlinkOption();
+  const unlinkUpchargeMutation = useUnlinkUpcharge();
 
   // Flatten categories for dropdown
   const flatCategories = useMemo(() => {
     if (!categoryData?.categories) return [];
     return flattenCategoryTree(categoryData.categories);
   }, [categoryData]);
+
+  // Get selected categories for chip display
+  const selectedCategories = useMemo(() => {
+    if (categoryIds.length === 0) return [];
+    return categoryIds
+      .map(id => flatCategories.find(cat => cat.id === id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+  }, [categoryIds, flatCategories]);
+
+  // Get selected offices for chip display
+  const selectedOffices = useMemo(() => {
+    if (officeIds.length === 0 || !officesData?.offices) return [];
+    return officeIds
+      .map(id => officesData.offices.find(o => o.id === id))
+      .filter((o): o is NonNullable<typeof o> => o !== undefined);
+  }, [officeIds, officesData]);
+
+  // Get selected tags for chip display
+  const selectedTags = useMemo(() => {
+    if (tagIds.length === 0 || !tagsData?.tags) return [];
+    return tagIds
+      .map(id => tagsData.tags.find(t => t.id === id))
+      .filter((t): t is NonNullable<typeof t> => t !== undefined);
+  }, [tagIds, tagsData]);
 
   // All MSIs from infinite query pages
   const allMsis = useMemo(() => {
@@ -281,6 +417,74 @@ export function CatalogPage(): React.ReactElement {
 
   // Total count
   const totalCount = msiData?.pages[0]?.total ?? 0;
+
+  // Get current MSI for link picker dialog
+  const { data: linkPickerMsiData } = useMsiDetail(linkPickerMsiId);
+
+  // Get MSI detail for image picker (to get version for sync)
+  const { data: imagePickerMsiData } = useMsiDetail(imagePickerMsiId ?? '');
+
+  // Currently linked offices for the dialog
+  const linkedOfficesForDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.offices.map(o => ({
+      id: o.id,
+      name: o.name,
+    }));
+  }, [linkPickerMsiData]);
+
+  // Currently linked options for the dialog
+  const linkedOptionsForDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.options.map(o => ({
+      id: o.optionId,
+      name: o.name,
+      brand: o.brand,
+    }));
+  }, [linkPickerMsiData]);
+
+  // Options for the disabled options dropdown in upcharge dialog
+  const msiOptionsForUpchargeDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.options.map(o => ({
+      id: o.optionId,
+      name: o.name,
+      brand: o.brand,
+    }));
+  }, [linkPickerMsiData]);
+
+  // State for upcharge disabled options (local state since API doesn't support per-MSI disabled options yet)
+  const [upchargeDisabledOptions, setUpchargeDisabledOptions] = useState<
+    Record<string, string[]>
+  >({});
+
+  // Reset disabled options state when dialog closes
+  useEffect(() => {
+    if (!linkPickerOpen) {
+      setUpchargeDisabledOptions({});
+    }
+  }, [linkPickerOpen]);
+
+  // Currently linked upcharges for the dialog
+  const linkedUpchargesForDialog = useMemo(() => {
+    if (!linkPickerMsiData?.item) return [];
+    return linkPickerMsiData.item.upcharges.map(u => ({
+      id: u.upchargeId,
+      name: u.name,
+      disabledOptionIds: upchargeDisabledOptions[u.upchargeId] ?? [],
+    }));
+  }, [linkPickerMsiData, upchargeDisabledOptions]);
+
+  // Handler to update disabled options for an upcharge
+  const handleUpdateDisabledOptions = useCallback(
+    (upchargeId: string, optionIds: string[]) => {
+      setUpchargeDisabledOptions(prev => ({
+        ...prev,
+        [upchargeId]: optionIds,
+      }));
+    },
+    [],
+  );
 
   // Toggle expanded
   const toggleExpanded = useCallback((id: string) => {
@@ -298,11 +502,16 @@ export function CatalogPage(): React.ReactElement {
   // Clear filters
   const clearFilters = useCallback(() => {
     setSearch('');
-    setCategoryId('');
-    setOfficeId('');
+    setCategoryIds([]);
+    setOfficeIds([]);
+    setTagIds([]);
   }, []);
 
-  const hasFilters = search || categoryId || officeId;
+  const hasFilters =
+    search ||
+    categoryIds.length > 0 ||
+    officeIds.length > 0 ||
+    tagIds.length > 0;
 
   // Infinite scroll observer
   useEffect(() => {
@@ -333,12 +542,16 @@ export function CatalogPage(): React.ReactElement {
     setSearch(e.target.value);
   };
 
-  const handleCategoryChange = (e: SelectChangeEvent) => {
-    setCategoryId(e.target.value);
+  const handleCategoryChange = (e: SelectChangeEvent<string[]>) => {
+    const value = e.target.value;
+    // Handle both string and array (MUI Select can return either)
+    setCategoryIds(typeof value === 'string' ? value.split(',') : value);
   };
 
-  const handleOfficeChange = (e: SelectChangeEvent) => {
-    setOfficeId(e.target.value);
+  const handleOfficeChange = (e: SelectChangeEvent<string[]>) => {
+    const value = e.target.value;
+    // Handle both string and array (MUI Select can return either)
+    setOfficeIds(typeof value === 'string' ? value.split(',') : value);
   };
 
   const handleView = useCallback(
@@ -350,7 +563,7 @@ export function CatalogPage(): React.ReactElement {
 
   const handleEdit = useCallback(
     (msiId: string) => {
-      void navigate(`/price-guide/${msiId}/edit`);
+      void navigate(`/price-guide/${msiId}`);
     },
     [navigate],
   );
@@ -361,6 +574,222 @@ export function CatalogPage(): React.ReactElement {
     },
     [navigate],
   );
+
+  const handleDelete = useCallback((msiId: string) => {
+    // TODO: Implement delete dialog
+    console.log('Delete MSI:', msiId);
+  }, []);
+
+  // Image picker handlers for thumbnail/images selection
+  const handleThumbnailClick = useCallback((msiId: string) => {
+    setImagePickerMsiId(msiId);
+    setImagePickerOpen(true);
+  }, []);
+
+  const handleImagePickerClose = useCallback(() => {
+    setImagePickerOpen(false);
+    setImagePickerMsiId(null);
+  }, []);
+
+  // Get current MSI's selected thumbnail image ID for the picker
+  const currentMsiSelectedImageIds = useMemo(() => {
+    if (!imagePickerMsiId) return [];
+    const msi = allMsis.find(m => m.id === imagePickerMsiId);
+    return msi?.thumbnailImage ? [msi.thumbnailImage.id] : [];
+  }, [imagePickerMsiId, allMsis]);
+
+  const handleImageSelectionChange = useCallback(
+    async (imageIds: string[], _images: SelectedImageData[]) => {
+      if (!imagePickerMsiId || !imagePickerMsiData?.item) return;
+
+      setImagePickerSaving(true);
+      try {
+        // Set thumbnail image for MSI (single image, or null to clear)
+        const imageId = imageIds.length > 0 ? imageIds[0]! : null;
+        await priceGuideApi.setMsiThumbnail(
+          imagePickerMsiId,
+          imageId,
+          imagePickerMsiData.item.version,
+        );
+
+        // Invalidate MSI list to refresh thumbnail
+        void queryClient.invalidateQueries({
+          queryKey: ['price-guide', 'msis', 'list'],
+        });
+
+        // Also invalidate the MSI detail to refresh for next edit
+        void queryClient.invalidateQueries({
+          queryKey: ['price-guide', 'msis', 'detail', imagePickerMsiId],
+        });
+
+        // Invalidate image lists to update linkedMsiCount in library
+        void queryClient.invalidateQueries({
+          queryKey: priceGuideKeys.imageLists(),
+        });
+
+        // Close picker
+        setImagePickerOpen(false);
+        setImagePickerMsiId(null);
+      } catch (err) {
+        console.error('Failed to set thumbnail:', err);
+      } finally {
+        setImagePickerSaving(false);
+      }
+    },
+    [imagePickerMsiId, imagePickerMsiData, queryClient],
+  );
+
+  // Link picker dialog handlers (unified for office, option, upcharge)
+  const openLinkPicker = useCallback(
+    (type: LinkPickerDialogType, msiId: string) => {
+      setLinkPickerType(type);
+      setLinkPickerMsiId(msiId);
+      setLinkPickerOpen(true);
+    },
+    [],
+  );
+
+  const handleLinkItem = useCallback(
+    async (itemId: string) => {
+      try {
+        switch (linkPickerType) {
+          case 'office': {
+            // For offices, we need to sync ALL offices (existing + new)
+            const existingOfficeIds =
+              linkPickerMsiData?.item.offices.map(o => o.id) ?? [];
+            const allOfficeIds = [...new Set([...existingOfficeIds, itemId])];
+            await syncOfficesMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              officeIds: allOfficeIds,
+              version: linkPickerMsiData?.item.version ?? 1,
+            });
+            break;
+          }
+          case 'option':
+            await linkOptionsMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              optionIds: [itemId],
+            });
+            break;
+          case 'upcharge':
+            await linkUpchargesMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              upchargeIds: [itemId],
+            });
+            break;
+        }
+      } catch (err) {
+        console.error('Failed to link item:', err);
+      }
+    },
+    [
+      linkPickerType,
+      linkPickerMsiId,
+      linkPickerMsiData,
+      syncOfficesMutation,
+      linkOptionsMutation,
+      linkUpchargesMutation,
+    ],
+  );
+
+  const handleUnlinkItemFromDialog = useCallback(
+    async (itemId: string) => {
+      try {
+        switch (linkPickerType) {
+          case 'office': {
+            // For offices, we need to sync with the office removed
+            const currentOfficeIds =
+              linkPickerMsiData?.item.offices.map(o => o.id) ?? [];
+            const newOfficeIds = currentOfficeIds.filter(id => id !== itemId);
+            await syncOfficesMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              officeIds: newOfficeIds,
+              version: linkPickerMsiData?.item.version ?? 1,
+            });
+            break;
+          }
+          case 'option':
+            await unlinkOptionMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              optionId: itemId,
+            });
+            break;
+          case 'upcharge':
+            await unlinkUpchargeMutation.mutateAsync({
+              msiId: linkPickerMsiId,
+              upchargeId: itemId,
+            });
+            break;
+        }
+      } catch (err) {
+        console.error('Failed to unlink item:', err);
+      }
+    },
+    [
+      linkPickerType,
+      linkPickerMsiId,
+      linkPickerMsiData,
+      syncOfficesMutation,
+      unlinkOptionMutation,
+      unlinkUpchargeMutation,
+    ],
+  );
+
+  // Unlink handlers (for confirmation dialog when unlinking from expanded card)
+  const openUnlinkDialog = useCallback(
+    (
+      type: 'office' | 'option' | 'upcharge',
+      msiId: string,
+      msiName: string,
+      itemId: string,
+      itemName: string,
+    ) => {
+      // Set the linkPickerMsiId so we can get the MSI data for the unlink
+      setLinkPickerMsiId(msiId);
+      setUnlinkItem({ type, msiId, msiName, itemId, itemName });
+      setUnlinkDialogOpen(true);
+    },
+    [],
+  );
+
+  const handleUnlink = useCallback(async () => {
+    if (!unlinkItem) return;
+    try {
+      if (unlinkItem.type === 'office') {
+        // For offices, we need to sync with the office removed
+        const currentOfficeIds =
+          linkPickerMsiData?.item.offices.map(o => o.id) ?? [];
+        const newOfficeIds = currentOfficeIds.filter(
+          id => id !== unlinkItem.itemId,
+        );
+        await syncOfficesMutation.mutateAsync({
+          msiId: unlinkItem.msiId,
+          officeIds: newOfficeIds,
+          version: linkPickerMsiData?.item.version ?? 1,
+        });
+      } else if (unlinkItem.type === 'option') {
+        await unlinkOptionMutation.mutateAsync({
+          msiId: unlinkItem.msiId,
+          optionId: unlinkItem.itemId,
+        });
+      } else {
+        await unlinkUpchargeMutation.mutateAsync({
+          msiId: unlinkItem.msiId,
+          upchargeId: unlinkItem.itemId,
+        });
+      }
+      setUnlinkDialogOpen(false);
+      setUnlinkItem(null);
+    } catch (err) {
+      console.error('Failed to unlink item:', err);
+    }
+  }, [
+    unlinkItem,
+    linkPickerMsiData,
+    unlinkOptionMutation,
+    unlinkUpchargeMutation,
+    syncOfficesMutation,
+  ]);
 
   // Selection handlers
   const toggleSelect = useCallback((id: string) => {
@@ -389,7 +818,6 @@ export function CatalogPage(): React.ReactElement {
       // TODO: Implement actual export logic
       console.log('Export options:', options);
       console.log('Selected IDs:', Array.from(selectedIds));
-      // Simulate export delay
       await new Promise(resolve => setTimeout(resolve, 1000));
     },
     [selectedIds],
@@ -399,7 +827,6 @@ export function CatalogPage(): React.ReactElement {
     async (file: File): Promise<ImportResult> => {
       // TODO: Implement actual import logic
       console.log('Importing file:', file.name);
-      // Simulate import delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       return {
         success: true,
@@ -416,7 +843,6 @@ export function CatalogPage(): React.ReactElement {
     async (ids: string[]): Promise<BulkDeleteResult> => {
       // TODO: Implement actual bulk delete logic
       console.log('Deleting IDs:', ids);
-      // Simulate delete delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       deselectAll();
       return {
@@ -433,7 +859,6 @@ export function CatalogPage(): React.ReactElement {
       // TODO: Implement actual bulk edit logic
       console.log('Bulk edit options:', options);
       console.log('Selected IDs:', Array.from(selectedIds));
-      // Simulate edit delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       deselectAll();
       return {
@@ -519,20 +944,22 @@ export function CatalogPage(): React.ReactElement {
               }}
             />
 
-            {/* Category Filter */}
+            {/* Category Filter (Multi-Select) */}
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>
-                <CategoryIcon
-                  sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'middle' }}
-                />
-                Category
-              </InputLabel>
+              <InputLabel>Categories</InputLabel>
               <Select
-                value={categoryId}
+                multiple
+                value={categoryIds}
                 onChange={handleCategoryChange}
-                label="Category"
+                label="Categories"
+                renderValue={selected =>
+                  selected.length === 0
+                    ? ''
+                    : selected.length === 1
+                      ? (selectedCategories[0]?.name ?? '')
+                      : `${selected.length} categories`
+                }
               >
-                <MenuItem value="">All Categories</MenuItem>
                 {flatCategories.map(cat => (
                   <MenuItem
                     key={cat.id}
@@ -545,15 +972,22 @@ export function CatalogPage(): React.ReactElement {
               </Select>
             </FormControl>
 
-            {/* Office Filter */}
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Office</InputLabel>
+            {/* Office Filter (Multi-Select) */}
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel>Offices</InputLabel>
               <Select
-                value={officeId}
+                multiple
+                value={officeIds}
                 onChange={handleOfficeChange}
-                label="Office"
+                label="Offices"
+                renderValue={selected =>
+                  selected.length === 0
+                    ? ''
+                    : selected.length === 1
+                      ? (selectedOffices[0]?.name ?? '')
+                      : `${selected.length} offices`
+                }
               >
-                <MenuItem value="">All Offices</MenuItem>
                 {officesData?.offices.map(office => (
                   <MenuItem key={office.id} value={office.id}>
                     {office.name}
@@ -562,18 +996,86 @@ export function CatalogPage(): React.ReactElement {
               </Select>
             </FormControl>
 
-            {/* Clear Filters */}
-            {hasFilters && (
-              <Button
-                variant="text"
-                startIcon={<FilterListIcon />}
-                onClick={clearFilters}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                Clear Filters
-              </Button>
+            {/* Tag Filter */}
+            {tagsData?.tags && tagsData.tags.length > 0 && (
+              <TagFilterSelect
+                value={tagIds}
+                onChange={setTagIds}
+                tags={tagsData.tags}
+                label="Tags"
+                minWidth={180}
+              />
             )}
           </Stack>
+
+          {/* Active Filter Chips */}
+          {hasFilters && (
+            <Box
+              sx={{
+                mt: 2,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 1,
+                alignItems: 'center',
+              }}
+            >
+              <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
+                Active filters:
+              </Typography>
+              {search && (
+                <Chip
+                  label={`Search: "${search}"`}
+                  onDelete={() => setSearch('')}
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+              {selectedCategories.map(category => (
+                <Chip
+                  key={category.id}
+                  icon={<CategoryIcon sx={{ fontSize: 16 }} />}
+                  label={category.name}
+                  onDelete={() =>
+                    setCategoryIds(prev =>
+                      prev.filter(id => id !== category.id),
+                    )
+                  }
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
+              {selectedOffices.map(office => (
+                <Chip
+                  key={office.id}
+                  label={office.name}
+                  onDelete={() =>
+                    setOfficeIds(prev => prev.filter(id => id !== office.id))
+                  }
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
+              {selectedTags.map(tag => (
+                <Chip
+                  key={tag.id}
+                  icon={<LocalOfferIcon sx={{ fontSize: 16 }} />}
+                  label={tag.name}
+                  onDelete={() =>
+                    setTagIds(prev => prev.filter(id => id !== tag.id))
+                  }
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: tag.color,
+                    '& .MuiChip-icon': { color: tag.color },
+                  }}
+                />
+              ))}
+              <Button size="small" onClick={clearFilters} sx={{ ml: 1 }}>
+                Clear All
+              </Button>
+            </Box>
+          )}
         </CardContent>
       </Card>
 
@@ -602,7 +1104,7 @@ export function CatalogPage(): React.ReactElement {
       {isLoading && (
         <Box>
           {[...Array(5)].map((_, i) => (
-            <MsiCardSkeleton key={i} />
+            <EntityCardSkeleton key={i} badgeCount={4} showCheckbox={false} />
           ))}
         </Box>
       )}
@@ -640,16 +1142,51 @@ export function CatalogPage(): React.ReactElement {
       {!isLoading && allMsis.length > 0 && (
         <Box>
           {allMsis.map(msi => (
-            <MsiCard
+            <MsiCardWrapper
               key={msi.id}
               msi={msi}
               isExpanded={expandedIds.has(msi.id)}
               isSelected={selectedIds.has(msi.id)}
               onToggleExpand={() => toggleExpanded(msi.id)}
               onToggleSelect={() => toggleSelect(msi.id)}
-              onView={handleView}
-              onEdit={handleEdit}
-              onPricing={handlePricing}
+              onView={() => handleView(msi.id)}
+              onEdit={() => handleEdit(msi.id)}
+              onPricing={() => handlePricing(msi.id)}
+              onDelete={() => handleDelete(msi.id)}
+              onThumbnailClick={() => handleThumbnailClick(msi.id)}
+              isThumbnailLoading={
+                imagePickerSaving && imagePickerMsiId === msi.id
+              }
+              onLinkOffices={() => openLinkPicker('office', msi.id)}
+              onLinkOptions={() => openLinkPicker('option', msi.id)}
+              onLinkUpcharges={() => openLinkPicker('upcharge', msi.id)}
+              onUnlinkOffice={(officeId, officeName) =>
+                openUnlinkDialog(
+                  'office',
+                  msi.id,
+                  msi.name,
+                  officeId,
+                  officeName,
+                )
+              }
+              onUnlinkOption={(optionId, optionName) =>
+                openUnlinkDialog(
+                  'option',
+                  msi.id,
+                  msi.name,
+                  optionId,
+                  optionName,
+                )
+              }
+              onUnlinkUpcharge={(upchargeId, upchargeName) =>
+                openUnlinkDialog(
+                  'upcharge',
+                  msi.id,
+                  msi.name,
+                  upchargeId,
+                  upchargeName,
+                )
+              }
             />
           ))}
 
@@ -685,6 +1222,60 @@ export function CatalogPage(): React.ReactElement {
         onBulkEdit={() => setBulkEditDialogOpen(true)}
         onExport={() => setExportDialogOpen(true)}
         onBulkDelete={() => setBulkDeleteDialogOpen(true)}
+      />
+
+      {/* Link Picker Dialog (unified for offices, options, upcharges) */}
+      <LinkPickerDialog
+        open={linkPickerOpen}
+        itemType={linkPickerType}
+        linkedOffices={linkedOfficesForDialog}
+        linkedOptions={linkedOptionsForDialog}
+        linkedUpcharges={linkedUpchargesForDialog}
+        msiOptions={msiOptionsForUpchargeDialog}
+        onLink={itemId => void handleLinkItem(itemId)}
+        onUnlink={itemId => void handleUnlinkItemFromDialog(itemId)}
+        onUpdateDisabledOptions={handleUpdateDisabledOptions}
+        onClose={() => setLinkPickerOpen(false)}
+        isLinking={
+          syncOfficesMutation.isPending ||
+          linkOptionsMutation.isPending ||
+          linkUpchargesMutation.isPending
+        }
+        isUnlinking={
+          syncOfficesMutation.isPending ||
+          unlinkOptionMutation.isPending ||
+          unlinkUpchargeMutation.isPending
+        }
+      />
+
+      {/* Unlink Confirmation Dialog */}
+      <UnlinkConfirmation
+        open={unlinkDialogOpen}
+        itemName={unlinkItem?.itemName ?? ''}
+        itemType={unlinkItem?.type ?? 'option'}
+        msiName={unlinkItem?.msiName ?? ''}
+        onCancel={() => {
+          setUnlinkDialogOpen(false);
+          setUnlinkItem(null);
+        }}
+        onConfirm={() => void handleUnlink()}
+        isLoading={
+          syncOfficesMutation.isPending ||
+          unlinkOptionMutation.isPending ||
+          unlinkUpchargeMutation.isPending
+        }
+      />
+
+      {/* Image Picker Dialog for Thumbnail */}
+      <ImagePicker
+        open={imagePickerOpen}
+        onClose={handleImagePickerClose}
+        selectedImageIds={currentMsiSelectedImageIds}
+        onSelectionChange={(imageIds, images) =>
+          void handleImageSelectionChange(imageIds, images)
+        }
+        multiple={false}
+        title="Select Thumbnail Image"
       />
 
       {/* Export Dialog */}

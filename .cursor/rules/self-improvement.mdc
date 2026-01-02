@@ -1,7 +1,5 @@
 ---
 description: Self-improvement rules for proactive documentation and code clarity
-globs:
-  - '**/*'
 alwaysApply: false
 ---
 

@@ -164,6 +164,41 @@ import {
 import type { ApiError, ErrorResponse } from '@shared/core';
 ```
 
+#### Price Guide Types (`price-guide.ts`)
+
+```typescript
+import type {
+  // Tagging
+  Tag,
+  ItemTag,
+  TaggableEntityType,
+
+  // Library items with tags
+  OptionSummary,
+  UpChargeSummary,
+  AdditionalDetailFieldSummary,
+  LibraryListParams,
+} from '@shared/core';
+```
+
+**TaggableEntityType enum:**
+
+- `OPTION` - Price guide options
+- `UPCHARGE` - Upcharges
+- `ADDITIONAL_DETAIL` - Additional detail fields
+- `MEASURE_SHEET_ITEM` - Future extension
+
+**Tag type:**
+
+```typescript
+type Tag = {
+  id: string;
+  name: string;
+  color: string; // Hex color code (e.g., '#4CAF50')
+  isActive: boolean;
+};
+```
+
 ## Adding New Shared Types
 
 When adding new shared types:

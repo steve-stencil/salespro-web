@@ -107,7 +107,7 @@ export class PriceGuideErrorBoundary extends Component<
                   sx={{
                     mb: 3,
                     p: 2,
-                    bgcolor: 'grey.100',
+                    bgcolor: 'action.hover',
                     borderRadius: 1,
                     textAlign: 'left',
                     maxHeight: 150,

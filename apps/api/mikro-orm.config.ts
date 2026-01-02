@@ -34,6 +34,8 @@ import {
   UpCharge,
   AdditionalDetailField,
   PriceObjectType,
+  OfficePriceType,
+  PriceGuideImage,
   MeasureSheetItemOffice,
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
@@ -45,6 +47,8 @@ import {
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  Tag,
+  ItemTag,
 } from './src/entities';
 
 /**
@@ -89,6 +93,8 @@ export default defineConfig({
     UpCharge,
     AdditionalDetailField,
     PriceObjectType,
+    OfficePriceType,
+    PriceGuideImage,
     MeasureSheetItemOffice,
     MeasureSheetItemOption,
     MeasureSheetItemUpCharge,
@@ -100,6 +106,8 @@ export default defineConfig({
     UpChargePricePercentageBase,
     PriceChangeLog,
     PriceChangeJob,
+    Tag,
+    ItemTag,
   ],
   migrations: {
     path: './src/migrations',

@@ -3,11 +3,9 @@
  * Provides mass operations and management tools for the price guide.
  */
 
-import AddIcon from '@mui/icons-material/Add';
 import BuildIcon from '@mui/icons-material/Build';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PriceChangeIcon from '@mui/icons-material/PriceChange';
 import VerifiedIcon from '@mui/icons-material/Verified';
@@ -31,7 +29,6 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
-import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
@@ -39,13 +36,11 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useState, useCallback } from 'react';
 
-import { usePriceTypes } from '../../hooks/usePriceGuide';
-
 // ============================================================================
 // Types
 // ============================================================================
 
-type TabValue = 'mass-price' | 'price-types' | 'validation';
+type TabValue = 'mass-price' | 'validation';
 
 type PriceChangeType = 'percentage' | 'fixed';
 type PriceChangeScope = 'all' | 'category' | 'office';
@@ -71,6 +66,9 @@ type TabPanelProps = {
   current: TabValue;
 };
 
+/**
+ * Tab panel container for lazy rendering tab content.
+ */
 function TabPanel({
   children,
   value,
@@ -84,6 +82,9 @@ function TabPanel({
 // Mass Price Change Component
 // ============================================================================
 
+/**
+ * Mass Price Change tool for applying price adjustments across multiple items.
+ */
 function MassPriceChange(): React.ReactElement {
   const [changeType, setChangeType] = useState<PriceChangeType>('percentage');
   const [scope, setScope] = useState<PriceChangeScope>('all');
@@ -277,153 +278,12 @@ function MassPriceChange(): React.ReactElement {
 }
 
 // ============================================================================
-// Custom Price Types Component
-// ============================================================================
-
-function CustomPriceTypes(): React.ReactElement {
-  const { data: priceTypesData, isLoading, error } = usePriceTypes();
-  const [newTypeCode, setNewTypeCode] = useState('');
-  const [newTypeName, setNewTypeName] = useState('');
-
-  const handleAdd = useCallback(() => {
-    // TODO: Implement add price type API call
-    console.log('Add price type:', newTypeCode, newTypeName);
-    setNewTypeCode('');
-    setNewTypeName('');
-  }, [newTypeCode, newTypeName]);
-
-  const priceTypes = priceTypesData?.priceTypes ?? [];
-
-  return (
-    <Card>
-      <CardContent>
-        <Stack spacing={3}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <LocalOfferIcon color="primary" sx={{ fontSize: 32 }} />
-            <Box>
-              <Typography variant="h6">Custom Price Types</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Manage price type codes used across the catalog
-              </Typography>
-            </Box>
-          </Box>
-
-          <Divider />
-
-          {/* Add New Price Type */}
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
-            <TextField
-              label="Code"
-              value={newTypeCode}
-              onChange={e => setNewTypeCode(e.target.value.toUpperCase())}
-              size="small"
-              sx={{ width: 150 }}
-              inputProps={{ maxLength: 20 }}
-            />
-            <TextField
-              label="Display Name"
-              value={newTypeName}
-              onChange={e => setNewTypeName(e.target.value)}
-              size="small"
-              sx={{ flex: 1, maxWidth: 300 }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAdd}
-              disabled={!newTypeCode || !newTypeName}
-            >
-              Add Type
-            </Button>
-          </Box>
-
-          {/* Error State */}
-          {error && (
-            <Alert severity="error">
-              Failed to load price types. Please try again.
-            </Alert>
-          )}
-
-          {/* Loading State */}
-          {isLoading && (
-            <List>
-              {[...Array(4)].map((_, i) => (
-                <ListItem key={i}>
-                  <ListItemIcon>
-                    <Skeleton variant="circular" width={24} height={24} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={<Skeleton width="40%" />}
-                    secondary={<Skeleton width="60%" />}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
-
-          {/* Empty State */}
-          {!isLoading && !error && priceTypes.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <LocalOfferIcon
-                sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }}
-              />
-              <Typography variant="body1" color="text.secondary">
-                No price types configured yet.
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Add a price type above to get started.
-              </Typography>
-            </Box>
-          )}
-
-          {/* Existing Price Types */}
-          {!isLoading && priceTypes.length > 0 && (
-            <List>
-              {priceTypes.map(pt => (
-                <ListItem
-                  key={pt.id}
-                  secondaryAction={
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {pt.isEditable && (
-                        <Button size="small" color="error">
-                          Delete
-                        </Button>
-                      )}
-                    </Stack>
-                  }
-                >
-                  <ListItemIcon>
-                    <LocalOfferIcon
-                      color={pt.isGlobal ? 'primary' : 'action'}
-                    />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Box
-                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                      >
-                        <Typography variant="subtitle2">{pt.code}</Typography>
-                        {pt.isGlobal && (
-                          <Chip label="Global" size="small" color="primary" />
-                        )}
-                      </Box>
-                    }
-                    secondary={pt.name}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ============================================================================
 // Data Validation Component
 // ============================================================================
 
+/**
+ * Data Validation tool for checking catalog data for issues and inconsistencies.
+ */
 function DataValidation(): React.ReactElement {
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<ValidationResult[] | null>(null);
@@ -621,6 +481,9 @@ function DataValidation(): React.ReactElement {
 // Main Component
 // ============================================================================
 
+/**
+ * Price Guide Tools page with mass operations and validation utilities.
+ */
 export function ToolsPage(): React.ReactElement {
   const [currentTab, setCurrentTab] = useState<TabValue>('mass-price');
 
@@ -661,12 +524,6 @@ export function ToolsPage(): React.ReactElement {
             value="mass-price"
           />
           <Tab
-            icon={<LocalOfferIcon />}
-            iconPosition="start"
-            label="Price Types"
-            value="price-types"
-          />
-          <Tab
             icon={<VerifiedIcon />}
             iconPosition="start"
             label="Validation"
@@ -678,10 +535,6 @@ export function ToolsPage(): React.ReactElement {
       {/* Tab Panels */}
       <TabPanel value="mass-price" current={currentTab}>
         <MassPriceChange />
-      </TabPanel>
-
-      <TabPanel value="price-types" current={currentTab}>
-        <CustomPriceTypes />
       </TabPanel>
 
       <TabPanel value="validation" current={currentTab}>

@@ -23,11 +23,12 @@ import {
   CatalogPage,
   CategoryManagementPage,
   CreateWizard,
-  EditWizard,
   LibraryPage,
   MigrationWizardPage,
-  MsiDetailPage,
+  MsiEditPage,
   PricingPage,
+  PriceTypesPage,
+  TagManagementPage,
   ToolsPage,
 } from './pages/price-guide';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
@@ -186,6 +187,22 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: '/price-guide/tags',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <TagManagementPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/price-types',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <PriceTypesPage />
+          </PermissionGuard>
+        ),
+      },
+      {
         path: '/price-guide/migration',
         element: (
           <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_CREATE}>
@@ -194,18 +211,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: '/price-guide/:msiId/edit',
-        element: (
-          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
-            <EditWizard />
-          </PermissionGuard>
-        ),
-      },
-      {
         path: '/price-guide/:msiId',
         element: (
-          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
-            <MsiDetailPage />
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <MsiEditPage />
           </PermissionGuard>
         ),
       },

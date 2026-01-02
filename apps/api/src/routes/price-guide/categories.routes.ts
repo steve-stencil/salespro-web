@@ -65,6 +65,9 @@ type CategoryNode = {
   depth: number;
   sortOrder: number;
   children: CategoryNode[];
+  /** Direct MSI count for this category only */
+  directMsiCount: number;
+  /** Total MSI count including all descendant categories */
   msiCount: number;
 };
 
@@ -75,15 +78,17 @@ function buildCategoryTree(
   const nodeMap = new Map<string, CategoryNode>();
   const roots: CategoryNode[] = [];
 
-  // Create nodes
+  // Create nodes with direct counts
   for (const cat of categories) {
+    const directCount = msiCountMap.get(cat.id) ?? 0;
     nodeMap.set(cat.id, {
       id: cat.id,
       name: cat.name,
       depth: cat.depth,
       sortOrder: cat.sortOrder,
       children: [],
-      msiCount: msiCountMap.get(cat.id) ?? 0,
+      directMsiCount: directCount,
+      msiCount: directCount, // Will be updated with cascading count
     });
   }
 
@@ -110,6 +115,20 @@ function buildCategoryTree(
     }
   };
   sortChildren(roots);
+
+  // Calculate cascading counts (post-order traversal)
+  const calculateCascadingCount = (node: CategoryNode): number => {
+    let total = node.directMsiCount;
+    for (const child of node.children) {
+      total += calculateCascadingCount(child);
+    }
+    node.msiCount = total;
+    return total;
+  };
+
+  for (const root of roots) {
+    calculateCascadingCount(root);
+  }
 
   return roots;
 }
@@ -163,13 +182,16 @@ router.get(
         },
       );
 
-      // Get MSI counts per category
+      // Get MSI counts per category using raw SQL for reliability
       const msiCounts = await em
-        .createQueryBuilder(MeasureSheetItem, 'msi')
-        .select(['msi.category_id', raw('count(*)::text as count')])
-        .where({ company: company.id, isActive: true })
-        .groupBy('msi.category_id')
-        .execute<{ category_id: string; count: string }[]>();
+        .getConnection()
+        .execute<{ category_id: string; count: string }[]>(
+          `SELECT category_id, count(*)::text as count 
+         FROM measure_sheet_item 
+         WHERE company_id = ? AND is_active = true 
+         GROUP BY category_id`,
+          [company.id],
+        );
 
       const msiCountMap = new Map<string, number>(
         msiCounts.map(r => [r.category_id, parseInt(r.count, 10)]),

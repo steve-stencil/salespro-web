@@ -10,16 +10,32 @@ import {
   UpCharge,
   AdditionalDetailField,
   PriceObjectType,
+  OfficePriceType,
   OptionPrice,
   UpChargePrice,
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
+  MeasureSheetItemOffice,
+  MeasureSheetItemAdditionalDetailField,
+  UpChargeAdditionalDetailField,
+  Tag,
+  ItemTag,
+  File,
+  PriceGuideImage,
+  Company,
+  User,
 } from '../../entities';
-import { AdditionalDetailInputType } from '../../entities/price-guide/types';
+import {
+  AdditionalDetailInputType,
+  PARENT_PRICE_TYPE_LABELS,
+} from '../../entities/price-guide/types';
+import { FileVisibility, FileStatus } from '../../entities/types';
 
-import type { Company } from '../../entities';
 import type { Office } from '../../entities';
-import type { User } from '../../entities';
+import type {
+  ParentPriceTypeCode,
+  TaggableEntityType,
+} from '../../entities/price-guide/types';
 import type { EntityManager } from '@mikro-orm/core';
 
 // ============================================================================
@@ -98,7 +114,6 @@ export type CreateUpChargeOptions = {
   note?: string;
   measurementType?: string;
   identifier?: string;
-  imageUrl?: string;
   isActive?: boolean;
   lastModifiedBy?: User;
 };
@@ -115,7 +130,6 @@ export async function createTestUpCharge(
     note: options.note,
     measurementType: options.measurementType,
     identifier: options.identifier,
-    imageUrl: options.imageUrl,
     isActive: options.isActive ?? true,
     lastModifiedBy: options.lastModifiedBy,
   });
@@ -199,21 +213,26 @@ export async function createTestAdditionalDetailField(
 export type CreatePriceTypeOptions = {
   code?: string;
   name?: string;
+  parentCode?: ParentPriceTypeCode;
   description?: string;
   sortOrder?: number;
-  isGlobal?: boolean;
 };
 
+/**
+ * Create a company-specific price type
+ * All price types must belong to a company (no global types)
+ */
 export async function createTestPriceType(
   em: EntityManager,
-  company: Company | null,
+  company: Company,
   options: CreatePriceTypeOptions = {},
 ): Promise<PriceObjectType> {
   const priceType = em.create(PriceObjectType, {
     id: uuid(),
-    company: options.isGlobal ? undefined : (company ?? undefined),
+    company,
     code: options.code ?? `TYPE_${Date.now()}`,
     name: options.name ?? `Test Type ${Date.now()}`,
+    parentCode: options.parentCode ?? 'OTHER',
     description: options.description,
     sortOrder: options.sortOrder ?? 0,
     isActive: true,
@@ -224,32 +243,35 @@ export async function createTestPriceType(
 }
 
 /**
- * Create default global price types (MATERIAL, LABOR, TAX, OTHER)
+ * Create default price types for a company (MATERIAL, LABOR, TAX, OTHER)
  * Returns existing types if they already exist to avoid duplicates
  */
 export async function createDefaultPriceTypes(
   em: EntityManager,
+  company: Company,
 ): Promise<PriceObjectType[]> {
-  const types = [
-    { code: 'MATERIAL', name: 'Materials', sortOrder: 1 },
-    { code: 'LABOR', name: 'Labor', sortOrder: 2 },
-    { code: 'TAX', name: 'Tax', sortOrder: 3 },
-    { code: 'OTHER', name: 'Other', sortOrder: 4 },
+  const types: Array<{ code: ParentPriceTypeCode; sortOrder: number }> = [
+    { code: 'MATERIAL', sortOrder: 1 },
+    { code: 'LABOR', sortOrder: 2 },
+    { code: 'TAX', sortOrder: 3 },
+    { code: 'OTHER', sortOrder: 4 },
   ];
 
   const priceTypes: PriceObjectType[] = [];
   for (const t of types) {
-    // Check if this type already exists (global, company=null)
+    // Check if this type already exists for this company
     let pt = await em.findOne(PriceObjectType, {
       code: t.code,
-      company: null,
+      company: company.id,
     });
 
     if (!pt) {
       pt = em.create(PriceObjectType, {
         id: uuid(),
+        company,
         code: t.code,
-        name: t.name,
+        name: PARENT_PRICE_TYPE_LABELS[t.code],
+        parentCode: t.code,
         sortOrder: t.sortOrder,
         isActive: true,
       });
@@ -258,6 +280,44 @@ export async function createDefaultPriceTypes(
     priceTypes.push(pt);
   }
   await em.flush();
+  return priceTypes;
+}
+
+/**
+ * Assign a price type to an office (creates OfficePriceType junction row)
+ */
+export async function assignPriceTypeToOffice(
+  em: EntityManager,
+  priceType: PriceObjectType,
+  office: Office,
+  sortOrder: number = 0,
+): Promise<OfficePriceType> {
+  const assignment = em.create(OfficePriceType, {
+    id: uuid(),
+    office,
+    priceType,
+    sortOrder,
+  });
+  em.persist(assignment);
+  await em.flush();
+  return assignment;
+}
+
+/**
+ * Create default price types and assign them to an office
+ */
+export async function createDefaultPriceTypesWithOffice(
+  em: EntityManager,
+  company: Company,
+  office: Office,
+): Promise<PriceObjectType[]> {
+  const priceTypes = await createDefaultPriceTypes(em, company);
+
+  // Assign all price types to the office
+  for (const pt of priceTypes) {
+    await assignPriceTypeToOffice(em, pt, office, pt.sortOrder);
+  }
+
   return priceTypes;
 }
 
@@ -359,6 +419,71 @@ export async function linkUpChargeToMeasureSheetItem(
   return link;
 }
 
+export async function linkMeasureSheetItemToOffice(
+  em: EntityManager,
+  msi: MeasureSheetItem,
+  office: Office,
+): Promise<MeasureSheetItemOffice> {
+  const link = em.create(MeasureSheetItemOffice, {
+    id: uuid(),
+    measureSheetItem: msi,
+    office,
+  });
+  em.persist(link);
+  await em.flush();
+  return link;
+}
+
+// ============================================================================
+// Tag Factory
+// ============================================================================
+
+export type CreateTagOptions = {
+  name?: string;
+  color?: string;
+  isActive?: boolean;
+};
+
+/**
+ * Create a test tag for the given company
+ */
+export async function createTestTag(
+  em: EntityManager,
+  company: Company,
+  options: CreateTagOptions = {},
+): Promise<Tag> {
+  const tag = em.create(Tag, {
+    id: uuid(),
+    company,
+    name: options.name ?? `Test Tag ${Date.now()}`,
+    color: options.color ?? '#4CAF50',
+    isActive: options.isActive ?? true,
+  });
+  em.persist(tag);
+  await em.flush();
+  return tag;
+}
+
+/**
+ * Assign a tag to an entity (Option, UpCharge, AdditionalDetailField)
+ */
+export async function assignTagToEntity(
+  em: EntityManager,
+  tag: Tag,
+  entityType: TaggableEntityType,
+  entityId: string,
+): Promise<ItemTag> {
+  const itemTag = em.create(ItemTag, {
+    id: uuid(),
+    tag,
+    entityType,
+    entityId,
+  });
+  em.persist(itemTag);
+  await em.flush();
+  return itemTag;
+}
+
 // ============================================================================
 // Complete Setup Factory
 // ============================================================================
@@ -379,8 +504,12 @@ export async function createPriceGuideSetup(
   company: Company,
   office: Office,
 ): Promise<PriceGuideSetup> {
-  // Create price types
-  const priceTypes = await createDefaultPriceTypes(em);
+  // Create price types and assign to office
+  const priceTypes = await createDefaultPriceTypesWithOffice(
+    em,
+    company,
+    office,
+  );
 
   // Create category
   const category = await createTestCategory(em, company, {
@@ -444,4 +573,149 @@ export async function createPriceGuideSetup(
     msi,
     priceTypes,
   };
+}
+
+// ============================================================================
+// File Factory (for PriceGuideImage support)
+// ============================================================================
+
+export type CreateFileOptions = {
+  filename?: string;
+  mimeType?: string;
+  size?: number;
+  storageKey?: string;
+  thumbnailKey?: string;
+  visibility?: FileVisibility;
+  status?: FileStatus;
+};
+
+/**
+ * Create a test File entity (mock file without actual S3 upload)
+ */
+export async function createTestFile(
+  em: EntityManager,
+  company: Company,
+  uploadedBy: User,
+  options: CreateFileOptions = {},
+): Promise<File> {
+  const fileId = uuid();
+  // Get references in current EM context to avoid cross-EM issues
+  const companyRef = em.getReference(Company, company.id);
+  const userRef = em.getReference(User, uploadedBy.id);
+
+  const file = em.create(File, {
+    id: fileId,
+    company: companyRef,
+    uploadedBy: userRef,
+    filename: options.filename ?? `test-image-${Date.now()}.jpg`,
+    mimeType: options.mimeType ?? 'image/jpeg',
+    size: options.size ?? 1024,
+    storageKey: options.storageKey ?? `${company.id}/files/${fileId}.jpg`,
+    thumbnailKey:
+      options.thumbnailKey ?? `${company.id}/thumbnails/${fileId}_thumb.jpg`,
+    visibility: options.visibility ?? FileVisibility.COMPANY,
+    status: options.status ?? FileStatus.ACTIVE,
+  });
+  em.persist(file);
+  await em.flush();
+  return file;
+}
+
+// ============================================================================
+// PriceGuideImage Factory
+// ============================================================================
+
+export type CreatePriceGuideImageOptions = {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+  lastModifiedBy?: User;
+};
+
+/**
+ * Create a test PriceGuideImage with an associated File entity
+ */
+export async function createTestPriceGuideImage(
+  em: EntityManager,
+  company: Company,
+  uploadedBy: User,
+  options: CreatePriceGuideImageOptions = {},
+): Promise<PriceGuideImage> {
+  // First create the underlying file
+  const file = await createTestFile(em, company, uploadedBy);
+
+  const name = options.name ?? `Test Image ${Date.now()}`;
+  const image = em.create(PriceGuideImage, {
+    id: uuid(),
+    company,
+    file,
+    name,
+    description: options.description,
+    searchVector: [name, options.description].filter(Boolean).join(' '),
+    isActive: options.isActive ?? true,
+    lastModifiedBy: options.lastModifiedBy,
+  });
+  em.persist(image);
+  await em.flush();
+  return image;
+}
+
+// ============================================================================
+// Thumbnail Image Setter
+// ============================================================================
+
+/**
+ * Set a PriceGuideImage as thumbnail for a MeasureSheetItem
+ */
+export async function setMsiThumbnail(
+  em: EntityManager,
+  msi: MeasureSheetItem,
+  image: PriceGuideImage,
+): Promise<void> {
+  msi.thumbnailImage = image;
+  await em.flush();
+}
+
+// ============================================================================
+// UpCharge Additional Detail Field Factory
+// ============================================================================
+
+/**
+ * Link an additional detail field to an upcharge
+ */
+export async function linkAdditionalDetailToUpCharge(
+  em: EntityManager,
+  upCharge: UpCharge,
+  additionalDetailField: AdditionalDetailField,
+  sortOrder: number = 0,
+): Promise<UpChargeAdditionalDetailField> {
+  const link = em.create(UpChargeAdditionalDetailField, {
+    id: uuid(),
+    upCharge,
+    additionalDetailField,
+    sortOrder,
+  });
+  em.persist(link);
+  await em.flush();
+  return link;
+}
+
+/**
+ * Link an additional detail field to a measure sheet item
+ */
+export async function linkAdditionalDetailToMeasureSheetItem(
+  em: EntityManager,
+  msi: MeasureSheetItem,
+  additionalDetailField: AdditionalDetailField,
+  sortOrder: number = 0,
+): Promise<MeasureSheetItemAdditionalDetailField> {
+  const link = em.create(MeasureSheetItemAdditionalDetailField, {
+    id: uuid(),
+    measureSheetItem: msi,
+    additionalDetailField,
+    sortOrder,
+  });
+  em.persist(link);
+  await em.flush();
+  return link;
 }

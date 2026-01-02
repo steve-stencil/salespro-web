@@ -18,10 +18,40 @@ export type MeasurementType =
 /** Input types for additional detail fields */
 export type AdditionalDetailInputType =
   | 'text'
+  | 'textarea'
   | 'number'
+  | 'currency'
   | 'picker'
+  | 'size_picker'
+  | 'size_picker_3d'
   | 'date'
+  | 'time'
+  | 'datetime'
+  | 'united_inch'
   | 'toggle';
+
+/** Size picker precision options */
+export type SizePickerPrecision =
+  | 'inch'
+  | 'quarter_inch'
+  | 'eighth_inch'
+  | 'sixteenth_inch';
+
+/** Size picker configuration */
+export type SizePickerConfig = {
+  precision: SizePickerPrecision;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  minDepth?: number;
+  maxDepth?: number;
+};
+
+/** United inch configuration */
+export type UnitedInchConfig = {
+  suffix?: string;
+};
 
 // ============================================================================
 // Category Types
@@ -41,6 +71,9 @@ export type CategoryTreeNode = {
   depth: number;
   sortOrder: number;
   parentId: string | null;
+  /** Direct MSI count for this category only */
+  directMsiCount: number;
+  /** Total MSI count including all descendant categories */
   msiCount: number;
   children: CategoryTreeNode[];
 };
@@ -76,6 +109,8 @@ export type OptionSummary = {
   measurementType: string | null;
   linkedMsiCount: number;
   isActive: boolean;
+  /** Tags assigned to this option */
+  tags?: TagSummary[];
 };
 
 /** Option detail response */
@@ -123,7 +158,11 @@ export type UpChargeSummary = {
   measurementType: string | null;
   identifier: string | null;
   linkedMsiCount: number;
+  /** Thumbnail image from the shared library */
+  thumbnailImage: ThumbnailImage | null;
   isActive: boolean;
+  /** Tags assigned to this upcharge */
+  tags?: TagSummary[];
 };
 
 /** UpCharge detail response */
@@ -133,7 +172,8 @@ export type UpChargeDetail = {
   note: string | null;
   measurementType: string | null;
   identifier: string | null;
-  imageUrl: string | null;
+  /** Thumbnail image from shared image library */
+  thumbnailImage: ThumbnailImage | null;
   linkedMsiCount: number;
   isActive: boolean;
   version: number;
@@ -145,6 +185,16 @@ export type UpChargeDetail = {
   disabledOptions: Array<{
     id: string;
     name: string;
+  }>;
+  /** Additional details linked to this upcharge */
+  additionalDetails: Array<{
+    junctionId: string;
+    fieldId: string;
+    title: string;
+    inputType: AdditionalDetailInputType;
+    cellType: string | null;
+    isRequired: boolean;
+    sortOrder: number;
   }>;
   lastModifiedBy?: {
     id: string;
@@ -164,6 +214,81 @@ export type LinkedUpCharge = {
 };
 
 // ============================================================================
+// Price Guide Image Types
+// ============================================================================
+
+/** Image summary for lists */
+export type PriceGuideImageSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  linkedMsiCount: number;
+  linkedUpchargeCount: number;
+  /** Presigned URL for image (full size) */
+  imageUrl: string | null;
+  /** Presigned URL for thumbnail */
+  thumbnailUrl: string | null;
+  /** Tags assigned to this image */
+  tags?: TagSummary[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Image detail response */
+export type PriceGuideImageDetail = {
+  id: string;
+  name: string;
+  description: string | null;
+  linkedMsiCount: number;
+  linkedUpchargeCount: number;
+  /** Presigned URL for image (full size) */
+  imageUrl: string | null;
+  /** Presigned URL for thumbnail */
+  thumbnailUrl: string | null;
+  version: number;
+  lastModifiedBy: {
+    id: string;
+    name: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+  /** MSIs linked to this image */
+  linkedMsis: Array<{
+    id: string;
+    name: string;
+    sortOrder: number;
+  }>;
+  /** UpCharges linked to this image */
+  linkedUpcharges: Array<{
+    id: string;
+    name: string;
+    sortOrder: number;
+  }>;
+};
+
+/** Thumbnail image for an MSI or UpCharge */
+export type ThumbnailImage = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  thumbnailUrl: string | null;
+};
+
+/**
+ * @deprecated Use ThumbnailImage instead - MSIs and UpCharges now have a single thumbnail
+ */
+export type LinkedImage = {
+  junctionId: string;
+  imageId: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  thumbnailUrl: string | null;
+  sortOrder: number;
+};
+
+// ============================================================================
 // Additional Detail Field Types
 // ============================================================================
 
@@ -175,6 +300,8 @@ export type AdditionalDetailFieldSummary = {
   isRequired: boolean;
   linkedMsiCount: number;
   isActive: boolean;
+  /** Tags assigned to this additional detail field */
+  tags?: TagSummary[];
 };
 
 /** Additional detail field detail */
@@ -186,7 +313,13 @@ export type AdditionalDetailFieldDetail = {
   placeholder: string | null;
   note: string | null;
   defaultValue: string | null;
+  /** Allow decimal values for number/currency input types */
+  allowDecimal: boolean;
   pickerValues: string[] | null;
+  /** Configuration for size picker (2D/3D) input types */
+  sizePickerConfig: SizePickerConfig | null;
+  /** Configuration for united inch input type */
+  unitedInchConfig: UnitedInchConfig | null;
   numericMin: number | null;
   numericMax: number | null;
   numericStep: number | null;
@@ -194,8 +327,21 @@ export type AdditionalDetailFieldDetail = {
   dateDisplayFormat: string | null;
   notAddedReplacement: string | null;
   linkedMsiCount: number;
+  /** Count of upcharges using this field */
+  linkedUpChargeCount: number;
   isActive: boolean;
   version: number;
+  /** MSIs using this additional detail (for detail view) */
+  usedByMSIs?: Array<{
+    id: string;
+    name: string;
+    category: string;
+  }>;
+  /** UpCharges using this additional detail (for detail view) */
+  usedByUpcharges?: Array<{
+    id: string;
+    name: string;
+  }>;
 };
 
 /** Additional detail linked to an MSI */
@@ -222,8 +368,17 @@ export type MeasureSheetItemSummary = {
   officeCount: number;
   optionCount: number;
   upchargeCount: number;
-  imageUrl: string | null;
+  /** Names of linked offices (for tooltip display) */
+  officeNames?: string[];
+  /** Names of linked options (for tooltip display) */
+  optionNames?: string[];
+  /** Names of linked upcharges (for tooltip display) */
+  upchargeNames?: string[];
+  /** Thumbnail image from the shared library */
+  thumbnailImage: ThumbnailImage | null;
   sortOrder: number;
+  /** Tags assigned to this MSI */
+  tags?: TagSummary[];
 };
 
 /** MSI detail response */
@@ -241,7 +396,6 @@ export type MeasureSheetItemDetail = {
   tagRequired: boolean;
   tagPickerOptions: unknown[] | null;
   tagParams: Record<string, unknown> | null;
-  imageUrl: string | null;
   sortOrder: number;
   offices: Array<{
     id: string;
@@ -250,6 +404,10 @@ export type MeasureSheetItemDetail = {
   options: LinkedOption[];
   upcharges: LinkedUpCharge[];
   additionalDetails: LinkedAdditionalDetail[];
+  /** Thumbnail image from shared image library */
+  thumbnailImage: ThumbnailImage | null;
+  /** Tags assigned to this MSI */
+  tags?: TagSummary[];
   isActive: boolean;
   version: number;
   lastModifiedBy?: {
@@ -263,15 +421,90 @@ export type MeasureSheetItemDetail = {
 // Price Types
 // ============================================================================
 
-/** Price object type (MATERIAL, LABOR, TAX, OTHER, custom) */
+/** Parent price type codes for cross-company aggregation */
+export const PARENT_PRICE_TYPE_CODES = [
+  'MATERIAL',
+  'LABOR',
+  'MATERIAL_LABOR',
+  'TAX',
+  'OTHER',
+] as const;
+
+export type ParentPriceTypeCode = (typeof PARENT_PRICE_TYPE_CODES)[number];
+
+/** Human-readable labels for parent price type codes */
+export const PARENT_PRICE_TYPE_LABELS: Record<ParentPriceTypeCode, string> = {
+  MATERIAL: 'Materials',
+  LABOR: 'Labor',
+  MATERIAL_LABOR: 'Materials & Labor',
+  TAX: 'Tax',
+  OTHER: 'Other',
+};
+
+/** Price object type (company-specific, maps to parent code) */
 export type PriceType = {
   id: string;
   code: string;
   name: string;
+  parentCode: ParentPriceTypeCode;
+  parentLabel: string;
   description: string | null;
   sortOrder: number;
-  isGlobal: boolean;
   isActive: boolean;
+  /** Number of offices this price type is assigned to */
+  officeCount: number;
+  /** Total number of offices in the company */
+  totalOffices: number;
+  /** Office IDs where this price type is enabled */
+  enabledOfficeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Price type detail with office assignments */
+export type PriceTypeDetail = {
+  id: string;
+  code: string;
+  name: string;
+  parentCode: ParentPriceTypeCode;
+  parentLabel: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  officeAssignments: OfficePriceTypeAssignment[];
+};
+
+/** Office assignment for a price type (row exists = enabled) */
+export type OfficePriceTypeAssignment = {
+  id: string;
+  officeId: string;
+  officeName: string;
+  sortOrder: number;
+};
+
+/** Price type for an office (with assignment status) */
+export type OfficePriceType = {
+  id: string;
+  code: string;
+  name: string;
+  parentCode: ParentPriceTypeCode;
+  parentLabel: string;
+  description: string | null;
+  sortOrder: number;
+  /** Whether this price type is assigned to the office */
+  isAssigned: boolean;
+  /** Whether the assignment is enabled (only meaningful if isAssigned) */
+  isEnabled: boolean;
+  /** Office-specific sort order */
+  officeSortOrder: number;
+};
+
+/** Parent code info for UI dropdowns */
+export type ParentCodeOption = {
+  code: ParentPriceTypeCode;
+  label: string;
 };
 
 /** Single price entry */
@@ -304,6 +537,156 @@ export type UpChargePricing = {
   isPercentage: boolean;
 };
 
+// ============================================================================
+// UpCharge Pricing Configuration Types (Mixed Mode Support)
+// ============================================================================
+
+/** Pricing mode for a single price type */
+export type UpChargePriceTypeMode = 'fixed' | 'percentage';
+
+/** Mode for option override - includes 'use_default' */
+export type UpChargeOverrideMode = 'fixed' | 'percentage' | 'use_default';
+
+/** Price configuration for a single price type */
+export type UpChargePriceTypeConfig = {
+  priceTypeId: string;
+  mode: UpChargePriceTypeMode;
+  /** Fixed amount (when mode='fixed'), keyed by officeId */
+  fixedAmounts?: Record<string, number>;
+  /** Percentage rate as decimal, e.g. 0.10 = 10% (when mode='percentage') */
+  percentageRate?: number;
+  /** Price type IDs to include in percentage base calculation */
+  percentageBaseTypeIds?: string[];
+};
+
+/** Price configuration for option override */
+export type UpChargeOverridePriceTypeConfig = {
+  priceTypeId: string;
+  mode: UpChargeOverrideMode;
+  /** Fixed amount (when mode='fixed'), keyed by officeId */
+  fixedAmounts?: Record<string, number>;
+  /** Percentage rate as decimal (when mode='percentage') */
+  percentageRate?: number;
+  /** Price type IDs to include in percentage base calculation */
+  percentageBaseTypeIds?: string[];
+};
+
+/** Single price entry from API response */
+export type UpChargePriceData = {
+  amount: number;
+  isPercentage: boolean;
+  percentageBaseTypeIds: string[];
+};
+
+/** Office pricing data from API response */
+export type UpChargeOfficePricing = {
+  office: { id: string; name: string };
+  prices: Record<string, UpChargePriceData>;
+};
+
+/** Option override pricing data from API response (global option override) */
+export type UpChargeOptionOverride = {
+  option: { id: string; name: string };
+  byOffice: Record<string, UpChargeOfficePricing>;
+};
+
+/** MSI+Option override pricing data from API response */
+export type UpChargeMsiOptionOverride = {
+  msi: { id: string; name: string };
+  option: { id: string; name: string };
+  byOffice: Record<string, UpChargeOfficePricing>;
+};
+
+/** Linked MSI with its options */
+export type LinkedMsiWithOptions = {
+  id: string;
+  name: string;
+  options: Array<{ id: string; name: string }>;
+};
+
+/** Full upcharge pricing response from API */
+export type UpChargePricingDetail = {
+  upcharge: {
+    id: string;
+    name: string;
+    note: string | null;
+    measurementType: string | null;
+    version: number;
+  };
+  priceTypes: Array<{
+    id: string;
+    code: string;
+    name: string;
+    sortOrder: number;
+  }>;
+  /** Default pricing (applies when no overrides exist) */
+  defaultPricing: UpChargeOfficePricing[];
+  /** Global option overrides (apply across all MSIs) */
+  globalOptionOverrides: UpChargeOptionOverride[];
+  /** MSI+Option specific overrides */
+  msiOptionOverrides: UpChargeMsiOptionOverride[];
+  /** Options that can have overrides (from MSIs linked to this upcharge) */
+  linkedOptions: Array<{ id: string; name: string }>;
+  /** MSIs linked to this upcharge with their options */
+  linkedMsis: LinkedMsiWithOptions[];
+};
+
+/** Request to update default prices for one office */
+export type UpdateUpChargeDefaultPricesRequest = {
+  officeId: string;
+  prices: Array<{
+    priceTypeId: string;
+    amount: number;
+    isPercentage: boolean;
+    percentageBaseTypeIds?: string[];
+  }>;
+  version: number;
+};
+
+/** Request to update global option override prices */
+export type UpdateUpChargeOverridePricesRequest = {
+  optionId: string;
+  officeId: string;
+  prices: Array<{
+    priceTypeId: string;
+    amount: number;
+    isPercentage: boolean;
+    percentageBaseTypeIds?: string[];
+  }>;
+  version: number;
+};
+
+/** Request to update MSI+Option specific override prices */
+export type UpdateUpChargeMsiOverridePricesRequest = {
+  msiId: string;
+  optionId: string;
+  officeId?: string; // Optional - if not provided, applies to all offices
+  prices: Array<{
+    priceTypeId: string;
+    amount: number;
+    isPercentage: boolean;
+    percentageBaseTypeIds?: string[];
+  }>;
+  version: number;
+};
+
+/** Request to delete MSI+Option override */
+export type DeleteUpChargeMsiOverrideRequest = {
+  msiId: string;
+  optionId: string;
+  officeId?: string; // Optional - if not provided, deletes all office configs
+};
+
+/**
+ * Derives the display mode for an upcharge based on its pricing configuration.
+ * Returns 'All Fixed', 'All X% of Y', or 'Mixed'
+ */
+export type UpChargeModeDisplay =
+  | { type: 'all_fixed' }
+  | { type: 'all_percentage'; rate: number; baseTypes: string[] }
+  | { type: 'mixed' }
+  | { type: 'none' };
+
 /** Pricing grid row (for UI display) */
 export type PricingGridRow = {
   officeId: string;
@@ -324,16 +707,24 @@ export type CursorPaginationParams = {
 
 /** MSI list query params */
 export type MsiListParams = CursorPaginationParams & {
-  categoryId?: string;
-  officeId?: string;
+  categoryIds?: string[];
+  officeIds?: string[];
+  /** Filter by tag IDs (OR logic - matches any) */
+  tags?: string[];
 };
 
 /** Library list query params */
 export type LibraryListParams = CursorPaginationParams & {
-  // Additional filters can be added
+  /** Filter by tag IDs (OR logic - matches any) */
+  tags?: string[];
 };
 
 /** Create MSI request */
+/**
+ * Create MSI request.
+ * Note: optionIds is required - at least one option is needed for pricing.
+ * See ADR-003.
+ */
 export type CreateMsiRequest = {
   name: string;
   categoryId: string;
@@ -347,8 +738,11 @@ export type CreateMsiRequest = {
   tagRequired?: boolean;
   tagPickerOptions?: unknown[];
   tagParams?: Record<string, unknown>;
+  /** File ID for product thumbnail image */
+  imageId?: string;
   officeIds: string[];
-  optionIds?: string[];
+  /** Required: At least one option is required for pricing. */
+  optionIds: string[];
   upchargeIds?: string[];
   additionalDetailFieldIds?: string[];
 };
@@ -367,6 +761,8 @@ export type UpdateMsiRequest = {
   tagRequired?: boolean;
   tagPickerOptions?: unknown[] | null;
   tagParams?: Record<string, unknown> | null;
+  /** File ID for product thumbnail image (null to remove) */
+  imageId?: string | null;
   version: number;
 };
 
@@ -428,9 +824,81 @@ export type UpChargeDetailResponse = {
 export type AdditionalDetailFieldListResponse =
   CursorPaginatedResponse<AdditionalDetailFieldSummary>;
 
+/** Additional detail field detail response */
+export type AdditionalDetailFieldDetailResponse = {
+  field: AdditionalDetailFieldDetail;
+};
+
 /** Price types response */
 export type PriceTypesResponse = {
   priceTypes: PriceType[];
+  parentCodes: ParentCodeOption[];
+};
+
+/** Price type detail response */
+export type PriceTypeDetailResponse = {
+  priceType: PriceTypeDetail;
+};
+
+/** Office price types response */
+export type OfficePriceTypesResponse = {
+  office: {
+    id: string;
+    name: string;
+  };
+  priceTypes: OfficePriceType[];
+};
+
+/** Create price type request */
+export type CreatePriceTypeRequest = {
+  code: string;
+  name: string;
+  parentCode: ParentPriceTypeCode;
+  description?: string;
+  sortOrder?: number;
+};
+
+/** Update price type request */
+export type UpdatePriceTypeRequest = {
+  name?: string;
+  parentCode?: ParentPriceTypeCode;
+  description?: string | null;
+  sortOrder?: number;
+};
+
+/** Generate default price types request */
+export type GeneratePriceTypesRequest = {
+  parentCodes: ParentPriceTypeCode[];
+  officeIds: string[];
+};
+
+/** Generate price types response */
+export type GeneratePriceTypesResponse = {
+  message: string;
+  priceTypesCreated: number;
+  assignmentsCreated: number;
+  priceTypes: Array<{
+    id: string;
+    code: string;
+    name: string;
+    parentCode: ParentPriceTypeCode;
+  }>;
+};
+
+/** Office assignment request (row creation = enable, row deletion = disable) */
+export type OfficePriceTypeAssignmentRequest = {
+  sortOrder?: number;
+};
+
+/** Office assignment response */
+export type OfficePriceTypeAssignmentResponse = {
+  message: string;
+  assignment: {
+    id: string;
+    priceTypeId: string;
+    officeId: string;
+    sortOrder: number;
+  };
 };
 
 /** Option pricing response */
@@ -474,4 +942,103 @@ export type ConcurrentModificationError = {
     name: string;
   };
   lastModifiedAt?: string;
+};
+
+// ============================================================================
+// Tag Types (Polymorphic Tagging System)
+// ============================================================================
+
+/**
+ * Entity types that support tagging.
+ * Extensible - add new values as tagging is enabled for more entity types.
+ */
+export type TaggableEntityType =
+  | 'OPTION'
+  | 'UPCHARGE'
+  | 'ADDITIONAL_DETAIL'
+  | 'MEASURE_SHEET_ITEM'
+  | 'PRICE_GUIDE_IMAGE';
+
+/** Tag summary for lists and autocomplete */
+export type TagSummary = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+/** Tag detail with metadata */
+export type TagDetail = {
+  id: string;
+  name: string;
+  color: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Item tag junction (polymorphic) */
+export type ItemTag = {
+  id: string;
+  tagId: string;
+  entityType: TaggableEntityType;
+  entityId: string;
+  createdAt: string;
+};
+
+// ============================================================================
+// Tag API Request Types
+// ============================================================================
+
+/** Create tag request */
+export type CreateTagRequest = {
+  name: string;
+  color: string;
+};
+
+/** Update tag request */
+export type UpdateTagRequest = {
+  name?: string;
+  color?: string;
+};
+
+/** Set tags for an item request */
+export type SetItemTagsRequest = {
+  tagIds: string[];
+};
+
+// ============================================================================
+// Tag API Response Types
+// ============================================================================
+
+/** Tag list response */
+export type TagListResponse = {
+  tags: TagSummary[];
+};
+
+/** Tag detail response */
+export type TagDetailResponse = {
+  tag: TagDetail;
+};
+
+/** Create tag response */
+export type CreateTagResponse = {
+  message: string;
+  tag: TagSummary;
+};
+
+/** Update tag response */
+export type UpdateTagResponse = {
+  message: string;
+  tag: TagSummary;
+};
+
+/** Item tags response */
+export type ItemTagsResponse = {
+  tags: TagSummary[];
+};
+
+/** Set item tags response */
+export type SetItemTagsResponse = {
+  message: string;
+  tags: TagSummary[];
 };

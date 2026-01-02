@@ -36,6 +36,8 @@ import {
   UpCharge,
   AdditionalDetailField,
   PriceObjectType,
+  OfficePriceType,
+  PriceGuideImage,
   MeasureSheetItemOffice,
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
@@ -47,6 +49,8 @@ import {
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  Tag,
+  ItemTag,
 } from '../entities';
 
 import type { Options } from '@mikro-orm/core';
@@ -88,6 +92,8 @@ const entities = [
   UpCharge,
   AdditionalDetailField,
   PriceObjectType,
+  OfficePriceType,
+  PriceGuideImage,
   MeasureSheetItemOffice,
   MeasureSheetItemOption,
   MeasureSheetItemUpCharge,
@@ -99,6 +105,8 @@ const entities = [
   UpChargePricePercentageBase,
   PriceChangeLog,
   PriceChangeJob,
+  Tag,
+  ItemTag,
 ];
 
 /**

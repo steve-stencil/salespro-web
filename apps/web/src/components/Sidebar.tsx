@@ -4,6 +4,7 @@
  * Navigation items are filtered based on user permissions.
  */
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import BuildIcon from '@mui/icons-material/Build';
 import BusinessIcon from '@mui/icons-material/Business';
 import CategoryIcon from '@mui/icons-material/Category';
@@ -12,6 +13,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -80,10 +82,16 @@ const NAV_ITEMS: NavItem[] = [
 /** Price Guide navigation items - shown in expandable section */
 const PRICE_GUIDE_NAV_ITEMS: NavItem[] = [
   {
-    label: 'Catalog',
-    path: '/price-guide',
-    icon: <InventoryIcon />,
+    label: 'Categories',
+    path: '/price-guide/categories',
+    icon: <CategoryIcon />,
     permission: PERMISSIONS.PRICE_GUIDE_READ,
+  },
+  {
+    label: 'Tags',
+    path: '/price-guide/tags',
+    icon: <LocalOfferIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_UPDATE,
   },
   {
     label: 'Library',
@@ -92,9 +100,15 @@ const PRICE_GUIDE_NAV_ITEMS: NavItem[] = [
     permission: PERMISSIONS.PRICE_GUIDE_READ,
   },
   {
-    label: 'Categories',
-    path: '/price-guide/categories',
-    icon: <CategoryIcon />,
+    label: 'Price Types',
+    path: '/price-guide/price-types',
+    icon: <AttachMoneyIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_UPDATE,
+  },
+  {
+    label: 'Catalog',
+    path: '/price-guide',
+    icon: <InventoryIcon />,
     permission: PERMISSIONS.PRICE_GUIDE_READ,
   },
   {

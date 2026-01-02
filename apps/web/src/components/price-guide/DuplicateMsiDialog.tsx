@@ -1,6 +1,8 @@
 /**
  * Duplicate MSI Dialog.
  * Creates a copy of an existing MSI with a new name.
+ *
+ * Note: Options are always included since at least one is required. See ADR-003.
  */
 
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -45,7 +47,7 @@ export function DuplicateMsiDialog({
   onSuccess,
 }: DuplicateMsiDialogProps): React.ReactElement {
   const [newName, setNewName] = useState('');
-  const [includeOptions, setIncludeOptions] = useState(true);
+  // Options are always included (required). See ADR-003.
   const [includeUpcharges, setIncludeUpcharges] = useState(true);
   const [includeAdditionalDetails, setIncludeAdditionalDetails] =
     useState(true);
@@ -56,7 +58,6 @@ export function DuplicateMsiDialog({
   useEffect(() => {
     if (open) {
       setNewName(`${msi.name} (Copy)`);
-      setIncludeOptions(true);
       setIncludeUpcharges(true);
       setIncludeAdditionalDetails(true);
     }
@@ -78,7 +79,8 @@ export function DuplicateMsiDialog({
       tagRequired: msi.tagRequired,
       tagPickerOptions: msi.tagPickerOptions ?? undefined,
       officeIds: msi.offices.map(o => o.id),
-      optionIds: includeOptions ? msi.options.map(o => o.optionId) : undefined,
+      // Options are always included (required). See ADR-003.
+      optionIds: msi.options.map(o => o.optionId),
       upchargeIds: includeUpcharges
         ? msi.upcharges.map(u => u.upchargeId)
         : undefined,
@@ -97,7 +99,6 @@ export function DuplicateMsiDialog({
     isValid,
     newName,
     msi,
-    includeOptions,
     includeUpcharges,
     includeAdditionalDetails,
     createMutation,
@@ -141,14 +142,8 @@ export function DuplicateMsiDialog({
             </Typography>
             <Stack>
               <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={includeOptions}
-                    onChange={e => setIncludeOptions(e.target.checked)}
-                    disabled={createMutation.isPending}
-                  />
-                }
-                label={`Options (${msi.options.length})`}
+                control={<Checkbox checked={true} disabled={true} />}
+                label={`Options (${msi.options.length}) — required`}
               />
               <FormControlLabel
                 control={

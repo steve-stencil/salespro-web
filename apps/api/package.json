@@ -25,7 +25,8 @@
     "db:seed-internal-user": "tsx scripts/seed-internal-user.ts",
     "db:seed-internal-user:force": "tsx scripts/seed-internal-user.ts --force",
     "db:seed-price-types": "tsx scripts/seed-price-types.ts",
-    "db:seed-price-types:force": "tsx scripts/seed-price-types.ts --force"
+    "db:seed-price-types:force": "tsx scripts/seed-price-types.ts --force",
+    "job:cleanup-files": "tsx src/jobs/cleanup-orphaned-files.ts"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.953.0",
