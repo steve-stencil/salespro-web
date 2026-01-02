@@ -13,3 +13,6 @@ export * from './invites';
 export * from './company';
 export * from './errors';
 export * from './price-guide';
+
+// Multi-app types
+export * from './apps';

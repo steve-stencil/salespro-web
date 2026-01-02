@@ -10,6 +10,12 @@
  * These are defined in code as they map to actual API capabilities.
  */
 export const PERMISSIONS = {
+  // ==================================
+  // App Access Permissions
+  // ==================================
+  APP_DASHBOARD: 'app:dashboard',
+  APP_SALESPRO: 'app:salespro',
+
   // Customers
   CUSTOMER_READ: 'customer:read',
   CUSTOMER_CREATE: 'customer:create',
@@ -91,6 +97,18 @@ export type PermissionMeta = {
  * Each permission has a human-readable label, category, and description.
  */
 export const PERMISSION_META: Record<Permission, PermissionMeta> = {
+  // App Access
+  'app:dashboard': {
+    label: 'Dashboard Access',
+    category: 'Applications',
+    description: 'Access the Dashboard (admin console)',
+  },
+  'app:salespro': {
+    label: 'SalesPro Access',
+    category: 'Applications',
+    description: 'Access SalesPro (field sales app)',
+  },
+
   // Customers
   'customer:read': {
     label: 'View Customers',

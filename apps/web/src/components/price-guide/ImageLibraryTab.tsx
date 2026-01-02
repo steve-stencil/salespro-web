@@ -663,7 +663,11 @@ function ImageCard({
               gap: 1,
             }}
           >
-            {hasTags ? <TagDots tags={image.tags} maxDots={5} /> : <Box />}
+            {hasTags ? (
+              <TagDots tags={image.tags ?? []} maxDots={5} />
+            ) : (
+              <Box />
+            )}
             <UsageIcons
               msiCount={image.linkedMsiCount}
               upchargeCount={image.linkedUpchargeCount}

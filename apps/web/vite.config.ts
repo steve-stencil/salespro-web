@@ -8,6 +8,12 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      // Map @shared/core to the shared package (npm package name)
+      '@shared/core': resolve(__dirname, '../../packages/shared/src'),
+      // Map @shared/types and @shared/utils for direct subpath access
+      '@shared/types': resolve(__dirname, '../../packages/shared/src/types'),
+      '@shared/utils': resolve(__dirname, '../../packages/shared/src/utils'),
+      // Fallback for @shared
       '@shared': resolve(__dirname, '../../packages/shared/src'),
     },
   },
