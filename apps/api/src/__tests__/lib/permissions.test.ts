@@ -49,8 +49,8 @@ describe('permissions', () => {
     it('should follow resource:action naming convention', () => {
       const permissions = getAllPermissions();
       for (const perm of permissions) {
-        // Platform permissions use underscores, others use simple names
-        expect(perm).toMatch(/^[a-z]+:[a-z_]+$/);
+        // Resources and actions can use underscores (e.g., price_guide:import_export)
+        expect(perm).toMatch(/^[a-z_]+:[a-z_]+$/);
       }
     });
 

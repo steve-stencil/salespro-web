@@ -1,33 +1,27 @@
 /**
- * Unit tests for pricing import service.
+ * Integration tests for pricing import service.
  * Tests parsing, validation, and edge cases for Excel file imports.
  */
 import ExcelJS from 'exceljs';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
-import { getORM } from '../../../lib/db';
+import { getORM } from '../../lib/db';
 import {
   previewImport,
   processImportSync,
   BACKGROUND_PROCESSING_THRESHOLD,
   MAX_FILE_SIZE_BYTES,
-} from '../../../services/price-guide/pricing-import.service';
+} from '../../services/price-guide/pricing-import.service';
 import {
   createTestOption,
   createDefaultPriceTypesWithOffice,
   createTestOptionPrice,
-} from '../../factories/price-guide';
-import {
-  createCompanySetup,
-  createTestOffice,
-} from '../../integration/auth-test-helpers';
+} from '../factories/price-guide';
 
-import type {
-  Office,
-  PriceGuideOption,
-  PriceObjectType,
-} from '../../../entities';
-import type { CompanySetup } from '../../integration/auth-test-helpers';
+import { createCompanySetup, createTestOffice } from './auth-test-helpers';
+
+import type { CompanySetup } from './auth-test-helpers';
+import type { Office, PriceGuideOption, PriceObjectType } from '../../entities';
 import type { EntityManager } from '@mikro-orm/postgresql';
 
 describe('Pricing Import Service', () => {

@@ -17,7 +17,10 @@ describe('Server', () => {
   });
 
   it('should handle CORS', async () => {
-    const response = await requestApp.options('/api').expect(204);
+    const response = await requestApp
+      .options('/api')
+      .set('Origin', 'http://localhost:5173')
+      .expect(204);
 
     expect(response.headers['access-control-allow-origin']).toBeDefined();
   });
