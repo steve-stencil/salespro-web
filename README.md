@@ -103,6 +103,17 @@ For AI agents working on this project:
 
 See `docs/HELPER_SCRIPTS.md` for detailed usage instructions.
 
+### Worktree Management (Multi-Agent Development)
+
+For running multiple AI agents on different tasks simultaneously:
+
+- `pnpm worktree:list`: List all worktrees with status
+- `pnpm worktree:sync`: Sync .env files to all worktrees
+- `pnpm worktree:ports`: Check what's running on dev ports
+- `./scripts/worktree-manager.sh switch <name>`: Open worktree in Cursor
+
+See `docs/WORKTREE_WORKFLOW.md` for full guide on managing multiple worktrees.
+
 Workspace-specific scripts also exist under each package (e.g., `apps/api`, `apps/web`).
 
 ### Testing

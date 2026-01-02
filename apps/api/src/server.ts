@@ -35,9 +35,44 @@ const logger = pino({
 let sessionMiddleware: RequestHandler | null = null;
 
 app.use(helmet());
+
+/**
+ * CORS origin validator - allows any localhost port in development
+ */
+const corsOrigin = (
+  origin: string | undefined,
+  callback: (err: Error | null, allow?: boolean) => void,
+) => {
+  // Allow requests with no origin (like mobile apps or Postman)
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  // In development, allow any localhost/127.0.0.1 origin
+  const isDev = process.env['NODE_ENV'] !== 'production';
+  const isLocalhost =
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:');
+
+  if (isDev && isLocalhost) {
+    callback(null, true);
+    return;
+  }
+
+  // In production, check against CORS_ORIGIN
+  const allowedOrigin = process.env['CORS_ORIGIN'] ?? 'http://localhost:5173';
+  if (origin === allowedOrigin) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error('Not allowed by CORS'));
+};
+
 app.use(
   cors({
-    origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:5173',
+    origin: corsOrigin,
     credentials: true,
   }),
 );
