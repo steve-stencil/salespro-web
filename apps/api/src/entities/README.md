@@ -82,6 +82,63 @@ This folder contains all MikroORM entity definitions for the SalesPro Dashboard 
 | `OfficeSettings.entity.ts`    | Office-level settings (logo, branding)              |
 | `OfficeIntegration.entity.ts` | Third-party integration credentials (KMS-encrypted) |
 
+### Tagging System
+
+| Entity                          | Purpose                                             |
+| ------------------------------- | --------------------------------------------------- |
+| `price-guide/Tag.entity.ts`     | Reusable tags for organizing price guide items      |
+| `price-guide/ItemTag.entity.ts` | Polymorphic junction table linking tags to entities |
+
+**Tag entity:**
+
+- Multi-tenant (scoped to company)
+- Unique name per company
+- Supports custom hex color codes
+- Soft delete via `isActive` flag
+
+**ItemTag entity (polymorphic junction):**
+
+- Links tags to any taggable entity type (Options, UpCharges, Additional Details, Images)
+- Uses `entityType` enum + `entityId` UUID (no FK constraint on entityId)
+- Allows single table for all tag assignments
+- Easy extension to new entity types
+
+```
+Tag (1) ──────── (*) ItemTag ──────── Entity (polymorphic)
+                    │
+                    ├── entityType: 'option' | 'upcharge' | 'additional_detail' | 'price_guide_image'
+                    └── entityId: UUID (no FK - references multiple tables)
+```
+
+### Price Guide Images
+
+| Entity                                  | Purpose                              |
+| --------------------------------------- | ------------------------------------ |
+| `price-guide/PriceGuideImage.entity.ts` | Image library for MSIs and UpCharges |
+
+**PriceGuideImage entity:**
+
+- Multi-tenant (scoped to company)
+- Links to a `File` entity for actual image storage
+- Used as thumbnails for `MeasureSheetItem` and `UpCharge`
+- One-to-many relationship (MSI/UpCharge can have one thumbnail image)
+- Supports text search via `searchVector` for name-based filtering
+- Taggable via `ItemTag` polymorphic junction
+
+**Thumbnail Image Pattern:**
+
+- `MeasureSheetItem.thumbnailImage` - optional FK to `PriceGuideImage`
+- `UpCharge.thumbnailImage` - optional FK to `PriceGuideImage`
+- Simple direct FK relationship (not junction tables)
+- An image can be used as thumbnail by multiple MSIs/UpCharges
+
+```
+PriceGuideImage (1) ────── File (stored image)
+                    │
+                    ├──── (*) MeasureSheetItem.thumbnailImage
+                    └──── (*) UpCharge.thumbnailImage
+```
+
 ### Supporting Files
 
 | File       | Purpose                |
@@ -111,6 +168,12 @@ Office (1) ───────┬──── (1) OfficeSettings ──── 
                   └──── (*) OfficeIntegration
 
 Role (*) ─────────┴──── (*) UserRole
+
+Tag (1) ──────────┴──── (*) ItemTag ──── Option/UpCharge/AdditionalDetail/PriceGuideImage (polymorphic)
+
+PriceGuideImage ────┬──── File (image storage)
+                    ├──── (*) MeasureSheetItem (as thumbnail)
+                    └──── (*) UpCharge (as thumbnail)
 ```
 
 ## Patterns

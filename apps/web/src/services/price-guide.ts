@@ -1,0 +1,1106 @@
+/**
+ * Price Guide API service.
+ * Provides methods for price guide management.
+ */
+import { apiClient } from '../lib/api-client';
+
+import type {
+  MsiListResponse,
+  MsiDetailResponse,
+  MsiListParams,
+  CategoryTreeResponse,
+  OptionListResponse,
+  OptionDetailResponse,
+  UpChargeListResponse,
+  UpChargeDetailResponse,
+  AdditionalDetailFieldListResponse,
+  AdditionalDetailFieldDetailResponse,
+  LibraryListParams,
+  CreateMsiRequest,
+  UpdateMsiRequest,
+  LinkResult,
+  SuccessResponse,
+  PriceTypesResponse,
+  PriceTypeDetailResponse,
+  OfficePriceTypesResponse,
+  CreatePriceTypeRequest,
+  UpdatePriceTypeRequest,
+  GeneratePriceTypesRequest,
+  GeneratePriceTypesResponse,
+  OfficePriceTypeAssignmentRequest,
+  OfficePriceTypeAssignmentResponse,
+  UpChargePricingDetail,
+  UpdateUpChargeDefaultPricesRequest,
+  UpdateUpChargeOverridePricesRequest,
+  UpdateUpChargeMsiOverridePricesRequest,
+  TagListResponse,
+  TagDetailResponse,
+  CreateTagRequest,
+  CreateTagResponse,
+  UpdateTagRequest,
+  UpdateTagResponse,
+  ItemTagsResponse,
+  SetItemTagsRequest,
+  SetItemTagsResponse,
+  TaggableEntityType,
+  PriceGuideImageSummary,
+  PriceGuideImageDetail,
+} from '@shared/types';
+
+/** Response type for image list endpoint */
+type ImageListResponse = {
+  items: PriceGuideImageSummary[];
+  nextCursor?: string;
+  hasMore: boolean;
+  total: number;
+};
+
+/** Response type for image detail endpoint */
+type ImageDetailResponse = {
+  item: PriceGuideImageDetail;
+};
+
+/**
+ * Price Guide API methods.
+ */
+export const priceGuideApi = {
+  // ==========================================================================
+  // Categories
+  // ==========================================================================
+
+  /**
+   * Get category tree for the company.
+   */
+  getCategories: async (): Promise<CategoryTreeResponse> => {
+    return apiClient.get<CategoryTreeResponse>('/price-guide/categories');
+  },
+
+  /**
+   * Create a new category.
+   */
+  createCategory: async (data: {
+    name: string;
+    parentId?: string | null;
+  }): Promise<{
+    message: string;
+    category: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.post('/price-guide/categories', data);
+  },
+
+  /**
+   * Update a category.
+   */
+  updateCategory: async (
+    categoryId: string,
+    data: { name?: string; version: number },
+  ): Promise<SuccessResponse> => {
+    return apiClient.put(`/price-guide/categories/${categoryId}`, data);
+  },
+
+  /**
+   * Delete a category.
+   */
+  deleteCategory: async (categoryId: string): Promise<SuccessResponse> => {
+    return apiClient.delete(`/price-guide/categories/${categoryId}`);
+  },
+
+  /**
+   * Move a category to a new parent and/or reorder it.
+   */
+  moveCategory: async (
+    categoryId: string,
+    data: { newParentId?: string | null; sortOrder: number },
+  ): Promise<{
+    message: string;
+    category: {
+      id: string;
+      name: string;
+      depth: number;
+      sortOrder: number;
+      parentId: string | null;
+      version: number;
+    };
+  }> => {
+    return apiClient.put(`/price-guide/categories/${categoryId}/move`, data);
+  },
+
+  // ==========================================================================
+  // Measure Sheet Items
+  // ==========================================================================
+
+  /**
+   * Get paginated list of MSIs.
+   */
+  listMsis: async (params?: MsiListParams): Promise<MsiListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.cursor) searchParams.set('cursor', params.cursor);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.categoryIds && params.categoryIds.length > 0) {
+      const categoryIdsStr = params.categoryIds.join(',');
+      searchParams.set('categoryIds', categoryIdsStr);
+    }
+    if (params?.officeIds && params.officeIds.length > 0) {
+      const officeIdsStr = params.officeIds.join(',');
+      searchParams.set('officeIds', officeIdsStr);
+    }
+    if (params?.tags && params.tags.length > 0) {
+      const tagsStr = params.tags.join(',');
+      searchParams.set('tags', tagsStr);
+    }
+
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/price-guide/measure-sheet-items?${queryString}`
+      : '/price-guide/measure-sheet-items';
+    return apiClient.get<MsiListResponse>(url);
+  },
+
+  /**
+   * Get MSI details by ID.
+   */
+  getMsi: async (msiId: string): Promise<MsiDetailResponse> => {
+    return apiClient.get<MsiDetailResponse>(
+      `/price-guide/measure-sheet-items/${msiId}`,
+    );
+  },
+
+  /**
+   * Create a new MSI.
+   */
+  createMsi: async (
+    data: CreateMsiRequest,
+  ): Promise<{
+    message: string;
+    item: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.post('/price-guide/measure-sheet-items', data);
+  },
+
+  /**
+   * Update an MSI.
+   */
+  updateMsi: async (
+    msiId: string,
+    data: UpdateMsiRequest,
+  ): Promise<{
+    message: string;
+    item: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/measure-sheet-items/${msiId}`, data);
+  },
+
+  /**
+   * Update only the thumbnail for an MSI.
+   * This is a lightweight update that doesn't require version and won't
+   * conflict with other users editing the MSI.
+   * The old thumbnail is automatically deleted when replaced.
+   */
+  updateMsiThumbnail: async (
+    msiId: string,
+    imageId: string | null,
+  ): Promise<{
+    message: string;
+    thumbnailUrl: string | null;
+    imageUrl: string | null;
+  }> => {
+    return apiClient.put(
+      `/price-guide/measure-sheet-items/${msiId}/thumbnail`,
+      {
+        imageId,
+      },
+    );
+  },
+
+  /**
+   * Delete an MSI.
+   */
+  deleteMsi: async (msiId: string): Promise<SuccessResponse> => {
+    return apiClient.delete(`/price-guide/measure-sheet-items/${msiId}`);
+  },
+
+  /**
+   * Link options to an MSI.
+   */
+  linkOptions: async (
+    msiId: string,
+    optionIds: string[],
+  ): Promise<LinkResult> => {
+    return apiClient.post(`/price-guide/measure-sheet-items/${msiId}/options`, {
+      optionIds,
+    });
+  },
+
+  /**
+   * Unlink an option from an MSI.
+   */
+  unlinkOption: async (
+    msiId: string,
+    optionId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/measure-sheet-items/${msiId}/options/${optionId}`,
+    );
+  },
+
+  /**
+   * Link upcharges to an MSI.
+   */
+  linkUpcharges: async (
+    msiId: string,
+    upchargeIds: string[],
+  ): Promise<LinkResult> => {
+    return apiClient.post(
+      `/price-guide/measure-sheet-items/${msiId}/upcharges`,
+      { upchargeIds },
+    );
+  },
+
+  /**
+   * Unlink an upcharge from an MSI.
+   */
+  unlinkUpcharge: async (
+    msiId: string,
+    upchargeId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/measure-sheet-items/${msiId}/upcharges/${upchargeId}`,
+    );
+  },
+
+  /**
+   * Sync offices for an MSI (replaces all office links).
+   */
+  syncOffices: async (
+    msiId: string,
+    officeIds: string[],
+    version: number,
+  ): Promise<{
+    message: string;
+    item: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/measure-sheet-items/${msiId}/offices`, {
+      officeIds,
+      version,
+    });
+  },
+
+  /**
+   * Link additional detail fields to an MSI.
+   */
+  linkAdditionalDetails: async (
+    msiId: string,
+    fieldIds: string[],
+  ): Promise<{ success: boolean; linked: number; warnings: string[] }> => {
+    return apiClient.post(
+      `/price-guide/measure-sheet-items/${msiId}/additional-details`,
+      { fieldIds },
+    );
+  },
+
+  /**
+   * Unlink an additional detail field from an MSI.
+   */
+  unlinkAdditionalDetail: async (
+    msiId: string,
+    fieldId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/measure-sheet-items/${msiId}/additional-details/${fieldId}`,
+    );
+  },
+
+  /**
+   * Set thumbnail image for an MSI.
+   * @param msiId - MSI ID
+   * @param imageId - Image ID (null to clear)
+   * @param version - Current MSI version for optimistic locking
+   */
+  setMsiThumbnail: async (
+    msiId: string,
+    imageId: string | null,
+    version: number,
+  ): Promise<{ message: string; imageId: string | null }> => {
+    return apiClient.put(
+      `/price-guide/measure-sheet-items/${msiId}/thumbnail`,
+      {
+        imageId,
+        version,
+      },
+    );
+  },
+
+  // ==========================================================================
+  // Library - Options
+  // ==========================================================================
+
+  /**
+   * Get paginated list of options.
+   */
+  listOptions: async (
+    params?: LibraryListParams,
+  ): Promise<OptionListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.cursor) searchParams.set('cursor', params.cursor);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', params.tags.join(','));
+    }
+
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/price-guide/library/options?${queryString}`
+      : '/price-guide/library/options';
+    return apiClient.get<OptionListResponse>(url);
+  },
+
+  /**
+   * Get option details by ID.
+   */
+  getOption: async (optionId: string): Promise<OptionDetailResponse> => {
+    return apiClient.get<OptionDetailResponse>(
+      `/price-guide/library/options/${optionId}`,
+    );
+  },
+
+  /**
+   * Create a new option.
+   */
+  createOption: async (data: {
+    name: string;
+    brand?: string;
+    itemCode?: string;
+    measurementType?: string;
+  }): Promise<{
+    message: string;
+    option: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.post('/price-guide/library/options', data);
+  },
+
+  /**
+   * Update an option.
+   */
+  updateOption: async (
+    optionId: string,
+    data: {
+      name?: string;
+      brand?: string | null;
+      itemCode?: string | null;
+      measurementType?: string | null;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    option: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/library/options/${optionId}`, data);
+  },
+
+  /**
+   * Delete an option.
+   */
+  deleteOption: async (
+    optionId: string,
+    force = false,
+  ): Promise<SuccessResponse> => {
+    const url = force
+      ? `/price-guide/library/options/${optionId}?force=true`
+      : `/price-guide/library/options/${optionId}`;
+    return apiClient.delete(url);
+  },
+
+  // ==========================================================================
+  // Library - UpCharges
+  // ==========================================================================
+
+  /**
+   * Get paginated list of upcharges.
+   */
+  listUpcharges: async (
+    params?: LibraryListParams,
+  ): Promise<UpChargeListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.cursor) searchParams.set('cursor', params.cursor);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', params.tags.join(','));
+    }
+
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/price-guide/library/upcharges?${queryString}`
+      : '/price-guide/library/upcharges';
+    return apiClient.get<UpChargeListResponse>(url);
+  },
+
+  /**
+   * Get upcharge details by ID.
+   */
+  getUpcharge: async (upchargeId: string): Promise<UpChargeDetailResponse> => {
+    return apiClient.get<UpChargeDetailResponse>(
+      `/price-guide/library/upcharges/${upchargeId}`,
+    );
+  },
+
+  /**
+   * Create a new upcharge.
+   */
+  createUpcharge: async (data: {
+    name: string;
+    note?: string;
+    measurementType?: string;
+    identifier?: string;
+    /** File ID for product thumbnail image */
+    imageId?: string;
+  }): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.post('/price-guide/library/upcharges', data);
+  },
+
+  /**
+   * Update an upcharge.
+   */
+  updateUpcharge: async (
+    upchargeId: string,
+    data: {
+      name?: string;
+      note?: string | null;
+      measurementType?: string | null;
+      identifier?: string | null;
+      /** File ID for product thumbnail image (null to remove) */
+      imageId?: string | null;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/library/upcharges/${upchargeId}`, data);
+  },
+
+  /**
+   * Set thumbnail image for an upcharge.
+   * @param upchargeId - UpCharge ID
+   * @param imageId - Image ID (null to clear)
+   * @param version - Current upcharge version for optimistic locking
+   */
+  setUpchargeThumbnail: async (
+    upchargeId: string,
+    imageId: string | null,
+    version: number,
+  ): Promise<{ message: string; imageId: string | null }> => {
+    return apiClient.put(
+      `/price-guide/library/upcharges/${upchargeId}/thumbnail`,
+      { imageId, version },
+    );
+  },
+
+  /**
+   * Delete an upcharge.
+   */
+  deleteUpcharge: async (
+    upchargeId: string,
+    force = false,
+  ): Promise<SuccessResponse> => {
+    const url = force
+      ? `/price-guide/library/upcharges/${upchargeId}?force=true`
+      : `/price-guide/library/upcharges/${upchargeId}`;
+    return apiClient.delete(url);
+  },
+
+  /**
+   * Link additional detail fields to an upcharge.
+   */
+  linkUpchargeAdditionalDetails: async (
+    upchargeId: string,
+    fieldIds: string[],
+  ): Promise<{ success: boolean; linked: number; warnings: string[] }> => {
+    return apiClient.post(
+      `/price-guide/library/upcharges/${upchargeId}/additional-details`,
+      { fieldIds },
+    );
+  },
+
+  /**
+   * Unlink an additional detail field from an upcharge.
+   */
+  unlinkUpchargeAdditionalDetail: async (
+    upchargeId: string,
+    fieldId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/library/upcharges/${upchargeId}/additional-details/${fieldId}`,
+    );
+  },
+
+  // ==========================================================================
+  // Library - Additional Details
+  // ==========================================================================
+
+  /**
+   * Get paginated list of additional detail fields.
+   */
+  listAdditionalDetails: async (
+    params?: LibraryListParams,
+  ): Promise<AdditionalDetailFieldListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.cursor) searchParams.set('cursor', params.cursor);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', params.tags.join(','));
+    }
+
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/price-guide/library/additional-details?${queryString}`
+      : '/price-guide/library/additional-details';
+    return apiClient.get<AdditionalDetailFieldListResponse>(url);
+  },
+
+  /**
+   * Get additional detail field details by ID.
+   */
+  getAdditionalDetail: async (
+    fieldId: string,
+  ): Promise<AdditionalDetailFieldDetailResponse> => {
+    return apiClient.get<AdditionalDetailFieldDetailResponse>(
+      `/price-guide/library/additional-details/${fieldId}`,
+    );
+  },
+
+  // ==========================================================================
+  // Library - Additional Details
+  // ==========================================================================
+
+  /**
+   * Create a new additional detail field.
+   */
+  createAdditionalDetail: async (data: {
+    title: string;
+    inputType: string;
+    isRequired?: boolean;
+    placeholder?: string;
+    note?: string;
+    defaultValue?: string;
+    allowDecimal?: boolean;
+    pickerValues?: string[];
+    sizePickerConfig?: {
+      precision: string;
+      minWidth?: number;
+      maxWidth?: number;
+      minHeight?: number;
+      maxHeight?: number;
+      minDepth?: number;
+      maxDepth?: number;
+    };
+    unitedInchConfig?: { suffix?: string };
+    dateDisplayFormat?: string;
+  }): Promise<{
+    message: string;
+    field: { id: string; title: string; version: number };
+  }> => {
+    return apiClient.post('/price-guide/library/additional-details', data);
+  },
+
+  /**
+   * Update an additional detail field.
+   */
+  updateAdditionalDetail: async (
+    fieldId: string,
+    data: {
+      title?: string;
+      inputType?: string;
+      isRequired?: boolean;
+      placeholder?: string | null;
+      note?: string | null;
+      defaultValue?: string | null;
+      allowDecimal?: boolean;
+      pickerValues?: string[] | null;
+      sizePickerConfig?: {
+        precision: string;
+        minWidth?: number;
+        maxWidth?: number;
+        minHeight?: number;
+        maxHeight?: number;
+        minDepth?: number;
+        maxDepth?: number;
+      } | null;
+      unitedInchConfig?: { suffix?: string } | null;
+      dateDisplayFormat?: string | null;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    field: { id: string; title: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/library/additional-details/${fieldId}`,
+      data,
+    );
+  },
+
+  /**
+   * Delete an additional detail field.
+   */
+  deleteAdditionalDetail: async (
+    fieldId: string,
+    force = false,
+  ): Promise<SuccessResponse> => {
+    const url = force
+      ? `/price-guide/library/additional-details/${fieldId}?force=true`
+      : `/price-guide/library/additional-details/${fieldId}`;
+    return apiClient.delete(url);
+  },
+
+  // ==========================================================================
+  // Library - Images
+  // ==========================================================================
+
+  /**
+   * Get paginated list of images.
+   */
+  listImages: async (
+    params?: LibraryListParams,
+  ): Promise<ImageListResponse> => {
+    const searchParams = new URLSearchParams();
+    if (params?.cursor) searchParams.set('cursor', params.cursor);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.tags && params.tags.length > 0) {
+      searchParams.set('tags', params.tags.join(','));
+    }
+
+    const queryString = searchParams.toString();
+    const url = queryString
+      ? `/price-guide/library/images?${queryString}`
+      : '/price-guide/library/images';
+    return apiClient.get<ImageListResponse>(url);
+  },
+
+  /**
+   * Get image details by ID.
+   */
+  getImage: async (imageId: string): Promise<ImageDetailResponse> => {
+    return apiClient.get<ImageDetailResponse>(
+      `/price-guide/library/images/${imageId}`,
+    );
+  },
+
+  /**
+   * Upload a new image to the library.
+   */
+  uploadImage: async (
+    file: File,
+    data: { name: string; description?: string },
+  ): Promise<{ item: PriceGuideImageSummary }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', data.name);
+    if (data.description) {
+      formData.append('description', data.description);
+    }
+    return await apiClient.upload('/price-guide/library/images', formData);
+  },
+
+  /**
+   * Update image metadata.
+   */
+  updateImage: async (
+    imageId: string,
+    data: { name?: string; description?: string | null; version: number },
+  ): Promise<{ item: PriceGuideImageSummary }> => {
+    return apiClient.put(`/price-guide/library/images/${imageId}`, data);
+  },
+
+  /**
+   * Delete an image from the library.
+   */
+  deleteImage: async (
+    imageId: string,
+    force = false,
+  ): Promise<SuccessResponse> => {
+    const url = force
+      ? `/price-guide/library/images/${imageId}?force=true`
+      : `/price-guide/library/images/${imageId}`;
+    return apiClient.delete(url);
+  },
+
+  /**
+   * Get where an image is used (MSIs and UpCharges).
+   */
+  getImageWhereUsed: async (
+    imageId: string,
+  ): Promise<{
+    msis: Array<{
+      id: string;
+      name: string;
+      category: { id: string; name: string } | null;
+    }>;
+    upcharges: Array<{ id: string; name: string }>;
+  }> => {
+    return apiClient.get(`/price-guide/library/images/${imageId}/where-used`);
+  },
+
+  // ==========================================================================
+  // Pricing
+  // ==========================================================================
+
+  /**
+   * Get price types for the company.
+   */
+  getPriceTypes: async (): Promise<PriceTypesResponse> => {
+    return apiClient.get<PriceTypesResponse>(
+      '/price-guide/pricing/price-types',
+    );
+  },
+
+  /**
+   * Get a specific price type with office assignments.
+   */
+  getPriceType: async (
+    priceTypeId: string,
+  ): Promise<PriceTypeDetailResponse> => {
+    return apiClient.get<PriceTypeDetailResponse>(
+      `/price-guide/pricing/price-types/${priceTypeId}`,
+    );
+  },
+
+  /**
+   * Create a new price type.
+   */
+  createPriceType: async (
+    data: CreatePriceTypeRequest,
+  ): Promise<{
+    message: string;
+    priceType: { id: string; code: string; name: string };
+  }> => {
+    return apiClient.post('/price-guide/pricing/price-types', data);
+  },
+
+  /**
+   * Update a price type.
+   */
+  updatePriceType: async (
+    priceTypeId: string,
+    data: UpdatePriceTypeRequest,
+  ): Promise<{
+    message: string;
+    priceType: { id: string; code: string; name: string };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/price-types/${priceTypeId}`,
+      data,
+    );
+  },
+
+  /**
+   * Delete (soft delete) a price type.
+   */
+  deletePriceType: async (priceTypeId: string): Promise<SuccessResponse> => {
+    return apiClient.delete(`/price-guide/pricing/price-types/${priceTypeId}`);
+  },
+
+  /**
+   * Generate default price types and assign to offices.
+   */
+  generatePriceTypes: async (
+    data: GeneratePriceTypesRequest,
+  ): Promise<GeneratePriceTypesResponse> => {
+    return apiClient.post('/price-guide/pricing/price-types/generate', data);
+  },
+
+  /**
+   * Get price types for a specific office with assignment status.
+   */
+  getOfficePriceTypes: async (
+    officeId: string,
+  ): Promise<OfficePriceTypesResponse> => {
+    return apiClient.get<OfficePriceTypesResponse>(
+      `/price-guide/pricing/price-types/offices/${officeId}`,
+    );
+  },
+
+  /**
+   * Assign a price type to an office.
+   */
+  assignPriceTypeToOffice: async (
+    priceTypeId: string,
+    officeId: string,
+    data?: OfficePriceTypeAssignmentRequest,
+  ): Promise<OfficePriceTypeAssignmentResponse> => {
+    return apiClient.post(
+      `/price-guide/pricing/price-types/${priceTypeId}/offices/${officeId}`,
+      data ?? {},
+    );
+  },
+
+  /**
+   * Update a price type office assignment.
+   */
+  updatePriceTypeOfficeAssignment: async (
+    priceTypeId: string,
+    officeId: string,
+    data: OfficePriceTypeAssignmentRequest,
+  ): Promise<OfficePriceTypeAssignmentResponse> => {
+    return apiClient.put(
+      `/price-guide/pricing/price-types/${priceTypeId}/offices/${officeId}`,
+      data,
+    );
+  },
+
+  /**
+   * Remove a price type office assignment.
+   */
+  removePriceTypeFromOffice: async (
+    priceTypeId: string,
+    officeId: string,
+  ): Promise<SuccessResponse> => {
+    return apiClient.delete(
+      `/price-guide/pricing/price-types/${priceTypeId}/offices/${officeId}`,
+    );
+  },
+
+  // ==========================================================================
+  // Option Pricing
+  // ==========================================================================
+
+  /**
+   * Get all pricing for an option across all offices and price types.
+   */
+  getOptionPricing: async (
+    optionId: string,
+  ): Promise<{
+    option: {
+      id: string;
+      name: string;
+      brand: string | null;
+      itemCode: string | null;
+      version: number;
+    };
+    priceTypes: Array<{
+      id: string;
+      code: string;
+      name: string;
+      sortOrder: number;
+    }>;
+    byOffice: Record<
+      string,
+      { office: { id: string; name: string }; prices: Record<string, number> }
+    >;
+  }> => {
+    return apiClient.get(`/price-guide/pricing/options/${optionId}`);
+  },
+
+  /**
+   * Update prices for an option for a specific office.
+   */
+  updateOptionPricing: async (
+    optionId: string,
+    data: {
+      officeId: string;
+      prices: Array<{ priceTypeId: string; amount: number }>;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    option: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(`/price-guide/pricing/options/${optionId}`, data);
+  },
+
+  /**
+   * Bulk update prices for an option across all offices for a specific price type.
+   */
+  updateOptionPricingBulk: async (
+    optionId: string,
+    data: {
+      priceTypeId: string;
+      amount: number;
+      version: number;
+    },
+  ): Promise<{
+    message: string;
+    option: { id: string; name: string; version: number };
+    updatedCount: number;
+  }> => {
+    return apiClient.put(`/price-guide/pricing/options/${optionId}/bulk`, data);
+  },
+
+  // ==========================================================================
+  // UpCharge Pricing
+  // ==========================================================================
+
+  /**
+   * Get all pricing for an upcharge (defaults and option overrides).
+   */
+  getUpchargePricing: async (
+    upchargeId: string,
+  ): Promise<UpChargePricingDetail> => {
+    return apiClient.get<UpChargePricingDetail>(
+      `/price-guide/pricing/upcharges/${upchargeId}`,
+    );
+  },
+
+  /**
+   * Update default prices for an upcharge for a specific office.
+   */
+  updateUpchargeDefaultPrices: async (
+    upchargeId: string,
+    data: UpdateUpChargeDefaultPricesRequest,
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/upcharges/${upchargeId}/defaults`,
+      data,
+    );
+  },
+
+  /**
+   * Update override prices for an upcharge for a specific option and office.
+   */
+  updateUpchargeOverridePrices: async (
+    upchargeId: string,
+    data: UpdateUpChargeOverridePricesRequest,
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/upcharges/${upchargeId}/overrides`,
+      data,
+    );
+  },
+
+  /**
+   * Delete global option override prices for an upcharge.
+   */
+  deleteUpchargeOverridePrices: async (
+    upchargeId: string,
+    optionId: string,
+    officeId?: string,
+  ): Promise<{ message: string; deletedCount: number }> => {
+    const params = new URLSearchParams({ optionId });
+    if (officeId) params.set('officeId', officeId);
+    return apiClient.delete(
+      `/price-guide/pricing/upcharges/${upchargeId}/overrides?${params.toString()}`,
+    );
+  },
+
+  /**
+   * Update MSI+Option specific override prices.
+   */
+  updateUpchargeMsiOverridePrices: async (
+    upchargeId: string,
+    data: UpdateUpChargeMsiOverridePricesRequest,
+  ): Promise<{
+    message: string;
+    upcharge: { id: string; name: string; version: number };
+  }> => {
+    return apiClient.put(
+      `/price-guide/pricing/upcharges/${upchargeId}/msi-overrides`,
+      data,
+    );
+  },
+
+  /**
+   * Delete MSI+Option specific override prices.
+   */
+  deleteUpchargeMsiOverridePrices: async (
+    upchargeId: string,
+    msiId: string,
+    optionId: string,
+    officeId?: string,
+  ): Promise<{ message: string; deletedCount: number }> => {
+    const params = new URLSearchParams({ msiId, optionId });
+    if (officeId) params.set('officeId', officeId);
+    return apiClient.delete(
+      `/price-guide/pricing/upcharges/${upchargeId}/msi-overrides?${params.toString()}`,
+    );
+  },
+
+  // Note: All MSI pricing flows through OptionPrice entities.
+  // MSIs require at least one option; see ADR-003.
+
+  // ==========================================================================
+  // Tags
+  // ==========================================================================
+
+  /**
+   * List all tags with optional search.
+   */
+  listTags: async (search?: string): Promise<TagListResponse> => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    const queryString = params.toString();
+    const url = queryString
+      ? `/price-guide/tags?${queryString}`
+      : '/price-guide/tags';
+    return apiClient.get<TagListResponse>(url);
+  },
+
+  /**
+   * Get tag details by ID.
+   */
+  getTag: async (tagId: string): Promise<TagDetailResponse> => {
+    return apiClient.get<TagDetailResponse>(`/price-guide/tags/${tagId}`);
+  },
+
+  /**
+   * Create a new tag.
+   */
+  createTag: async (data: CreateTagRequest): Promise<CreateTagResponse> => {
+    return apiClient.post('/price-guide/tags', data);
+  },
+
+  /**
+   * Update a tag.
+   */
+  updateTag: async (
+    tagId: string,
+    data: UpdateTagRequest,
+  ): Promise<UpdateTagResponse> => {
+    return apiClient.put(`/price-guide/tags/${tagId}`, data);
+  },
+
+  /**
+   * Delete a tag (soft delete).
+   */
+  deleteTag: async (tagId: string): Promise<SuccessResponse> => {
+    return apiClient.delete(`/price-guide/tags/${tagId}`);
+  },
+
+  /**
+   * Get tags for a specific item.
+   */
+  getItemTags: async (
+    entityType: TaggableEntityType,
+    entityId: string,
+  ): Promise<ItemTagsResponse> => {
+    return apiClient.get<ItemTagsResponse>(
+      `/price-guide/tags/items/${entityType}/${entityId}`,
+    );
+  },
+
+  /**
+   * Set tags for a specific item (replaces all existing tags).
+   */
+  setItemTags: async (
+    entityType: TaggableEntityType,
+    entityId: string,
+    data: SetItemTagsRequest,
+  ): Promise<SetItemTagsResponse> => {
+    return apiClient.put(
+      `/price-guide/tags/items/${entityType}/${entityId}`,
+      data,
+    );
+  },
+};

@@ -6,6 +6,7 @@
  */
 import { createTheme } from '@mui/material/styles';
 
+import type { CardProps } from '@mui/material/Card';
 import type { ThemeOptions } from '@mui/material/styles';
 
 /**
@@ -223,13 +224,21 @@ function getComponentOverrides(mode: 'light' | 'dark') {
     },
     MuiCard: {
       styleOverrides: {
-        root: {
+        root: ({ ownerState }: { ownerState: CardProps }) => ({
           borderRadius: 12,
           boxShadow:
             mode === 'light'
               ? '0 4px 20px rgba(0, 0, 0, 0.08)'
               : '0 4px 20px rgba(0, 0, 0, 0.3)',
-        },
+          // Outlined cards get a subtle background for better visual hierarchy
+          ...(ownerState.variant === 'outlined' && {
+            boxShadow: 'none',
+            backgroundColor:
+              mode === 'light'
+                ? 'rgba(46, 46, 46, 0.02)'
+                : 'rgba(255, 255, 255, 0.04)',
+          }),
+        }),
       },
     },
     MuiPaper: {

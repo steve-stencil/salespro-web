@@ -15,7 +15,7 @@ import type { FC } from 'react';
 /**
  * Data Migration Page Component.
  */
-const DataMigrationPage: FC = () => {
+export const DataMigrationPage: FC = () => {
   const navigate = useNavigate();
 
   const handleComplete = useCallback(() => {
@@ -35,5 +35,3 @@ const DataMigrationPage: FC = () => {
     </Container>
   );
 };
-
-export default DataMigrationPage;

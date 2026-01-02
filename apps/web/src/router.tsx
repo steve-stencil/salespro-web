@@ -2,7 +2,6 @@
  * Application router configuration.
  * Defines all routes and their components.
  */
-import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { PermissionGuard } from './components/PermissionGuard';
@@ -12,6 +11,7 @@ import { AppLayout } from './layouts/AppLayout';
 import { AcceptInvitePage } from './pages/AcceptInvitePage';
 import { CompanySettingsPage } from './pages/CompanySettingsPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { DataMigrationPage } from './pages/DataMigrationPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { InternalUsersPage } from './pages/InternalUsersPage';
 import { LoginPage } from './pages/LoginPage';
@@ -19,13 +19,22 @@ import { MfaVerifyPage } from './pages/MfaVerifyPage';
 import { OfficesPage } from './pages/OfficesPage';
 import { PlatformCompaniesPage } from './pages/PlatformCompaniesPage';
 import { PlatformRolesPage } from './pages/PlatformRolesPage';
+import {
+  CatalogPage,
+  CategoryManagementPage,
+  CreateWizard,
+  LibraryPage,
+  MigrationWizardPage,
+  MsiEditPage,
+  PricingPage,
+  PriceTypesPage,
+  TagManagementPage,
+  ToolsPage,
+} from './pages/price-guide';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { RolesPage } from './pages/RolesPage';
 import { SelectCompanyPage } from './pages/SelectCompanyPage';
 import { UsersPage } from './pages/UsersPage';
-
-// Lazy-loaded pages
-const DataMigrationPage = lazy(() => import('./pages/DataMigrationPage'));
 
 /**
  * Application routes configuration.
@@ -124,9 +133,88 @@ export const router = createBrowserRouter([
         path: '/admin/data-migration',
         element: (
           <PermissionGuard permission={PERMISSIONS.DATA_MIGRATION}>
-            <Suspense fallback={<div>Loading...</div>}>
-              <DataMigrationPage />
-            </Suspense>
+            <DataMigrationPage />
+          </PermissionGuard>
+        ),
+      },
+      // Price Guide routes
+      {
+        path: '/price-guide',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <CatalogPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/library',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <LibraryPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/categories',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_READ}>
+            <CategoryManagementPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/create',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_CREATE}>
+            <CreateWizard />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/:msiId/pricing',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <PricingPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/tools',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <ToolsPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/tags',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <TagManagementPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/price-types',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <PriceTypesPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/migration',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_CREATE}>
+            <MigrationWizardPage />
+          </PermissionGuard>
+        ),
+      },
+      {
+        path: '/price-guide/:msiId',
+        element: (
+          <PermissionGuard permission={PERMISSIONS.PRICE_GUIDE_UPDATE}>
+            <MsiEditPage />
           </PermissionGuard>
         ),
       },

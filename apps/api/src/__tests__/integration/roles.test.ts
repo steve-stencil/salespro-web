@@ -1605,7 +1605,7 @@ describe('Roles Routes Integration Tests', () => {
       });
     });
 
-    // Route handlers have been updated to use companyContext to support internal users
+    // Platform roles should NEVER appear in GET /api/roles - they are managed via /api/platform/roles
     describe('Internal user', () => {
       let internalUser: User;
       let internalUserCookie: string;
@@ -1690,7 +1690,9 @@ describe('Roles Routes Integration Tests', () => {
         internalUserCookie = `sid=${sid}`;
       });
 
-      it('should see platform roles in GET /roles response', async () => {
+      it('should NOT see platform roles in GET /roles response (platform roles are separate)', async () => {
+        // Platform roles should NEVER be returned from /api/roles endpoint
+        // They are managed separately via /api/platform/roles
         const response = await makeRequest()
           .get('/api/roles')
           .set('Cookie', internalUserCookie);
@@ -1698,15 +1700,20 @@ describe('Roles Routes Integration Tests', () => {
         expect(response.status).toBe(200);
         expect(response.body.roles).toBeDefined();
 
-        // Verify platform role IS in the response for internal users
+        // Verify NO platform roles are in the response - even for internal users
         const platformRoleInResponse = response.body.roles.find(
+          (r: { type: string }) => r.type === 'platform',
+        );
+        expect(platformRoleInResponse).toBeUndefined();
+
+        // Verify the specific platform role is NOT in the response
+        const specificPlatformRole = response.body.roles.find(
           (r: { id: string }) => r.id === platformRole.id,
         );
-        expect(platformRoleInResponse).toBeDefined();
-        expect(platformRoleInResponse.type).toBe('platform');
+        expect(specificPlatformRole).toBeUndefined();
       });
 
-      it('should see all role types (platform, system, and company)', async () => {
+      it('should only see system and company roles (NOT platform)', async () => {
         const orm = getORM();
         const em = orm.em.fork();
 
@@ -1728,13 +1735,34 @@ describe('Roles Routes Integration Tests', () => {
 
         expect(response.status).toBe(200);
 
-        // Check for all role types
+        // Check for role types - should have system and company, but NOT platform
         const roles = response.body.roles as Array<{ type: string }>;
         const roleTypes = new Set(roles.map(r => r.type));
 
-        expect(roleTypes.has('platform')).toBe(true);
+        expect(roleTypes.has('platform')).toBe(false); // Platform roles are NOT in /api/roles
         expect(roleTypes.has('system')).toBe(true);
         expect(roleTypes.has('company')).toBe(true);
+      });
+
+      it('should ensure clean separation between /api/roles and /api/platform/roles', async () => {
+        // /api/roles should only return company context roles (system + company)
+        const rolesResponse = await makeRequest()
+          .get('/api/roles')
+          .set('Cookie', internalUserCookie);
+
+        expect(rolesResponse.status).toBe(200);
+
+        // No platform roles in the company roles endpoint
+        const platformRolesInCompanyEndpoint = rolesResponse.body.roles.filter(
+          (r: { type: string }) => r.type === 'platform',
+        );
+        expect(platformRolesInCompanyEndpoint.length).toBe(0);
+
+        // Company/system roles should be present
+        const nonPlatformRoles = rolesResponse.body.roles.filter(
+          (r: { type: string }) => r.type !== 'platform',
+        );
+        expect(nonPlatformRoles.length).toBeGreaterThan(0);
       });
     });
   });

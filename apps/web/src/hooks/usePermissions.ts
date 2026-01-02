@@ -268,6 +268,12 @@ export const PERMISSIONS = {
   // Data Migration
   DATA_MIGRATION: 'data:migration',
 
+  // Price Guide
+  PRICE_GUIDE_READ: 'price_guide:read',
+  PRICE_GUIDE_CREATE: 'price_guide:create',
+  PRICE_GUIDE_UPDATE: 'price_guide:update',
+  PRICE_GUIDE_DELETE: 'price_guide:delete',
+
   // Platform (internal users only)
   PLATFORM_ADMIN: 'platform:admin',
   PLATFORM_VIEW_COMPANIES: 'platform:view_companies',

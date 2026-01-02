@@ -3,6 +3,9 @@
  */
 import { v4 as uuid } from 'uuid';
 
+// Re-export price-guide factories
+export * from './price-guide';
+
 import { hashPassword, hashToken, generateSecureToken } from '../../lib/crypto';
 
 import type { SessionSource } from '../../entities';

@@ -17,38 +17,47 @@ import type { EntityManager } from '@mikro-orm/core';
 const THUMBNAIL_WIDTH = 200;
 const THUMBNAIL_HEIGHT = 200;
 
+/** Thumbnail output format - always PNG for consistency */
+const THUMBNAIL_EXT = 'png';
+const THUMBNAIL_MIME = 'image/png';
+
 /**
  * Generate and upload a thumbnail for an image.
+ * Always outputs PNG format for consistent rendering across browsers.
  *
  * @param buffer - Image buffer
  * @param companyId - Company ID for storage key
  * @param fileId - File ID for storage key
- * @param ext - File extension
- * @param mimeType - MIME type of the image
+ * @param _ext - Original file extension (unused, thumbnails are always PNG)
+ * @param _mimeType - Original MIME type (unused, thumbnails are always PNG)
  * @returns The thumbnail storage key
  */
 export async function generateAndUploadThumbnail(
   buffer: Buffer,
   companyId: string,
   fileId: string,
-  ext: string,
-  mimeType: string,
+  _ext: string,
+  _mimeType: string,
 ): Promise<string> {
-  // Generate thumbnail using sharp
+  // Generate thumbnail using sharp - always output PNG for consistency
+  // This handles SVG and other formats that Sharp converts internally
+  // Use 'contain' to preserve the entire image without cropping
   const thumbnail = await sharp(buffer)
     .resize(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, {
-      fit: 'cover',
-      position: 'center',
+      fit: 'contain',
+      background: { r: 255, g: 255, b: 255, alpha: 0 }, // Transparent background
     })
+    .png() // Always output PNG format
     .toBuffer();
 
-  const thumbnailKey = generateThumbnailKey(companyId, fileId, ext);
+  // Always use PNG extension for thumbnails
+  const thumbnailKey = generateThumbnailKey(companyId, fileId, THUMBNAIL_EXT);
   const storage = getStorageAdapter();
 
   await storage.upload({
     key: thumbnailKey,
     buffer: thumbnail,
-    mimeType,
+    mimeType: THUMBNAIL_MIME,
   });
 
   return thumbnailKey;

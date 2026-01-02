@@ -168,6 +168,18 @@ export class ApiClient {
   }
 
   /**
+   * Performs a POST request with multipart form data (file upload).
+   */
+  async upload<T>(endpoint: string, formData: FormData): Promise<T> {
+    const response = await axiosInstance.post<T>(endpoint, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
+
+  /**
    * Health check endpoint.
    */
   async healthCheck(): Promise<{ status: string }> {

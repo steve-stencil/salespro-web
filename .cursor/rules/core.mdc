@@ -1,7 +1,5 @@
 ---
-description: Core conventions, repo tasks, and coding standards for the monorepo
-globs:
-  - '**/*'
+alwaysApply: true
 ---
 
 # Project-wide Conventions
@@ -10,27 +8,7 @@ globs:
 - Prefer functional, small modules. Avoid long classes.
 - Always write a short JSDoc for exported functions and types.
 - Do not hardcode env secrets; read from process.env with typed helpers.
-- **ALWAYS use axios** for HTTP requests - never use native `fetch()`. Configure axios instances with proper interceptors.
-
-# Code Quality
-
-- Functions should not exceed 50 lines; extract smaller functions when needed.
-- Files should not exceed 300 lines; split into modules when needed.
-- Use meaningful variable and function names that describe intent.
-- Avoid deep nesting (max 3 levels); extract functions or use early returns.
-- Prefer composition over inheritance.
-- Use proper error handling with typed error classes.
-- Implement proper logging with structured data.
-
-# Documentation coupling (MANDATORY)
-
-- When making changes that affect developer setup or DX, you MUST update `README.md` in the same change set.
-- This includes any modifications to:
-  - scripts under `package.json` or `scripts/*`
-  - environment variables, defaults, or required values
-  - ports, URLs, or API base paths
-  - project bootstrap instructions, CI commands, or tooling versions
-- If you add a new script or flag, document usage and expected outcomes in `README.md`.
+- **ALWAYS use axios** for HTTP requests - never use native `fetch()`.
 
 # Tasks
 
@@ -49,57 +27,29 @@ globs:
   - `types/errors.ts` - Error codes and helpers
 - When adding shared types, export from `packages/shared/src/types/index.ts` and run `pnpm --filter @shared/core build`.
 
+# Documentation Coupling (MANDATORY)
+
+- When making changes that affect developer setup or DX, you MUST update `README.md` in the same change set.
+- This includes: scripts, environment variables, ports/URLs, bootstrap instructions.
+
 # Commit Hygiene
 
 - Keep PRs small. Add/adjust tests with code changes.
 
-# TypeScript & Lint
+# Specialized Rules
 
-- Strict TypeScript across the monorepo. `any` type is **FORBIDDEN** - use proper typing or `unknown`.
-- Enable `noImplicitAny`, `noExplicitAny` compiler flags - enforced via ESLint.
-- **MANDATORY**: Run linting checks on ALL modified files before task completion.
-- Fix ESLint and type errors before committing.
-- All functions must have explicit return types when not inferrable.
-- Use proper TypeScript utility types (Partial, Pick, Omit, Record, etc.).
-- Prefer type definitions over interfaces when possible for better performance.
-- Use const assertions for immutable data structures.
-
-# Quality Assurance
-
-- **CRITICAL**: See `.cursor/rules/quality-assurance.mdc` for mandatory linting and quality checks.
-- **NO EXCEPTIONS**: All linting errors must be fixed before task completion.
-- **VERIFY**: Always run `read_lints` on modified files and fix all errors.
-- **QUALITY GATES**: Task completion only allowed when all quality checks pass.
-
-# Documentation Requirements
-
-- All exported functions, classes, and types must have JSDoc comments.
-- Complex business logic must include inline comments explaining the "why".
-- Update README.md when adding new scripts, dependencies, or configuration changes.
-- API endpoints must be documented with request/response examples.
-- Environment variables must be documented in README.md with examples.
-
-# Self-Improvement Documentation Triggers
-
-When completing ANY task, evaluate if documentation updates are needed:
-
-- [ ] **New folder created?** → Add `README.md` explaining purpose
-- [ ] **New entity added?** → Update `apps/api/src/entities/README.md`
-- [ ] **New route added?** → Update `apps/api/src/routes/README.md` and API docs
-- [ ] **New component added?** → Update `apps/web/src/components/README.md`
-- [ ] **New hook added?** → Update `apps/web/src/hooks/README.md`
-- [ ] **New service added?** → Update relevant `services/README.md`
-- [ ] **Environment variable changed?** → Update root `README.md` and app READMEs
-- [ ] **Permission added?** → Update `.cursor/rules/permissions.mdc`
-- [ ] **Shared type added?** → Update `packages/shared/README.md`
-- [ ] **Architecture decision made?** → Create ADR in `docs/adr/`
-
-See `.cursor/rules/self-improvement.mdc` for complete self-improvement protocol.
+- **Quality Assurance**: See `.cursor/rules/quality-assurance.mdc`
+- **Self-Improvement**: See `.cursor/rules/self-improvement.mdc`
+- **Backend (API)**: See `.cursor/rules/backend.mdc`
+- **Frontend (Web)**: See `.cursor/rules/frontend.mdc`
+- **Permissions**: See `.cursor/rules/permissions.mdc`
+- **Security**: See `.cursor/rules/security.mdc`
+- **Testing**: See `.cursor/rules/testing.mdc`
 
 # Comprehensive Documentation
 
-- **Architecture**: See `docs/ARCHITECTURE.md` for monorepo structure, design patterns, and configuration management.
-- **Development**: See `docs/DEVELOPMENT.md` for detailed development patterns, code organization, and best practices.
-- **Security**: See `docs/SECURITY.md` for security best practices and vulnerability reporting.
-- **Contributing**: See `CONTRIBUTING.md` for contribution guidelines and development standards.
-- **ADRs**: See `docs/adr/` for Architecture Decision Records.
+- **Architecture**: See `docs/ARCHITECTURE.md`
+- **Development**: See `docs/DEVELOPMENT.md`
+- **Security**: See `docs/SECURITY.md`
+- **Contributing**: See `CONTRIBUTING.md`
+- **ADRs**: See `docs/adr/`

@@ -30,43 +30,7 @@ import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 
 import { makeRequest, waitForDatabase } from './helpers';
-
-// Mock storage adapter for tests
-vi.mock('../../lib/storage', () => ({
-  getStorageAdapter: vi.fn(() => ({
-    upload: vi.fn().mockResolvedValue({
-      key: 'test-key',
-      size: 1000,
-      etag: '"abc123"',
-    }),
-    download: vi.fn().mockResolvedValue({
-      // eslint-disable-next-line @typescript-eslint/require-await
-      [Symbol.asyncIterator]: async function* () {
-        yield Buffer.from('test content');
-      },
-    }),
-    delete: vi.fn().mockResolvedValue(undefined),
-    exists: vi.fn().mockResolvedValue(true),
-    getSignedDownloadUrl: vi
-      .fn()
-      .mockResolvedValue('https://example.com/signed-url'),
-    generatePresignedUpload: vi.fn().mockResolvedValue({
-      url: 'https://example.com/upload-url',
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/pdf' },
-      expiresAt: new Date(Date.now() + 900000),
-    }),
-  })),
-  isS3Configured: vi.fn().mockReturnValue(true),
-  generateStorageKey: vi.fn(
-    (companyId: string, fileId: string, ext: string) =>
-      `${companyId}/files/${fileId}.${ext}`,
-  ),
-  getFileExtension: vi.fn((filename: string) => filename.split('.').pop()),
-  isImageMimeType: vi.fn((mimeType: string) => mimeType.startsWith('image/')),
-  sanitizeFilename: vi.fn((filename: string) => filename),
-  isFileTypeAllowed: vi.fn(() => true),
-}));
+import { mockStorageAdapter } from './server-setup';
 
 // Mock thumbnail generation
 vi.mock('../../services/file/thumbnail', () => ({
@@ -542,6 +506,112 @@ describe('File Routes Integration Tests', () => {
         .set('Cookie', cookie);
 
       expect(response.status).toBe(404);
+    });
+
+    it('should delete file from storage when soft deleting', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const file = em.create(File, {
+        id: uuid(),
+        filename: 'storage-delete-test.pdf',
+        storageKey: `${testCompany.id}/files/storage-delete-test.pdf`,
+        mimeType: 'application/pdf',
+        size: 1024,
+        visibility: FileVisibility.COMPANY,
+        status: FileStatus.ACTIVE,
+        company: testCompany,
+        uploadedBy: testUser,
+      });
+      await em.persistAndFlush(file);
+
+      const response = await makeRequest()
+        .delete(`/api/files/${file.id}`)
+        .set('Cookie', cookie);
+
+      expect(response.status).toBe(200);
+
+      // Wait for fire-and-forget deletion and flush all pending promises
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await vi.waitFor(() => {
+        // Verify storage.delete was called for the main file
+
+        expect(mockStorageAdapter.delete).toHaveBeenCalledWith(file.storageKey);
+      });
+    });
+
+    it('should delete thumbnail from storage when soft deleting an image', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+
+      const thumbnailKey = `${testCompany.id}/thumbnails/image_thumb.jpg`;
+      const file = em.create(File, {
+        id: uuid(),
+        filename: 'image-with-thumbnail.jpg',
+        storageKey: `${testCompany.id}/files/image-with-thumbnail.jpg`,
+        mimeType: 'image/jpeg',
+        size: 1024,
+        visibility: FileVisibility.COMPANY,
+        status: FileStatus.ACTIVE,
+        thumbnailKey,
+        company: testCompany,
+        uploadedBy: testUser,
+      });
+      await em.persistAndFlush(file);
+
+      const response = await makeRequest()
+        .delete(`/api/files/${file.id}`)
+        .set('Cookie', cookie);
+
+      expect(response.status).toBe(200);
+
+      // Wait for fire-and-forget deletion and flush all pending promises
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await vi.waitFor(() => {
+        // Verify storage.delete was called for both main file and thumbnail
+
+        expect(mockStorageAdapter.delete).toHaveBeenCalledWith(file.storageKey);
+        expect(mockStorageAdapter.delete).toHaveBeenCalledWith(thumbnailKey);
+      });
+    });
+
+    it('should still soft delete even if storage deletion fails', async () => {
+      const orm = getORM();
+      const em = orm.em.fork();
+      const { getStorageAdapter } = await import('../../lib/storage');
+      const mockStorage = getStorageAdapter();
+
+      // Make storage.delete reject
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      vi.mocked(mockStorage.delete).mockRejectedValueOnce(
+        new Error('Storage unavailable'),
+      );
+
+      const file = em.create(File, {
+        id: uuid(),
+        filename: 'storage-error-test.pdf',
+        storageKey: `${testCompany.id}/files/storage-error-test.pdf`,
+        mimeType: 'application/pdf',
+        size: 1024,
+        visibility: FileVisibility.COMPANY,
+        status: FileStatus.ACTIVE,
+        company: testCompany,
+        uploadedBy: testUser,
+      });
+      await em.persistAndFlush(file);
+
+      const response = await makeRequest()
+        .delete(`/api/files/${file.id}`)
+        .set('Cookie', cookie);
+
+      // Should still succeed (soft delete happens first)
+      expect(response.status).toBe(200);
+      expect(response.body.message).toBe('File deleted');
+
+      // Verify file is soft deleted in DB
+      const deletedFile = await em.findOne(File, { id: file.id });
+      expect(deletedFile?.status).toBe(FileStatus.DELETED);
+      expect(deletedFile?.deletedAt).toBeDefined();
     });
   });
 

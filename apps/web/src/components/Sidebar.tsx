@@ -4,14 +4,24 @@
  * Navigation items are filtered based on user permissions.
  */
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import BuildIcon from '@mui/icons-material/Build';
 import BusinessIcon from '@mui/icons-material/Business';
+import CategoryIcon from '@mui/icons-material/Category';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
 import SecurityIcon from '@mui/icons-material/Security';
 import SettingsIcon from '@mui/icons-material/Settings';
+import StorageIcon from '@mui/icons-material/Storage';
 import SyncIcon from '@mui/icons-material/Sync';
 import Box from '@mui/material/Box';
+import Collapse from '@mui/material/Collapse';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
@@ -23,7 +33,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Skeleton from '@mui/material/Skeleton';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useUserPermissions, PERMISSIONS } from '../hooks/usePermissions';
@@ -66,6 +76,52 @@ const NAV_ITEMS: NavItem[] = [
     path: '/offices',
     icon: <BusinessIcon />,
     permission: PERMISSIONS.OFFICE_READ,
+  },
+];
+
+/** Price Guide navigation items - shown in expandable section */
+const PRICE_GUIDE_NAV_ITEMS: NavItem[] = [
+  {
+    label: 'Categories',
+    path: '/price-guide/categories',
+    icon: <CategoryIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_READ,
+  },
+  {
+    label: 'Tags',
+    path: '/price-guide/tags',
+    icon: <LocalOfferIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_UPDATE,
+  },
+  {
+    label: 'Library',
+    path: '/price-guide/library',
+    icon: <LibraryBooksIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_READ,
+  },
+  {
+    label: 'Price Types',
+    path: '/price-guide/price-types',
+    icon: <AttachMoneyIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_UPDATE,
+  },
+  {
+    label: 'Catalog',
+    path: '/price-guide',
+    icon: <InventoryIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_READ,
+  },
+  {
+    label: 'Tools',
+    path: '/price-guide/tools',
+    icon: <BuildIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_UPDATE,
+  },
+  {
+    label: 'Migration',
+    path: '/price-guide/migration',
+    icon: <StorageIcon />,
+    permission: PERMISSIONS.PRICE_GUIDE_CREATE,
   },
 ];
 
@@ -139,6 +195,9 @@ function DrawerContent(): React.ReactElement {
   const location = useLocation();
   const navigate = useNavigate();
   const { hasPermission, isLoading } = useUserPermissions();
+  const [priceGuideOpen, setPriceGuideOpen] = useState(
+    location.pathname.startsWith('/price-guide'),
+  );
 
   /**
    * Filter navigation items based on user permissions.
@@ -148,6 +207,16 @@ function DrawerContent(): React.ReactElement {
       // If no permission required, show the item
       if (!item.permission) return true;
       // Check if user has the required permission
+      return hasPermission(item.permission);
+    });
+  }, [hasPermission]);
+
+  /**
+   * Filter price guide navigation items based on user permissions.
+   */
+  const visiblePriceGuideItems = useMemo(() => {
+    return PRICE_GUIDE_NAV_ITEMS.filter(item => {
+      if (!item.permission) return true;
       return hasPermission(item.permission);
     });
   }, [hasPermission]);
@@ -177,6 +246,13 @@ function DrawerContent(): React.ReactElement {
    */
   function handleNavClick(path: string): void {
     void navigate(path);
+  }
+
+  /**
+   * Toggle price guide submenu.
+   */
+  function handlePriceGuideToggle(): void {
+    setPriceGuideOpen(prev => !prev);
   }
 
   return (
@@ -245,6 +321,83 @@ function DrawerContent(): React.ReactElement {
               </ListItem>
             );
           })
+        )}
+
+        {/* Price Guide Section */}
+        {!isLoading && visiblePriceGuideItems.length > 0 && (
+          <>
+            <ListItem disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                onClick={handlePriceGuideToggle}
+                sx={{
+                  borderRadius: 2,
+                  bgcolor: location.pathname.startsWith('/price-guide')
+                    ? 'action.selected'
+                    : undefined,
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}>
+                  <InventoryIcon />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Price Guide"
+                  primaryTypographyProps={{
+                    fontWeight: location.pathname.startsWith('/price-guide')
+                      ? 600
+                      : 400,
+                  }}
+                />
+                {priceGuideOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </ListItemButton>
+            </ListItem>
+            <Collapse in={priceGuideOpen} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding sx={{ pl: 2 }}>
+                {visiblePriceGuideItems.map(item => {
+                  const isActive = location.pathname === item.path;
+
+                  return (
+                    <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                      <ListItemButton
+                        onClick={() => handleNavClick(item.path)}
+                        selected={isActive}
+                        data-testid={`nav-item-${item.path.replace(/\//g, '-').slice(1)}`}
+                        sx={{
+                          borderRadius: 2,
+                          py: 0.75,
+                          '&.Mui-selected': {
+                            bgcolor: 'primary.main',
+                            color: 'primary.contrastText',
+                            '&:hover': {
+                              bgcolor: 'primary.dark',
+                            },
+                            '& .MuiListItemIcon-root': {
+                              color: 'primary.contrastText',
+                            },
+                          },
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            minWidth: 32,
+                            color: isActive ? 'inherit' : 'text.secondary',
+                          }}
+                        >
+                          {item.icon}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.label}
+                          primaryTypographyProps={{
+                            fontSize: '0.875rem',
+                            fontWeight: isActive ? 600 : 400,
+                          }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Collapse>
+          </>
         )}
       </List>
 

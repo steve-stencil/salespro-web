@@ -1,0 +1,23 @@
+#### Must-have behaviors to replicate (even with better relationships)
+
+- **Catalog structure**: category/subcategory/drilldowns; MSI ordering (supports fractional/reorder)
+- **Office scoping**: include/exclude MSIs per office
+- **MSI contents**: options + upcharges; counts; “show switch” behavior
+- **UpCharge applicability**: disabledParents logic (per option)
+- **V2 pricing**:
+  - per office
+  - per typeCode breakdown
+  - percentage pricing that targets specific base typeCodes
+  - upcharge prices depend on parent option
+- **Offline-first client**:
+  - sync fingerprinting / diff logic
+  - bulk fetch and pin
+  - pricing must be computable locally
+- **Import/export**:
+  - ability to overwrite catalog via spreadsheet import (or API equivalent)
+  - export for auditing/round-tripping
+- **Bulk ops**:
+  - mass copy fields and relational lists
+  - mass price change
+- **Template plumbing**:
+  - placeholders and additional detail placeholder substitution (MSI + namespaced upcharge)

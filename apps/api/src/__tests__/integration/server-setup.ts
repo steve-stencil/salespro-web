@@ -48,6 +48,40 @@ vi.mock('../../lib/email', () => ({
   EmailServiceError: class EmailServiceError extends Error {},
 }));
 
+// Mock storage adapter singleton - exported so tests can reference it for assertions
+// Type annotation needed to avoid TS2742 error with vitest mock inference
+export const mockStorageAdapter: {
+  upload: ReturnType<typeof vi.fn>;
+  download: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  exists: ReturnType<typeof vi.fn>;
+  getSignedDownloadUrl: ReturnType<typeof vi.fn>;
+  generatePresignedUpload: ReturnType<typeof vi.fn>;
+} = {
+  upload: vi.fn().mockResolvedValue({
+    key: 'test-key',
+    size: 1000,
+    etag: '"abc123"',
+  }),
+  download: vi.fn().mockResolvedValue({
+    // eslint-disable-next-line @typescript-eslint/require-await
+    [Symbol.asyncIterator]: async function* () {
+      yield Buffer.from('test content');
+    },
+  }),
+  delete: vi.fn().mockResolvedValue(undefined),
+  exists: vi.fn().mockResolvedValue(true),
+  getSignedDownloadUrl: vi
+    .fn()
+    .mockResolvedValue('https://example.com/signed-url'),
+  generatePresignedUpload: vi.fn().mockResolvedValue({
+    url: 'https://example.com/upload-url',
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/pdf' },
+    expiresAt: new Date(Date.now() + 900000),
+  }),
+};
+
 // Mock storage service to enable S3 presigned URL tests without actual S3 config
 vi.mock('../../lib/storage', async importOriginal => {
   // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -55,30 +89,7 @@ vi.mock('../../lib/storage', async importOriginal => {
   return {
     ...original,
     isS3Configured: vi.fn(() => true),
-    getStorageAdapter: vi.fn(() => ({
-      upload: vi.fn().mockResolvedValue({
-        key: 'test-key',
-        size: 1000,
-        etag: '"abc123"',
-      }),
-      download: vi.fn().mockResolvedValue({
-        // eslint-disable-next-line @typescript-eslint/require-await
-        [Symbol.asyncIterator]: async function* () {
-          yield Buffer.from('test content');
-        },
-      }),
-      delete: vi.fn().mockResolvedValue(undefined),
-      exists: vi.fn().mockResolvedValue(true),
-      getSignedDownloadUrl: vi
-        .fn()
-        .mockResolvedValue('https://example.com/signed-url'),
-      generatePresignedUpload: vi.fn().mockResolvedValue({
-        url: 'https://example.com/upload-url',
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/pdf' },
-        expiresAt: new Date(Date.now() + 900000),
-      }),
-    })),
+    getStorageAdapter: vi.fn(() => mockStorageAdapter),
   };
 });
 

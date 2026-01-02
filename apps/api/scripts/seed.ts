@@ -33,6 +33,7 @@ import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 
 import {
   Company,
+  CompanyLogo,
   User,
   Session,
   Role,
@@ -333,6 +334,7 @@ function getORMConfig(): Parameters<typeof MikroORM.init<PostgreSqlDriver>>[0] {
     driver: PostgreSqlDriver,
     entities: [
       Company,
+      CompanyLogo,
       User,
       Session,
       Role,
@@ -551,8 +553,8 @@ async function createUser(
   user.mfaEnabled = false;
   user.needsResetPassword = false;
   user.failedLoginAttempts = 0;
-  // COMPANY user type enables multi-company switching via CompanySwitcher
-  user.userType = UserType.COMPANY;
+  // INTERNAL user type enables platform-level permissions (platform admin, company switching, etc.)
+  user.userType = UserType.INTERNAL;
 
   await em.persistAndFlush(user);
   return user;

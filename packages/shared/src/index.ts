@@ -7,7 +7,11 @@
  * Usage:
  *   import type { User, LoginRequest } from '@shared/types';
  *   import { ErrorCode, getErrorMessage } from '@shared/types';
+ *   import { formatPrice, flattenCategoryTree } from '@shared/utils';
  */
 
 // Re-export all types
 export * from './types';
+
+// Re-export all utilities
+export * from './utils';

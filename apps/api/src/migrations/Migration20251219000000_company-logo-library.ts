@@ -50,8 +50,9 @@ export class Migration20251219000000 extends Migration {
     this.addSql(
       `CREATE INDEX "company_logo_company_id_index" ON "company_logo" ("company_id");`,
     );
+    // Note: Using distinct index name to avoid conflict with company.logo_file_id index
     this.addSql(
-      `CREATE INDEX "company_logo_file_id_index" ON "company_logo" ("file_id");`,
+      `CREATE INDEX "company_logo_library_file_id_index" ON "company_logo" ("file_id");`,
     );
 
     // 2. Add default_logo_id column to company table
