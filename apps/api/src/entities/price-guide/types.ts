@@ -156,6 +156,7 @@ export enum TaggableEntityType {
   ADDITIONAL_DETAIL = 'ADDITIONAL_DETAIL',
   MEASURE_SHEET_ITEM = 'MEASURE_SHEET_ITEM',
   PRICE_GUIDE_IMAGE = 'PRICE_GUIDE_IMAGE',
+  CUSTOM_MERGE_FIELD = 'CUSTOM_MERGE_FIELD',
 }
 
 /** Size picker configuration for 2D/3D size pickers */
