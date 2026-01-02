@@ -81,6 +81,48 @@ export enum SizePickerPrecision {
   SIXTEENTH_INCH = 'sixteenth_inch',
 }
 
+// ============================================================================
+// Price Guide Category Types
+// ============================================================================
+
+/**
+ * Category display type - controls navigation behavior in the mobile app.
+ *
+ * - DEFAULT: Shows MSIs directly when selected (no subcategory drill-down)
+ * - DETAIL: Shows subcategories first, then MSIs (one level of drill-down)
+ * - DEEP_DRILL_DOWN: Multiple levels of subcategory hierarchy before MSIs
+ *
+ * @see leap-one/Estimate Pro/CategoryObject.swift for iOS implementation
+ */
+export enum PriceGuideCategoryType {
+  /** Standard category - shows MSIs directly when selected */
+  DEFAULT = 'default',
+  /** Detail category - shows subcategories first, then MSIs */
+  DETAIL = 'detail',
+  /** Deep drill-down - multiple levels of subcategory navigation */
+  DEEP_DRILL_DOWN = 'deep_drill_down',
+}
+
+/** Human-readable labels for category types */
+export const CATEGORY_TYPE_LABELS: Record<PriceGuideCategoryType, string> = {
+  [PriceGuideCategoryType.DEFAULT]: 'Default',
+  [PriceGuideCategoryType.DETAIL]: 'Detail',
+  [PriceGuideCategoryType.DEEP_DRILL_DOWN]: 'Deep Drill Down',
+};
+
+/** Descriptions for category types */
+export const CATEGORY_TYPE_DESCRIPTIONS: Record<
+  PriceGuideCategoryType,
+  string
+> = {
+  [PriceGuideCategoryType.DEFAULT]:
+    'Standard category - shows items directly when selected',
+  [PriceGuideCategoryType.DETAIL]:
+    'Detail category - shows subcategories first, then items',
+  [PriceGuideCategoryType.DEEP_DRILL_DOWN]:
+    'Deep drill-down - multiple levels of subcategory navigation',
+};
+
 /** Status for mass price change jobs */
 export enum PriceChangeJobStatus {
   PENDING = 'pending',

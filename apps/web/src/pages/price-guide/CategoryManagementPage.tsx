@@ -24,12 +24,18 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
+import FormHelperText from '@mui/material/FormHelperText';
 import IconButton from '@mui/material/IconButton';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { CATEGORY_TYPE_OPTIONS } from '@shared/types';
 import { useState, useCallback, useMemo } from 'react';
 
 import {
@@ -40,7 +46,7 @@ import {
   useMoveCategory,
 } from '../../hooks/usePriceGuide';
 
-import type { CategoryTreeNode } from '@shared/types';
+import type { CategoryTreeNode, PriceGuideCategoryType } from '@shared/types';
 
 // ============================================================================
 // Constants
@@ -184,6 +190,23 @@ function CategoryNode({
           {node.name}
         </Typography>
 
+        {/* Category Type - only shown for root categories with non-default type */}
+        {node.depth === 0 && node.categoryType !== 'default' && (
+          <Tooltip
+            title={
+              CATEGORY_TYPE_OPTIONS.find(o => o.value === node.categoryType)
+                ?.description
+            }
+          >
+            <Chip
+              label={node.categoryType === 'detail' ? 'Detail' : 'Deep Drill'}
+              size="small"
+              color={node.categoryType === 'detail' ? 'default' : 'secondary'}
+              sx={{ mr: 1, fontSize: '0.7rem' }}
+            />
+          </Tooltip>
+        )}
+
         {/* MSI Count */}
         <Tooltip
           title={
@@ -311,7 +334,12 @@ type EditCategoryDialogProps = {
   open: boolean;
   category: CategoryTreeNode | null;
   onClose: () => void;
-  onSave: (id: string, name: string, version: number) => void;
+  onSave: (
+    id: string,
+    name: string,
+    categoryType: PriceGuideCategoryType,
+    version: number,
+  ) => void;
   isSaving: boolean;
 };
 
@@ -323,11 +351,14 @@ function EditCategoryDialog({
   isSaving,
 }: EditCategoryDialogProps): React.ReactElement {
   const [name, setName] = useState('');
+  const [categoryType, setCategoryType] =
+    useState<PriceGuideCategoryType>('default');
 
-  // Reset name when dialog opens
+  // Reset form when dialog opens
   useMemo(() => {
     if (category) {
       setName(category.name);
+      setCategoryType(category.categoryType);
     }
   }, [category]);
 
@@ -335,23 +366,53 @@ function EditCategoryDialog({
     if (category && name.trim()) {
       // Note: We need to get version from somewhere - for now using 1
       // In practice, you'd fetch the full category details
-      onSave(category.id, name.trim(), 1);
+      onSave(category.id, name.trim(), categoryType, 1);
     }
   };
+
+  // Only show category type for root categories (depth=0)
+  const showCategoryType = category?.depth === 0;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Edit Category</DialogTitle>
       <DialogContent>
-        <TextField
-          autoFocus
-          margin="dense"
-          label="Category Name"
-          fullWidth
-          value={name}
-          onChange={e => setName(e.target.value)}
-          disabled={isSaving}
-        />
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            autoFocus
+            label="Category Name"
+            fullWidth
+            value={name}
+            onChange={e => setName(e.target.value)}
+            disabled={isSaving}
+          />
+          {showCategoryType && (
+            <FormControl fullWidth>
+              <InputLabel id="category-type-label">Category Type</InputLabel>
+              <Select
+                labelId="category-type-label"
+                value={categoryType}
+                label="Category Type"
+                onChange={e =>
+                  setCategoryType(e.target.value as PriceGuideCategoryType)
+                }
+                disabled={isSaving}
+              >
+                {CATEGORY_TYPE_OPTIONS.map(option => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                {
+                  CATEGORY_TYPE_OPTIONS.find(o => o.value === categoryType)
+                    ?.description
+                }
+              </FormHelperText>
+            </FormControl>
+          )}
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={isSaving}>
@@ -378,7 +439,11 @@ type AddCategoryDialogProps = {
   open: boolean;
   parentId: string | null;
   onClose: () => void;
-  onSave: (name: string, parentId: string | null) => void;
+  onSave: (
+    name: string,
+    parentId: string | null,
+    categoryType: PriceGuideCategoryType,
+  ) => void;
   isSaving: boolean;
 };
 
@@ -390,18 +455,25 @@ function AddCategoryDialog({
   isSaving,
 }: AddCategoryDialogProps): React.ReactElement {
   const [name, setName] = useState('');
+  const [categoryType, setCategoryType] =
+    useState<PriceGuideCategoryType>('default');
 
   const handleSave = () => {
     if (name.trim()) {
-      onSave(name.trim(), parentId);
+      onSave(name.trim(), parentId, categoryType);
       setName('');
+      setCategoryType('default');
     }
   };
 
   const handleClose = () => {
     setName('');
+    setCategoryType('default');
     onClose();
   };
+
+  // Only show category type for root categories (no parent)
+  const showCategoryType = parentId === null;
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -409,15 +481,44 @@ function AddCategoryDialog({
         {parentId ? 'Add Child Category' : 'Add Root Category'}
       </DialogTitle>
       <DialogContent>
-        <TextField
-          autoFocus
-          margin="dense"
-          label="Category Name"
-          fullWidth
-          value={name}
-          onChange={e => setName(e.target.value)}
-          disabled={isSaving}
-        />
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            autoFocus
+            label="Category Name"
+            fullWidth
+            value={name}
+            onChange={e => setName(e.target.value)}
+            disabled={isSaving}
+          />
+          {showCategoryType && (
+            <FormControl fullWidth>
+              <InputLabel id="add-category-type-label">
+                Category Type
+              </InputLabel>
+              <Select
+                labelId="add-category-type-label"
+                value={categoryType}
+                label="Category Type"
+                onChange={e =>
+                  setCategoryType(e.target.value as PriceGuideCategoryType)
+                }
+                disabled={isSaving}
+              >
+                {CATEGORY_TYPE_OPTIONS.map(option => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                {
+                  CATEGORY_TYPE_OPTIONS.find(o => o.value === categoryType)
+                    ?.description
+                }
+              </FormHelperText>
+            </FormControl>
+          )}
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={isSaving}>
@@ -589,9 +690,14 @@ export function CategoryManagementPage(): React.ReactElement {
   }, []);
 
   const handleSaveEdit = useCallback(
-    (id: string, name: string, version: number) => {
+    (
+      id: string,
+      name: string,
+      categoryType: PriceGuideCategoryType,
+      version: number,
+    ) => {
       updateMutation.mutate(
-        { categoryId: id, data: { name, version } },
+        { categoryId: id, data: { name, categoryType, version } },
         {
           onSuccess: () => {
             setEditCategory(null);
@@ -613,9 +719,13 @@ export function CategoryManagementPage(): React.ReactElement {
   }, []);
 
   const handleSaveAdd = useCallback(
-    (name: string, parentId: string | null) => {
+    (
+      name: string,
+      parentId: string | null,
+      categoryType: PriceGuideCategoryType,
+    ) => {
       createMutation.mutate(
-        { name, parentId },
+        { name, parentId, categoryType },
         {
           onSuccess: () => {
             setShowAddDialog(false);

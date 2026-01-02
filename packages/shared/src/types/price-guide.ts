@@ -57,6 +57,38 @@ export type UnitedInchConfig = {
 // Category Types
 // ============================================================================
 
+/**
+ * Category display type - controls navigation behavior in the mobile app.
+ *
+ * - DEFAULT: Shows MSIs directly when selected (no subcategory drill-down)
+ * - DETAIL: Shows subcategories first, then MSIs (one level of drill-down)
+ * - DEEP_DRILL_DOWN: Multiple levels of subcategory hierarchy before MSIs
+ */
+export type PriceGuideCategoryType = 'default' | 'detail' | 'deep_drill_down';
+
+/** Human-readable labels for category types */
+export const CATEGORY_TYPE_OPTIONS: {
+  value: PriceGuideCategoryType;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: 'default',
+    label: 'Default',
+    description: 'Shows items directly when selected',
+  },
+  {
+    value: 'detail',
+    label: 'Detail',
+    description: 'Shows subcategories first, then items',
+  },
+  {
+    value: 'deep_drill_down',
+    label: 'Deep Drill Down',
+    description: 'Multiple levels of subcategory navigation',
+  },
+];
+
 /** Category reference (minimal) */
 export type CategoryRef = {
   id: string;
@@ -71,6 +103,11 @@ export type CategoryTreeNode = {
   depth: number;
   sortOrder: number;
   parentId: string | null;
+  /**
+   * Category display type - controls navigation behavior.
+   * Only applies to root-level categories (depth=0).
+   */
+  categoryType: PriceGuideCategoryType;
   /** Direct MSI count for this category only */
   directMsiCount: number;
   /** Total MSI count including all descendant categories */
@@ -86,6 +123,11 @@ export type CategoryDetail = {
   sortOrder: number;
   parentId: string | null;
   fullPath: string;
+  /**
+   * Category display type - controls navigation behavior.
+   * Only applies to root-level categories (depth=0).
+   */
+  categoryType: PriceGuideCategoryType;
   msiCount: number;
   isActive: boolean;
   version: number;

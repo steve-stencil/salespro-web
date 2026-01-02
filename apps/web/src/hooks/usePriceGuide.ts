@@ -116,8 +116,11 @@ export function useCreateCategory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { name: string; parentId?: string | null }) =>
-      priceGuideApi.createCategory(data),
+    mutationFn: (data: {
+      name: string;
+      parentId?: string | null;
+      categoryType?: 'default' | 'detail' | 'deep_drill_down';
+    }) => priceGuideApi.createCategory(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: priceGuideKeys.categories(),
@@ -138,7 +141,11 @@ export function useUpdateCategory() {
       data,
     }: {
       categoryId: string;
-      data: { name?: string; version: number };
+      data: {
+        name?: string;
+        categoryType?: 'default' | 'detail' | 'deep_drill_down';
+        version: number;
+      };
     }) => priceGuideApi.updateCategory(categoryId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({

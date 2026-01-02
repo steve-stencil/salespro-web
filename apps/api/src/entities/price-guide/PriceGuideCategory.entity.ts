@@ -7,8 +7,11 @@ import {
   Collection,
   Index,
   Opt,
+  Enum,
 } from '@mikro-orm/core';
 import { v4 as uuid } from 'uuid';
+
+import { PriceGuideCategoryType } from './types';
 
 import type { Company } from '../Company.entity';
 import type { User } from '../User.entity';
@@ -42,6 +45,17 @@ export class PriceGuideCategory {
   @Property({ type: 'string', length: 255 })
   name!: string;
 
+  /**
+   * Category display type - controls navigation behavior in the mobile app.
+   * - DEFAULT: Shows MSIs directly when selected (no subcategory drill-down)
+   * - DETAIL: Shows subcategories first, then MSIs
+   * - DEEP_DRILL_DOWN: Multiple levels of subcategory hierarchy
+   *
+   * Imported from legacy CustomConfig.categories_[].type field.
+   */
+  @Enum({ items: () => PriceGuideCategoryType })
+  categoryType: Opt<PriceGuideCategoryType> = PriceGuideCategoryType.DEFAULT;
+
   /** Display order within parent category */
   @Property({ type: 'integer' })
   sortOrder: Opt<number> = 0;
@@ -65,6 +79,14 @@ export class PriceGuideCategory {
   /** User who last modified this category */
   @ManyToOne('User', { nullable: true })
   lastModifiedBy?: User;
+
+  /**
+   * Legacy CustomConfig.categories_[].objectId for migration tracking.
+   * Used to identify previously imported categories and prevent duplicates.
+   */
+  @Property({ type: 'string', nullable: true })
+  @Index()
+  sourceId?: string;
 
   @Property({ type: 'Date' })
   createdAt: Opt<Date> = new Date();

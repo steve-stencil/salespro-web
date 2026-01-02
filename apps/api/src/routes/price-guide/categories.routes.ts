@@ -12,6 +12,7 @@ import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
 import { requireAuth, requirePermission } from '../../middleware';
 
+import type { PriceGuideCategoryType } from '../../entities';
 import type { AuthenticatedRequest } from '../../middleware/requireAuth';
 import type { EntityManager } from '@mikro-orm/postgresql';
 import type { Request, Response, Router as RouterType } from 'express';
@@ -22,16 +23,29 @@ const router: RouterType = Router();
 // Validation Schemas
 // ============================================================================
 
+/** Valid category type values */
+const categoryTypeValues = ['default', 'detail', 'deep_drill_down'] as const;
+
 const createCategorySchema = z.object({
   name: z
     .string()
     .min(1, 'Name is required')
     .max(255, 'Name must be 255 characters or less'),
   parentId: z.string().uuid().optional().nullable(),
+  /**
+   * Category display type - controls navigation behavior in mobile app.
+   * Only applies to root-level categories (depth=0).
+   */
+  categoryType: z.enum(categoryTypeValues).optional().default('default'),
 });
 
 const updateCategorySchema = z.object({
   name: z.string().min(1).max(255).optional(),
+  /**
+   * Category display type - controls navigation behavior in mobile app.
+   * Only applies to root-level categories (depth=0).
+   */
+  categoryType: z.enum(categoryTypeValues).optional(),
   version: z.number().int().min(1, 'Version is required'),
 });
 
@@ -64,6 +78,9 @@ type CategoryNode = {
   name: string;
   depth: number;
   sortOrder: number;
+  parentId: string | null;
+  /** Category display type - only applies to root categories (depth=0) */
+  categoryType: string;
   children: CategoryNode[];
   /** Direct MSI count for this category only */
   directMsiCount: number;
@@ -86,6 +103,8 @@ function buildCategoryTree(
       name: cat.name,
       depth: cat.depth,
       sortOrder: cat.sortOrder,
+      parentId: cat.parent?.id ?? null,
+      categoryType: cat.categoryType,
       children: [],
       directMsiCount: directCount,
       msiCount: directCount, // Will be updated with cascading count
@@ -267,6 +286,7 @@ router.get(
           sortOrder: category.sortOrder,
           parentId: category.parent?.id ?? null,
           fullPath: pathParts.join(' > '),
+          categoryType: category.categoryType,
           msiCount,
           isActive: category.isActive,
           version: category.version,
@@ -317,7 +337,7 @@ router.post(
         return;
       }
 
-      const { name, parentId } = parseResult.data;
+      const { name, parentId, categoryType } = parseResult.data;
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
@@ -366,6 +386,10 @@ router.post(
       category.depth = depth;
       category.sortOrder = sortOrder;
       category.lastModifiedBy = em.getReference(User, user.id);
+      // Only set categoryType for root categories (depth=0)
+      if (depth === 0) {
+        category.categoryType = categoryType as PriceGuideCategoryType;
+      }
 
       await em.persistAndFlush(category);
 
@@ -382,6 +406,7 @@ router.post(
           depth: category.depth,
           sortOrder: category.sortOrder,
           parentId: parentId ?? null,
+          categoryType: category.categoryType,
           msiCount: 0,
           version: category.version,
         },
@@ -428,7 +453,7 @@ router.put(
         return;
       }
 
-      const { name, version } = parseResult.data;
+      const { name, categoryType, version } = parseResult.data;
       const orm = getORM();
       const em = orm.em.fork() as EntityManager;
 
@@ -480,6 +505,11 @@ router.put(
         category.name = name;
       }
 
+      // Only allow categoryType changes for root categories (depth=0)
+      if (categoryType && category.depth === 0) {
+        category.categoryType = categoryType as PriceGuideCategoryType;
+      }
+
       category.lastModifiedBy = em.getReference(User, user.id);
       await em.flush();
 
@@ -496,6 +526,7 @@ router.put(
           depth: category.depth,
           sortOrder: category.sortOrder,
           parentId: category.parent?.id ?? null,
+          categoryType: category.categoryType,
           version: category.version,
         },
       });

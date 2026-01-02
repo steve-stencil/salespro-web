@@ -72,9 +72,12 @@ export {
   PriceChangeTargetType,
   PricingImportJobStatus,
   TaggableEntityType,
+  PriceGuideCategoryType,
   PARENT_PRICE_TYPE_CODES,
   PARENT_PRICE_TYPE_LABELS,
   PARENT_PRICE_TYPE_DESCRIPTIONS,
+  CATEGORY_TYPE_LABELS,
+  CATEGORY_TYPE_DESCRIPTIONS,
 } from './types';
 
 export type {

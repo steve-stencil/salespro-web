@@ -85,6 +85,7 @@ export const priceGuideApi = {
   createCategory: async (data: {
     name: string;
     parentId?: string | null;
+    categoryType?: 'default' | 'detail' | 'deep_drill_down';
   }): Promise<{
     message: string;
     category: { id: string; name: string; version: number };
@@ -97,7 +98,11 @@ export const priceGuideApi = {
    */
   updateCategory: async (
     categoryId: string,
-    data: { name?: string; version: number },
+    data: {
+      name?: string;
+      categoryType?: 'default' | 'detail' | 'deep_drill_down';
+      version: number;
+    },
   ): Promise<SuccessResponse> => {
     return apiClient.put(`/price-guide/categories/${categoryId}`, data);
   },

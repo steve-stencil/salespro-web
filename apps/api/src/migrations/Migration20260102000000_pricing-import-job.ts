@@ -12,7 +12,7 @@ export class Migration20260102000000 extends Migration {
     // Create pricing_import_job table
     this.addSql(`
       CREATE TABLE "pricing_import_job" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "company_id" uuid NOT NULL,
         "status" varchar(20) NOT NULL DEFAULT 'pending',
         "filename" varchar(255) NOT NULL,
