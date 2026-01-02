@@ -1,5 +1,5 @@
 /**
- * Price Guide Toast Context and Component.
+ * Price Guide Toast Provider Component.
  * Provides toast notifications for Price Guide operations.
  */
 
@@ -11,60 +11,12 @@ import WarningIcon from '@mui/icons-material/Warning';
 import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import Snackbar from '@mui/material/Snackbar';
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useMemo,
-} from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
+import { ToastContext } from './PriceGuideToastContext';
+
+import type { Toast, ToastSeverity } from './PriceGuideToastContext';
 import type { ReactNode } from 'react';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-type ToastSeverity = 'success' | 'error' | 'warning' | 'info';
-
-type Toast = {
-  id: string;
-  message: string;
-  severity: ToastSeverity;
-  autoHideDuration?: number;
-};
-
-type ToastContextValue = {
-  showToast: (
-    message: string,
-    severity?: ToastSeverity,
-    duration?: number,
-  ) => void;
-  showSuccess: (message: string) => void;
-  showError: (message: string) => void;
-  showWarning: (message: string) => void;
-  showInfo: (message: string) => void;
-};
-
-// ============================================================================
-// Context
-// ============================================================================
-
-const ToastContext = createContext<ToastContextValue | null>(null);
-
-// ============================================================================
-// Hook
-// ============================================================================
-
-export function usePriceGuideToast(): ToastContextValue {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error(
-      'usePriceGuideToast must be used within a PriceGuideToastProvider',
-    );
-  }
-  return context;
-}
 
 // ============================================================================
 // Provider

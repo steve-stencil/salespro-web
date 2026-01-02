@@ -5,10 +5,12 @@
  */
 
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ImageIcon from '@mui/icons-material/Image';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -19,6 +21,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 
 import {
   useUpchargePricing,
+  useUpchargeDetail,
   useUpdateUpchargeOverridePrices,
   useDeleteUpchargeOverridePrices,
   usePriceTypes,
@@ -518,6 +521,7 @@ export function UpchargePricingByOption({
     isLoading,
     error,
   } = useUpchargePricing(upchargeId);
+  const { data: upchargeDetailData } = useUpchargeDetail(upchargeId);
   const { data: priceTypesData } = usePriceTypes();
 
   // Get active price types
@@ -591,26 +595,44 @@ export function UpchargePricingByOption({
     );
   }
 
+  const thumbnailUrl =
+    upchargeDetailData?.upcharge.thumbnailImage?.thumbnailUrl;
+
   return (
     <Box>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="subtitle1" fontWeight={600}>
-          {upchargeName}
-          {upchargeNote && (
-            <Typography
-              component="span"
-              variant="body2"
-              color="text.secondary"
-              sx={{ ml: 1 }}
-            >
-              — {upchargeNote}
-            </Typography>
-          )}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Default: {defaultPricingSummary} • Expand an option to add custom
-          pricing
-        </Typography>
+      <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+        <Avatar
+          src={thumbnailUrl ?? undefined}
+          alt={upchargeName}
+          variant="rounded"
+          sx={{
+            width: 40,
+            height: 40,
+            bgcolor: thumbnailUrl ? 'transparent' : 'action.hover',
+            flexShrink: 0,
+          }}
+        >
+          {!thumbnailUrl && <ImageIcon color="action" sx={{ fontSize: 20 }} />}
+        </Avatar>
+        <Box>
+          <Typography variant="subtitle1" fontWeight={600}>
+            {upchargeName}
+            {upchargeNote && (
+              <Typography
+                component="span"
+                variant="body2"
+                color="text.secondary"
+                sx={{ ml: 1 }}
+              >
+                — {upchargeNote}
+              </Typography>
+            )}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Default: {defaultPricingSummary} • Expand an option to add custom
+            pricing
+          </Typography>
+        </Box>
       </Box>
 
       <Stack spacing={1}>

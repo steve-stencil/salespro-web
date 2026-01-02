@@ -136,7 +136,7 @@ const reorderSchema = z.object({
 const setThumbnailSchema = z.object({
   /** Image ID to set as thumbnail (null to clear) */
   imageId: z.string().uuid().nullable(),
-  version: z.number().int().min(1),
+  version: z.number().int().min(1).optional(),
 });
 
 // ============================================================================
@@ -1944,8 +1944,8 @@ router.put(
         return;
       }
 
-      // Optimistic locking check
-      if (msi.version !== version) {
+      // Optimistic locking check (only if version is provided)
+      if (version !== undefined && msi.version !== version) {
         res.status(409).json({
           error: 'Conflict',
           message: 'MSI was modified by another user',
@@ -1976,6 +1976,16 @@ router.put(
       msi.lastModifiedBy = em.getReference(User, user.id);
       await em.flush();
 
+      // Load thumbnail image to get URLs if set
+      let thumbnailUrl: string | null = null;
+      if (imageId) {
+        await em.populate(msi, ['thumbnailImage.file']);
+        if (msi.thumbnailImage) {
+          const urls = await getImageUrls(msi.thumbnailImage.file);
+          thumbnailUrl = urls.thumbnailUrl ?? urls.imageUrl;
+        }
+      }
+
       req.log.info(
         {
           msiId: id,
@@ -1986,8 +1996,8 @@ router.put(
       );
 
       res.status(200).json({
-        message: imageId ? 'Thumbnail set successfully' : 'Thumbnail cleared',
-        imageId: imageId ?? null,
+        message: 'Thumbnail updated',
+        thumbnailUrl,
       });
     } catch (err) {
       req.log.error({ err }, 'Set thumbnail error');

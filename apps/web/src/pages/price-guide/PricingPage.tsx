@@ -7,8 +7,9 @@
  */
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import ImageIcon from '@mui/icons-material/Image';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Button from '@mui/material/Button';
@@ -391,7 +392,20 @@ export function PricingPage(): React.ReactElement {
         </Breadcrumbs>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <AttachMoneyIcon sx={{ fontSize: 32, color: 'success.main' }} />
+          <Avatar
+            src={msi.thumbnailImage?.thumbnailUrl ?? undefined}
+            alt={msi.name}
+            variant="rounded"
+            sx={{
+              width: 48,
+              height: 48,
+              bgcolor: msi.thumbnailImage?.thumbnailUrl
+                ? 'transparent'
+                : 'action.hover',
+            }}
+          >
+            {!msi.thumbnailImage?.thumbnailUrl && <ImageIcon color="action" />}
+          </Avatar>
           <Box>
             <Typography variant="h2" component="h1">
               {msi.name}

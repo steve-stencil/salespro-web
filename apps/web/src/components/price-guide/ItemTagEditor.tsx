@@ -13,7 +13,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import {
   useTagList,
@@ -91,7 +91,10 @@ export function ItemTagEditor({
   const createTagMutation = useCreateTag();
 
   // The displayed tags: use optimistic state if set, otherwise use server data
-  const displayedTags = optimisticTags ?? itemTagsData?.tags ?? [];
+  const displayedTags = useMemo(
+    () => optimisticTags ?? itemTagsData?.tags ?? [],
+    [optimisticTags, itemTagsData?.tags],
+  );
 
   // Handle tag selection changes with optimistic update
   const handleTagsChange = useCallback(
@@ -182,4 +185,3 @@ export function ItemTagEditor({
     </Box>
   );
 }
-

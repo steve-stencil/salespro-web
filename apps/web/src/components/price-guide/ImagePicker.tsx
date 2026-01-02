@@ -285,7 +285,7 @@ function UploadPanel({
     [processFile],
   );
 
-  const handleUpload = async () => {
+  const handleUpload = useCallback(async () => {
     if (!file || !name.trim()) return;
 
     setIsUploading(true);
@@ -331,7 +331,17 @@ function UploadPanel({
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [
+    file,
+    name,
+    description,
+    selectedTags,
+    uploadMutation,
+    setItemTagsMutation,
+    queryClient,
+    onUploadSuccess,
+    setIsUploading,
+  ]);
 
   const handleClearFile = () => {
     setFile(null);

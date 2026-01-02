@@ -540,8 +540,10 @@ export function OverridePricingGrid({
    */
   const getEffectiveAmount = useCallback(
     (priceTypeId: string, officeId: string): number => {
-      const config = getConfig(priceTypeId, officeId);
-      const defaultConfig = getDefaultConfig(priceTypeId);
+      const config = data[priceTypeId]?.[officeId] ?? { mode: 'use_default' };
+      const defaultConfig = defaultConfigs.find(
+        c => c.priceTypeId === priceTypeId,
+      );
 
       if (config.mode === 'use_default') {
         if (!defaultConfig) return 0;
