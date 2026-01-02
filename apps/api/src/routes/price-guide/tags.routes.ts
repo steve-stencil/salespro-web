@@ -11,6 +11,7 @@ import {
   AdditionalDetailField,
   MeasureSheetItem,
   PriceGuideImage,
+  CustomMergeFieldDefinition,
 } from '../../entities';
 import { getORM } from '../../lib/db';
 import { PERMISSIONS } from '../../lib/permissions';
@@ -77,7 +78,8 @@ function getEntityClass(
   | typeof UpCharge
   | typeof AdditionalDetailField
   | typeof MeasureSheetItem
-  | typeof PriceGuideImage {
+  | typeof PriceGuideImage
+  | typeof CustomMergeFieldDefinition {
   switch (entityType) {
     case TaggableEntityType.OPTION:
       return PriceGuideOption;
@@ -89,6 +91,8 @@ function getEntityClass(
       return MeasureSheetItem;
     case TaggableEntityType.PRICE_GUIDE_IMAGE:
       return PriceGuideImage;
+    case TaggableEntityType.CUSTOM_MERGE_FIELD:
+      return CustomMergeFieldDefinition;
   }
 }
 

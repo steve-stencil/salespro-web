@@ -62,3 +62,6 @@ export * from './types';
 
 // Price Guide entities
 export * from './price-guide';
+
+// Merge Field entities
+export * from './merge-field';
