@@ -569,8 +569,8 @@ describe('File Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
 
-      // Wait a tick for fire-and-forget deletion to be called
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait for fire-and-forget deletion to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify storage.delete was called for the main file
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -604,8 +604,8 @@ describe('File Routes Integration Tests', () => {
 
       expect(response.status).toBe(200);
 
-      // Wait a tick for fire-and-forget deletion to be called
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Wait for fire-and-forget deletion to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Verify storage.delete was called for both main file and thumbnail
       /* eslint-disable @typescript-eslint/unbound-method */

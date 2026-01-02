@@ -133,7 +133,8 @@ export type {
 } from './ImagePicker';
 
 // Toast Notifications
-export { PriceGuideToastProvider, usePriceGuideToast } from './PriceGuideToast';
+export { PriceGuideToastProvider } from './PriceGuideToast';
+export { usePriceGuideToast } from './usePriceGuideToast';
 
 // Types
 export type { ExportOptions } from './ExportDialog';
