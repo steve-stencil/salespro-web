@@ -1,10 +1,9 @@
 import { Migration } from '@mikro-orm/migrations';
 
 /**
- * Migration to create the Merge Field system tables.
+ * Migration to create the Custom Merge Field system tables.
  *
  * Creates:
- * - merge_field: Global SYSTEM merge fields (shared across all companies)
  * - custom_merge_field_definition: Per-company custom field library
  * - msi_custom_merge_field: Links MSIs to custom merge field definitions
  * - option_custom_merge_field: Links Options to custom merge field definitions
@@ -13,37 +12,13 @@ import { Migration } from '@mikro-orm/migrations';
  * Also updates:
  * - item_tag entity_type check constraint to include 'CUSTOM_MERGE_FIELD'
  *
+ * Note: SYSTEM merge fields are defined in code (system-merge-fields.ts),
+ * not in the database. Only custom fields need database storage.
+ *
  * @see ADR-010-merge-field-system.md for design rationale
  */
 export class Migration20260103000000_merge_field_system extends Migration {
   override up(): void {
-    // ============================================================
-    // MergeField (SYSTEM merge fields)
-    // ============================================================
-    this.addSql(`
-      CREATE TABLE IF NOT EXISTS "merge_field" (
-        "id" uuid NOT NULL,
-        "key" varchar(100) NOT NULL,
-        "display_name" varchar(255) NOT NULL,
-        "description" text,
-        "category" text CHECK ("category" IN ('ITEM', 'OPTION', 'UPCHARGE', 'CUSTOMER', 'USER', 'COMPANY')) NOT NULL,
-        "data_type" text CHECK ("data_type" IN ('TEXT', 'NUMBER', 'CURRENCY', 'DATE', 'BOOLEAN', 'IMAGE')) NOT NULL,
-        "is_active" boolean NOT NULL DEFAULT true,
-        "created_at" timestamptz NOT NULL,
-        "updated_at" timestamptz NOT NULL,
-        CONSTRAINT "merge_field_pkey" PRIMARY KEY ("id")
-      );
-    `);
-    this.addSql(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "merge_field_key_unique" ON "merge_field" ("key");
-    `);
-    this.addSql(`
-      CREATE INDEX IF NOT EXISTS "merge_field_category_index" ON "merge_field" ("category");
-    `);
-    this.addSql(`
-      CREATE INDEX IF NOT EXISTS "merge_field_category_is_active_index" ON "merge_field" ("category", "is_active");
-    `);
-
     // ============================================================
     // CustomMergeFieldDefinition (per-company custom fields)
     // ============================================================
@@ -261,7 +236,6 @@ export class Migration20260103000000_merge_field_system extends Migration {
     this.addSql(
       `DROP TABLE IF EXISTS "custom_merge_field_definition" CASCADE;`,
     );
-    this.addSql(`DROP TABLE IF EXISTS "merge_field" CASCADE;`);
 
     // Restore original item_tag entity_type check constraint
     this.addSql(`
