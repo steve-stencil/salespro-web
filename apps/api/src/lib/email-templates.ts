@@ -358,3 +358,136 @@ This is an automated message from SalesPro. Please do not reply to this email.
     text,
   };
 }
+
+/**
+ * Options for pricing import completion email
+ */
+type PricingImportCompleteOptions = {
+  /** Original filename uploaded */
+  filename: string;
+  /** Import status */
+  status: 'completed' | 'failed';
+  /** Number of prices created */
+  created: number;
+  /** Number of prices updated */
+  updated: number;
+  /** Number of rows skipped (no changes) */
+  skipped: number;
+  /** Number of errors */
+  errors: number;
+};
+
+/**
+ * Generate pricing import completion email template.
+ * Sent after background import job completes.
+ *
+ * @param options - Email options
+ */
+export function sendPricingImportCompleteEmail(
+  options: PricingImportCompleteOptions,
+): EmailTemplate {
+  const { filename, status, created, updated, skipped, errors } = options;
+  const { colors, fonts, borderRadius } = LEAP_TOKENS;
+
+  const isSuccess = status === 'completed';
+  const statusColor = isSuccess ? colors.primary : '#DC3545';
+  const statusText = isSuccess ? 'Complete' : 'Failed';
+  const statusIcon = isSuccess ? '✓' : '✗';
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Price Guide Import ${statusText}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: ${fonts.body}; background-color: ${colors.backgroundMuted};">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <tr>
+      <td>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: ${colors.background}; border-radius: ${borderRadius}; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+          <tr>
+            <td style="padding: 40px;">
+              <div style="display: flex; align-items: center; margin-bottom: 24px;">
+                <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background-color: ${statusColor}; color: white; font-size: 18px; margin-right: 12px;">${statusIcon}</span>
+                <h1 style="margin: 0; font-size: 24px; font-weight: 600; font-family: ${fonts.headline}; color: ${colors.textPrimary};">Price Guide Import ${statusText}</h1>
+              </div>
+              
+              <p style="margin: 0 0 16px; font-size: 14px; line-height: 21px; font-family: ${fonts.body}; color: ${colors.textPrimary};">
+                Your price guide import has ${isSuccess ? 'completed successfully' : 'failed'}.
+              </p>
+              
+              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 24px 0; width: 100%; border-collapse: collapse;">
+                <tr style="background-color: ${colors.backgroundMuted};">
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textSecondary}; border-bottom: 1px solid ${colors.divider};">File</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textPrimary}; border-bottom: 1px solid ${colors.divider}; text-align: right;">${filename}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textSecondary}; border-bottom: 1px solid ${colors.divider};">Created</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textPrimary}; border-bottom: 1px solid ${colors.divider}; text-align: right;">${created.toLocaleString()} new prices</td>
+                </tr>
+                <tr style="background-color: ${colors.backgroundMuted};">
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textSecondary}; border-bottom: 1px solid ${colors.divider};">Updated</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textPrimary}; border-bottom: 1px solid ${colors.divider}; text-align: right;">${updated.toLocaleString()} prices</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textSecondary}; border-bottom: 1px solid ${colors.divider};">Skipped</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: ${colors.textPrimary}; border-bottom: 1px solid ${colors.divider}; text-align: right;">${skipped.toLocaleString()} rows (no changes)</td>
+                </tr>
+                ${
+                  errors > 0
+                    ? `
+                <tr style="background-color: ${colors.backgroundMuted};">
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: #DC3545; border-bottom: 1px solid ${colors.divider};">Errors</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-family: ${fonts.body}; color: #DC3545; border-bottom: 1px solid ${colors.divider}; text-align: right;">${errors.toLocaleString()}</td>
+                </tr>
+                `
+                    : ''
+                }
+              </table>
+              
+              <p style="margin: 0 0 16px; font-size: 12px; line-height: 18px; font-family: ${fonts.body}; color: ${colors.textSecondary};">
+                ${isSuccess ? 'You can view the imported prices in the Price Guide dashboard.' : 'Please review your file and try again. You can view error details in the Price Guide dashboard.'}
+              </p>
+              
+              <hr style="margin: 32px 0; border: none; border-top: 1px solid ${colors.divider};">
+              
+              <p style="margin: 0; font-size: 12px; line-height: 16px; font-family: ${fonts.body}; color: ${colors.textMuted};">
+                This is an automated message from SalesPro. Please do not reply to this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`.trim();
+
+  const text = `
+Price Guide Import ${statusText}
+
+Your price guide import has ${isSuccess ? 'completed successfully' : 'failed'}.
+
+File: ${filename}
+
+Results:
+- Created: ${created.toLocaleString()} new prices
+- Updated: ${updated.toLocaleString()} prices
+- Skipped: ${skipped.toLocaleString()} rows (no changes)
+${errors > 0 ? `- Errors: ${errors.toLocaleString()}` : ''}
+
+${isSuccess ? 'You can view the imported prices in the Price Guide dashboard.' : 'Please review your file and try again. You can view error details in the Price Guide dashboard.'}
+
+---
+This is an automated message from SalesPro. Please do not reply to this email.
+`.trim();
+
+  return {
+    subject: `Price Guide Import ${statusText}: ${filename}`,
+    html,
+    text,
+  };
+}

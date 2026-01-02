@@ -7,10 +7,12 @@ import AddIcon from '@mui/icons-material/Add';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import ClearIcon from '@mui/icons-material/Clear';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import SearchIcon from '@mui/icons-material/Search';
+import UploadIcon from '@mui/icons-material/Upload';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -52,6 +54,8 @@ import {
   ImageLibraryTab,
   DefaultPricingGrid,
   ImagePicker,
+  PricingExportDialog,
+  PricingImportDialog,
 } from '../../components/price-guide';
 import {
   transformToConfig,
@@ -2667,6 +2671,10 @@ export function LibraryPage(): React.ReactElement {
   const [showAddAdditionalDetailDialog, setShowAddAdditionalDetailDialog] =
     useState(false);
 
+  // Pricing import/export dialog state
+  const [showPricingExportDialog, setShowPricingExportDialog] = useState(false);
+  const [showPricingImportDialog, setShowPricingImportDialog] = useState(false);
+
   // Edit dialog state
   const [showEditOptionDialog, setShowEditOptionDialog] = useState(false);
   const [showEditUpChargeDialog, setShowEditUpChargeDialog] = useState(false);
@@ -2943,15 +2951,36 @@ export function LibraryPage(): React.ReactElement {
             </Typography>
           </Box>
         </Box>
-        {getAddButtonLabel() && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleAddClick}
-          >
-            {getAddButtonLabel()}
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {/* Pricing Import/Export buttons - only visible on Options tab */}
+          {activeTab === 0 && (
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => setShowPricingExportDialog(true)}
+              >
+                Export Prices
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<UploadIcon />}
+                onClick={() => setShowPricingImportDialog(true)}
+              >
+                Import Prices
+              </Button>
+            </>
+          )}
+          {getAddButtonLabel() && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleAddClick}
+            >
+              {getAddButtonLabel()}
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* Content Card */}
@@ -3163,6 +3192,24 @@ export function LibraryPage(): React.ReactElement {
         }}
         multiple={false}
         title="Select Thumbnail Image"
+      />
+
+      {/* Pricing Export Dialog */}
+      <PricingExportDialog
+        open={showPricingExportDialog}
+        onClose={() => setShowPricingExportDialog(false)}
+      />
+
+      {/* Pricing Import Dialog */}
+      <PricingImportDialog
+        open={showPricingImportDialog}
+        onClose={() => setShowPricingImportDialog(false)}
+        onSuccess={() => {
+          // Invalidate option queries to refresh pricing data
+          void queryClient.invalidateQueries({
+            queryKey: priceGuideKeys.optionLists(),
+          });
+        }}
       />
     </Box>
   );

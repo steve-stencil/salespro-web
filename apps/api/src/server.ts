@@ -9,8 +9,10 @@ import pinoHttp from 'pino-http';
 
 import { connectDB } from './lib/db';
 import { errorHandler } from './lib/errors';
+import { getJobQueue, stopJobQueue } from './lib/job-queue';
 import { getSessionMiddleware } from './lib/session';
 import routes from './routes';
+import { registerPricingImportWorker } from './workers';
 
 import type { Express, RequestHandler } from 'express';
 import type { ErrorRequestHandler } from 'express';
@@ -77,8 +79,39 @@ export async function createServer(): Promise<Server> {
   // Initialize session middleware (requires ORM to be initialized)
   sessionMiddleware = getSessionMiddleware();
 
+  // Initialize job queue and register workers
+  try {
+    const boss = await getJobQueue();
+    await registerPricingImportWorker(boss);
+    logger.info('Job queue and workers initialized');
+  } catch (err) {
+    logger.error(
+      { err },
+      'Failed to initialize job queue - background jobs disabled',
+    );
+  }
+
   // Create HTTP server
   const server = createHttpServer(app);
+
+  // Graceful shutdown handler
+  const shutdown = async (signal: string) => {
+    logger.info(`${signal} received, shutting down gracefully`);
+
+    // Stop accepting new connections
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
+
+    // Stop job queue
+    await stopJobQueue();
+
+    // Exit after cleanup
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 
   // Start server
   const port = process.env['PORT'] ?? 4000;

@@ -180,6 +180,17 @@ export class ApiClient {
   }
 
   /**
+   * Downloads a file as a blob.
+   * Use this for binary file downloads (e.g., Excel exports).
+   */
+  async download(endpoint: string): Promise<ArrayBuffer> {
+    const response = await axiosInstance.get<ArrayBuffer>(endpoint, {
+      responseType: 'arraybuffer',
+    });
+    return response.data;
+  }
+
+  /**
    * Health check endpoint.
    */
   async healthCheck(): Promise<{ status: string }> {

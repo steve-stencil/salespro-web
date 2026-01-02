@@ -45,6 +45,10 @@ import type {
   TaggableEntityType,
   PriceGuideImageSummary,
   PriceGuideImageDetail,
+  PricingExportFilters,
+  PricingImportPreview,
+  PricingImportJobStatus,
+  PricingImportResponse,
 } from '@shared/types';
 
 /** Response type for image list endpoint */
@@ -1102,5 +1106,150 @@ export const priceGuideApi = {
       `/price-guide/tags/items/${entityType}/${entityId}`,
       data,
     );
+  },
+
+  // ==========================================================================
+  // Pricing Import/Export
+  // ==========================================================================
+
+  /**
+   * Get estimated row count for export preview.
+   */
+  getExportRowCount: async (
+    filters?: PricingExportFilters,
+  ): Promise<{ estimatedRows: number }> => {
+    const params = new URLSearchParams();
+    if (filters?.officeIds?.length) {
+      params.set('officeIds', filters.officeIds.join(','));
+    }
+    if (filters?.optionIds?.length) {
+      params.set('optionIds', filters.optionIds.join(','));
+    }
+    if (filters?.categoryIds?.length) {
+      params.set('categoryIds', filters.categoryIds.join(','));
+    }
+    if (filters?.tagIds?.length) {
+      params.set('tagIds', filters.tagIds.join(','));
+    }
+    const queryString = params.toString();
+    const url = queryString
+      ? `/price-guide/pricing/options/export/count?${queryString}`
+      : '/price-guide/pricing/options/export/count';
+    return apiClient.get(url);
+  },
+
+  /**
+   * Export option prices to Excel file.
+   * Triggers browser file download.
+   */
+  exportOptionPrices: async (filters?: PricingExportFilters): Promise<void> => {
+    const params = new URLSearchParams();
+    if (filters?.officeIds?.length) {
+      params.set('officeIds', filters.officeIds.join(','));
+    }
+    if (filters?.optionIds?.length) {
+      params.set('optionIds', filters.optionIds.join(','));
+    }
+    if (filters?.categoryIds?.length) {
+      params.set('categoryIds', filters.categoryIds.join(','));
+    }
+    if (filters?.tagIds?.length) {
+      params.set('tagIds', filters.tagIds.join(','));
+    }
+
+    const queryString = params.toString();
+    const url = queryString
+      ? `/price-guide/pricing/options/export?${queryString}`
+      : '/price-guide/pricing/options/export';
+
+    const response = await apiClient.download(url);
+
+    // Trigger browser download
+    const blob = new Blob([response], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `option-prices-${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(downloadUrl);
+  },
+
+  /**
+   * Preview import without applying changes.
+   * Returns validation results and preview of changes.
+   */
+  previewOptionPricesImport: async (
+    file: File,
+  ): Promise<PricingImportPreview> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.upload(
+      '/price-guide/pricing/options/import/preview',
+      formData,
+    );
+  },
+
+  /**
+   * Import option prices from Excel file.
+   * Small files (< 1000 rows) are processed synchronously.
+   * Large files are queued for background processing.
+   *
+   * @param file - Excel file to import
+   * @param options - Import options
+   * @returns Either a sync result or an async job reference
+   */
+  importOptionPrices: async (
+    file: File,
+    options?: { skipErrors?: boolean },
+  ): Promise<PricingImportResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options?.skipErrors) {
+      formData.append('skipErrors', 'true');
+    }
+    return apiClient.upload('/price-guide/pricing/options/import', formData);
+  },
+
+  /**
+   * Get import job status (for async imports).
+   */
+  getImportJobStatus: async (
+    jobId: string,
+  ): Promise<PricingImportJobStatus> => {
+    return apiClient.get(`/price-guide/pricing/options/import/${jobId}`);
+  },
+
+  /**
+   * Poll import job until complete.
+   * Calls onProgress callback with status updates.
+   *
+   * @param jobId - Import job ID
+   * @param onProgress - Optional progress callback
+   * @returns Final job status
+   */
+  waitForImportJob: async (
+    jobId: string,
+    onProgress?: (status: PricingImportJobStatus) => void,
+  ): Promise<PricingImportJobStatus> => {
+    const POLL_INTERVAL = 2000; // 2 seconds
+    const MAX_POLLS = 1000; // Safety limit - ~33 minutes
+
+    for (let i = 0; i < MAX_POLLS; i++) {
+      const status = await priceGuideApi.getImportJobStatus(jobId);
+      onProgress?.(status);
+
+      if (status.status === 'completed' || status.status === 'failed') {
+        return status;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+    }
+
+    // Should never reach here, but throw if polling times out
+    throw new Error('Import job polling timeout exceeded');
   },
 };

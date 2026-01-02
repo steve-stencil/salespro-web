@@ -57,6 +57,10 @@ export const PERMISSIONS = {
   // Data Migration
   DATA_MIGRATION: 'data:migration',
 
+  // Price Guide
+  /** Export and import price guide pricing data via spreadsheet */
+  PRICE_GUIDE_IMPORT_EXPORT: 'price_guide:import_export',
+
   // ==================================
   // Platform Permissions (Internal Users Only)
   // ==================================
@@ -253,6 +257,13 @@ export const PERMISSION_META: Record<Permission, PermissionMeta> = {
     label: 'Data Migration',
     category: 'Data Migration',
     description: 'Import data from legacy systems (Parse)',
+  },
+
+  // Price Guide
+  'price_guide:import_export': {
+    label: 'Price Guide Import/Export',
+    category: 'Price Guide',
+    description: 'Export and import price guide pricing data via spreadsheet',
   },
 
   // Platform (Internal Users Only)

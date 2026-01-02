@@ -836,7 +836,8 @@ export function CatalogPage(): React.ReactElement {
           msiId: unlinkItem.msiId,
           upchargeId: unlinkItem.itemId,
         });
-      } else if (unlinkItem.type === 'additionalDetail') {
+      } else {
+        // unlinkItem.type === 'additionalDetail'
         await unlinkDetailMutation.mutateAsync({
           msiId: unlinkItem.msiId,
           fieldId: unlinkItem.itemId,
