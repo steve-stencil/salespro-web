@@ -14,6 +14,16 @@ import {
 import type { Company, User } from '../../../entities';
 import type { EntityManager } from '@mikro-orm/core';
 
+// Define mock storage adapter before mocking
+const mockStorageAdapter = {
+  upload: vi.fn(),
+  download: vi.fn(),
+  delete: vi.fn(),
+  exists: vi.fn(),
+  getSignedDownloadUrl: vi.fn(),
+  generatePresignedUpload: vi.fn(),
+};
+
 // Mock storage
 vi.mock('../../../lib/storage', () => ({
   getStorageAdapter: vi.fn(() => mockStorageAdapter),
@@ -42,15 +52,6 @@ vi.mock('../../../services/file/thumbnail', () => ({
   ),
   generateThumbnailAsync: vi.fn(() => Promise.resolve()),
 }));
-
-const mockStorageAdapter = {
-  upload: vi.fn(),
-  download: vi.fn(),
-  delete: vi.fn(),
-  exists: vi.fn(),
-  getSignedDownloadUrl: vi.fn(),
-  generatePresignedUpload: vi.fn(),
-};
 
 // Create mock functions that we can reference
 const mockFindOne = vi.fn();

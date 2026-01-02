@@ -31,32 +31,34 @@ import { PERMISSIONS } from '../../lib/permissions';
 
 import { makeRequest, waitForDatabase } from './helpers';
 
-// Mock storage adapter for tests
+// Mock storage adapter for tests - use a singleton to track calls
+const mockStorageAdapter = {
+  upload: vi.fn().mockResolvedValue({
+    key: 'test-key',
+    size: 1000,
+    etag: '"abc123"',
+  }),
+  download: vi.fn().mockResolvedValue({
+    // eslint-disable-next-line @typescript-eslint/require-await
+    [Symbol.asyncIterator]: async function* () {
+      yield Buffer.from('test content');
+    },
+  }),
+  delete: vi.fn().mockResolvedValue(undefined),
+  exists: vi.fn().mockResolvedValue(true),
+  getSignedDownloadUrl: vi
+    .fn()
+    .mockResolvedValue('https://example.com/signed-url'),
+  generatePresignedUpload: vi.fn().mockResolvedValue({
+    url: 'https://example.com/upload-url',
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/pdf' },
+    expiresAt: new Date(Date.now() + 900000),
+  }),
+};
+
 vi.mock('../../lib/storage', () => ({
-  getStorageAdapter: vi.fn(() => ({
-    upload: vi.fn().mockResolvedValue({
-      key: 'test-key',
-      size: 1000,
-      etag: '"abc123"',
-    }),
-    download: vi.fn().mockResolvedValue({
-      // eslint-disable-next-line @typescript-eslint/require-await
-      [Symbol.asyncIterator]: async function* () {
-        yield Buffer.from('test content');
-      },
-    }),
-    delete: vi.fn().mockResolvedValue(undefined),
-    exists: vi.fn().mockResolvedValue(true),
-    getSignedDownloadUrl: vi
-      .fn()
-      .mockResolvedValue('https://example.com/signed-url'),
-    generatePresignedUpload: vi.fn().mockResolvedValue({
-      url: 'https://example.com/upload-url',
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/pdf' },
-      expiresAt: new Date(Date.now() + 900000),
-    }),
-  })),
+  getStorageAdapter: vi.fn(() => mockStorageAdapter),
   isS3Configured: vi.fn().mockReturnValue(true),
   generateStorageKey: vi.fn(
     (companyId: string, fileId: string, ext: string) =>
