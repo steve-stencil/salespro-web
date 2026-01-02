@@ -234,8 +234,10 @@ describe('TagAutocomplete', () => {
       await user.type(input, 'Custom');
 
       await waitFor(() => {
+        // Text is split across elements, so check separately
         expect(screen.getByText(/Create tag/)).toBeInTheDocument();
-        expect(screen.getByText(/"Custom"/)).toBeInTheDocument();
+        // The tag name appears in a <strong> element
+        expect(screen.getByText('Custom')).toBeInTheDocument();
       });
     });
 

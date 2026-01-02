@@ -339,8 +339,10 @@ describe('FileService', () => {
       const mockFile = new File();
       mockFile.id = 'file-123';
       mockFile.status = FileStatus.ACTIVE;
+      mockFile.storageKey = 'company-123/files/file-123.pdf';
 
       mockFindOne.mockResolvedValue(mockFile);
+      mockStorageAdapter.delete.mockResolvedValue(undefined);
 
       await service.deleteFile('file-123', 'company-123');
 

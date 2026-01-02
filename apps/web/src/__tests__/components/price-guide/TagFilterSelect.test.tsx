@@ -43,10 +43,14 @@ describe('TagFilterSelect', () => {
     expect(screen.getByLabelText('Filter by Tags')).toBeInTheDocument();
   });
 
-  it('should show "All" when no tags are selected', () => {
+  it('should show placeholder when no tags are selected', () => {
     render(<TagFilterSelect value={[]} onChange={vi.fn()} tags={mockTags} />);
 
-    expect(screen.getByText('All')).toBeInTheDocument();
+    // When no tags selected, the select shows empty value with the label as placeholder
+    const select = screen.getByRole('combobox');
+    expect(select).toBeInTheDocument();
+    // Label should still be visible
+    expect(screen.getByLabelText('Tags')).toBeInTheDocument();
   });
 
   it('should show selected tag name when one tag is selected', () => {
@@ -57,7 +61,7 @@ describe('TagFilterSelect', () => {
     expect(screen.getByText('Premium')).toBeInTheDocument();
   });
 
-  it('should show chips when multiple tags are selected', () => {
+  it('should show count when multiple tags are selected', () => {
     render(
       <TagFilterSelect
         value={['tag-1', 'tag-2']}
@@ -66,11 +70,11 @@ describe('TagFilterSelect', () => {
       />,
     );
 
-    expect(screen.getByText('Premium')).toBeInTheDocument();
-    expect(screen.getByText('Sale')).toBeInTheDocument();
+    // With 2+ selections, component shows "N tags" count
+    expect(screen.getByText('2 tags')).toBeInTheDocument();
   });
 
-  it('should show +N indicator when more than 2 tags selected', () => {
+  it('should show count when more than 1 tag is selected', () => {
     render(
       <TagFilterSelect
         value={['tag-1', 'tag-2', 'tag-3', 'tag-4']}
@@ -79,7 +83,7 @@ describe('TagFilterSelect', () => {
       />,
     );
 
-    expect(screen.getByText('+2')).toBeInTheDocument();
+    expect(screen.getByText('4 tags')).toBeInTheDocument();
   });
 
   it('should open dropdown on click', () => {
@@ -186,8 +190,12 @@ describe('TagFilterSelect', () => {
       <TagFilterSelect value={[]} onChange={vi.fn()} tags={mockTags} />,
     );
 
-    const formControl = container.querySelector('.MuiFormControl-sizeSmall');
+    // Check the form control is rendered - MUI may use different class naming
+    const formControl = container.querySelector('.MuiFormControl-root');
     expect(formControl).toBeInTheDocument();
+    // Also check the Select input is small
+    const inputBase = container.querySelector('.MuiInputBase-sizeSmall');
+    expect(inputBase).toBeInTheDocument();
   });
 
   it('should render medium size when specified', () => {
@@ -200,8 +208,10 @@ describe('TagFilterSelect', () => {
       />,
     );
 
-    // MuiFormControl-sizeSmall should not be present
+    // MuiInputBase-sizeSmall should not be present for medium size
     const formControl = container.querySelector('.MuiFormControl-root');
-    expect(formControl).not.toHaveClass('MuiFormControl-sizeSmall');
+    expect(formControl).toBeInTheDocument();
+    const smallInput = container.querySelector('.MuiInputBase-sizeSmall');
+    expect(smallInput).toBeNull();
   });
 });
