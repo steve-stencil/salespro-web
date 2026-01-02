@@ -145,26 +145,18 @@ router.get(
         tagIds: parseUuidArray(tagIds),
       };
 
-      const rowCount = await exportOptionPricesToResponse(
-        em,
-        res,
-        exportOptions,
-      );
-
-      req.log.info(
-        {
-          userId: context.user.id,
-          companyId: context.company.id,
-          rowCount,
-          filters: exportOptions,
-        },
-        'Pricing export completed',
-      );
+      await exportOptionPricesToResponse(em, res, exportOptions);
     } catch (err) {
-      req.log.error({ err }, 'Export option prices error');
       // If headers already sent (streaming started), can't send error response
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Export failed' });
+        const errorMessage =
+          err instanceof Error
+            ? `${err.message}\n${err.stack}`
+            : 'Unknown error';
+        res.status(500).json({
+          error: 'Export failed',
+          details: errorMessage,
+        });
       }
     }
   },
@@ -211,7 +203,12 @@ router.get(
       res.status(200).json({ estimatedRows: count });
     } catch (err) {
       req.log.error({ err }, 'Export count error');
-      res.status(500).json({ error: 'Failed to get export count' });
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      res.status(500).json({
+        error: 'Failed to get export count',
+        details:
+          process.env['NODE_ENV'] !== 'production' ? errorMessage : undefined,
+      });
     }
   },
 );
@@ -249,8 +246,18 @@ router.post(
 
       res.status(200).json(preview);
     } catch (err) {
-      req.log.error({ err }, 'Import preview error');
-      res.status(500).json({ error: 'Preview failed' });
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorStack = err instanceof Error ? err.stack : undefined;
+      req.log.error({ err, errorMessage, errorStack }, 'Import preview error');
+      console.error(
+        '[pricing-import] Preview error:',
+        errorMessage,
+        errorStack,
+      );
+      res.status(500).json({
+        error: 'Preview failed',
+        message: errorMessage,
+      });
     }
   },
 );

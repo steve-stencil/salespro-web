@@ -15,6 +15,24 @@ globs:
 - Implement rate limiting for all endpoints.
 - Add proper CORS configuration for production environments.
 
+# Route Ordering (IMPORTANT)
+
+- **Static routes MUST be defined before dynamic routes** within the same router (e.g., `/export` before `/:id`).
+- **NEVER rely on parent router mount order** for route precedence. This is fragile and error-prone.
+- When a router has both static and dynamic paths, mount static sub-routers first within that router file.
+- Example: If you have `/options/export` and `/options/:optionId`, the export routes should be mounted inside the options router, NOT as separate mounts in the parent.
+
+```typescript
+// ✅ CORRECT: Static routes mounted first within the same router
+const router = Router();
+router.use('/', exportRoutes);      // /export, /import (static)
+router.get('/:optionId', ...);       // /:optionId (dynamic)
+
+// ❌ WRONG: Relying on parent mount order
+parentRouter.use('/options', exportRoutes);   // fragile ordering
+parentRouter.use('/options', optionRoutes);   // depends on being second
+```
+
 # Database & Entities
 - Use PostgreSQL as the database with MikroORM as the ORM.
 - Always define proper indexes using `@Index()` decorator for query performance.
