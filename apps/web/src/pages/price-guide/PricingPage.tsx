@@ -323,7 +323,7 @@ export function PricingPage(): React.ReactElement {
   );
 
   const handleBack = useCallback(() => {
-    void navigate('/price-guide');
+    void navigate('../..');
   }, [navigate]);
 
   // Loading state
@@ -382,7 +382,7 @@ export function PricingPage(): React.ReactElement {
         <Breadcrumbs sx={{ mb: 1 }}>
           <Link
             component={RouterLink}
-            to="/price-guide"
+            to="../.."
             underline="hover"
             color="inherit"
           >

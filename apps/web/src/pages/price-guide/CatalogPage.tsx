@@ -151,7 +151,7 @@ function MsiExpandedContent({
           items={options}
           isLoading={isLoading}
           onLinkClick={onLinkOptions}
-          onViewItem={() => void navigate('/price-guide/library?tab=options')}
+          onViewItem={() => void navigate('library?tab=options')}
           onUnlinkItem={optionId => {
             const option = options.find(o => o.optionId === optionId);
             if (option) {
@@ -165,7 +165,7 @@ function MsiExpandedContent({
           items={upcharges}
           isLoading={isLoading}
           onLinkClick={onLinkUpcharges}
-          onViewItem={() => void navigate('/price-guide/library?tab=upcharges')}
+          onViewItem={() => void navigate('library?tab=upcharges')}
           onUnlinkItem={upchargeId => {
             const upcharge = upcharges.find(u => u.upchargeId === upchargeId);
             if (upcharge) {
@@ -179,9 +179,7 @@ function MsiExpandedContent({
           items={additionalDetails}
           isLoading={isLoading}
           onLinkClick={onLinkAdditionalDetails}
-          onViewItem={() =>
-            void navigate('/price-guide/library?tab=additional-details')
-          }
+          onViewItem={() => void navigate('library?tab=additional-details')}
           onUnlinkItem={fieldId => {
             const detail = additionalDetails.find(d => d.fieldId === fieldId);
             if (detail) {
@@ -601,21 +599,21 @@ export function CatalogPage(): React.ReactElement {
 
   const handleView = useCallback(
     (msiId: string) => {
-      void navigate(`/price-guide/${msiId}`);
+      void navigate(msiId);
     },
     [navigate],
   );
 
   const handleEdit = useCallback(
     (msiId: string) => {
-      void navigate(`/price-guide/${msiId}`);
+      void navigate(msiId);
     },
     [navigate],
   );
 
   const handlePricing = useCallback(
     (msiId: string) => {
-      void navigate(`/price-guide/${msiId}/pricing`);
+      void navigate(`${msiId}/pricing`);
     },
     [navigate],
   );
@@ -976,7 +974,7 @@ export function CatalogPage(): React.ReactElement {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => void navigate('/price-guide/create')}
+            onClick={() => void navigate('create')}
           >
             New Item
           </Button>
@@ -1195,7 +1193,7 @@ export function CatalogPage(): React.ReactElement {
                 variant="contained"
                 startIcon={<AddIcon />}
                 sx={{ mt: 3 }}
-                onClick={() => void navigate('/price-guide/create')}
+                onClick={() => void navigate('create')}
               >
                 Create First Item
               </Button>

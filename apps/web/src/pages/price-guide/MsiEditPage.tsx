@@ -503,7 +503,7 @@ export function MsiEditPage(): React.ReactElement {
         });
       }
 
-      void navigate('/price-guide');
+      void navigate('..');
     } catch {
       // Error handled by mutations
     }
@@ -554,11 +554,11 @@ export function MsiEditPage(): React.ReactElement {
       {/* Header */}
       <Box sx={{ p: 3, pb: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <IconButton onClick={() => void navigate('/price-guide')}>
+          <IconButton onClick={() => void navigate('..')}>
             <ArrowBackIcon />
           </IconButton>
           <Breadcrumbs>
-            <Link component={RouterLink} to="/price-guide" color="inherit">
+            <Link component={RouterLink} to=".." color="inherit">
               Catalog
             </Link>
             <Typography color="text.primary">
@@ -586,10 +586,7 @@ export function MsiEditPage(): React.ReactElement {
             )}
           </Box>
           <Stack direction="row" spacing={1}>
-            <Button
-              variant="outlined"
-              onClick={() => void navigate(`/price-guide/${msiId}/pricing`)}
-            >
+            <Button variant="outlined" onClick={() => void navigate('pricing')}>
               Pricing
             </Button>
             <Button

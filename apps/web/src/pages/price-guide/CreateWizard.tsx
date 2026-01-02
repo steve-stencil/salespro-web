@@ -161,14 +161,14 @@ export function CreateWizard(): React.ReactElement {
 
     try {
       await createMutation.mutateAsync(request);
-      void navigate('/price-guide');
+      void navigate('..');
     } catch (error) {
       console.error('Failed to create MSI:', error);
     }
   }, [state, createMutation, navigate]);
 
   const handleCancel = useCallback(() => {
-    void navigate('/price-guide');
+    void navigate('..');
   }, [navigate]);
 
   return (
