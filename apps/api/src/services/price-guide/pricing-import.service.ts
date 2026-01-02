@@ -1,6 +1,12 @@
 /**
  * Pricing Import Service - imports option prices from Excel spreadsheet.
  * Handles file validation, preview, and processing.
+ *
+ * OPTIMIZATION NOTES:
+ * - Uses batch loading for validation (offices, options loaded in bulk)
+ * - Uses chunk-based processing for large imports
+ * - Batch loads existing prices per chunk to minimize queries
+ * - Uses bulk upsert operations instead of per-row inserts
  */
 
 import ExcelJS from 'exceljs';
@@ -72,6 +78,9 @@ export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 /** Maximum errors to store */
 const MAX_ERRORS = 100;
 
+/** Chunk size for batch processing */
+const CHUNK_SIZE = 500;
+
 /**
  * S3 key prefix for temporary import files
  */
@@ -125,6 +134,7 @@ export async function deleteTempFile(fileKey: string): Promise<void> {
 
 /**
  * Parse column configuration from header row.
+ * Handles both plain text and rich text headers (common in Excel tables).
  */
 function parseColumnConfig(
   headerRow: ExcelJS.Row,
@@ -143,9 +153,10 @@ function parseColumnConfig(
   };
 
   headerRow.eachCell((cell, colNumber) => {
-    // Cell value can be various types, safely convert to string
-    const rawValue = cell.value;
+    // Extract cell value (handles rich text, formulas, etc.)
+    const rawValue = extractCellValue(cell.value);
     let header = '';
+
     if (typeof rawValue === 'string') {
       header = rawValue.trim().toLowerCase();
     } else if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
@@ -195,6 +206,83 @@ function parseColumnConfig(
 }
 
 /**
+ * Rich text segment from ExcelJS.
+ * Text might be undefined in some edge cases with malformed data.
+ */
+type RichTextSegment = {
+  text?: string;
+  font?: Record<string, unknown>;
+};
+
+/**
+ * Extract the actual value from a cell, handling various Excel cell types.
+ *
+ * ExcelJS cell values can be:
+ * - Primitive: string, number, boolean, Date
+ * - Formula: { formula: string, result?: unknown }
+ * - Rich text: { richText: Array<{ text: string, font?: {...} }> }
+ * - Hyperlink: { text: string, hyperlink: string }
+ * - Error: { error: { ... } }
+ *
+ * Excel tables often convert plain text to rich text format, which breaks
+ * simple string checks.
+ */
+function extractCellValue(cellValue: ExcelJS.CellValue): unknown {
+  if (cellValue === null || cellValue === undefined) return null;
+
+  // Handle primitive types directly
+  if (typeof cellValue !== 'object') {
+    return cellValue;
+  }
+
+  // Handle formula cells - extract the result
+  if ('formula' in cellValue) {
+    const formulaCell = cellValue as { formula: string; result?: unknown };
+    // Result might also be rich text, so recurse
+    return extractCellValue(formulaCell.result as ExcelJS.CellValue);
+  }
+
+  // Handle rich text cells (common in Excel tables)
+  // Structure: { richText: [{ text: '...', font: {...} }, ...] }
+  if ('richText' in cellValue) {
+    const richTextCell = cellValue as { richText: RichTextSegment[] };
+    if (Array.isArray(richTextCell.richText)) {
+      // Concatenate all text segments
+      return richTextCell.richText.map(segment => segment.text ?? '').join('');
+    }
+    return null;
+  }
+
+  // Handle hyperlink cells
+  // Structure: { text: '...', hyperlink: '...' }
+  if ('text' in cellValue && 'hyperlink' in cellValue) {
+    const hyperlinkCell = cellValue as { text: string; hyperlink: string };
+    return hyperlinkCell.text;
+  }
+
+  // Handle cells with just text property (some hyperlink variants)
+  if (
+    'text' in cellValue &&
+    typeof (cellValue as { text: unknown }).text === 'string'
+  ) {
+    return (cellValue as { text: string }).text;
+  }
+
+  // Handle error cells - return null
+  if ('error' in cellValue) {
+    return null;
+  }
+
+  // Handle Date objects
+  if (cellValue instanceof Date) {
+    return cellValue;
+  }
+
+  // Unknown object type - try to stringify or return null
+  return null;
+}
+
+/**
  * Parse a data row from the Excel file.
  */
 function parseRow(
@@ -205,7 +293,7 @@ function parseRow(
   const getCellValue = (colNumber: number): string | null => {
     if (colNumber === -1) return null;
     const cell = row.getCell(colNumber);
-    const value = cell.value;
+    const value = extractCellValue(cell.value);
     if (value === null || value === undefined) return null;
     // Safely convert to string - value can be various types
     let strValue: string;
@@ -223,7 +311,7 @@ function parseRow(
   const getNumericValue = (colNumber: number): number | null => {
     if (colNumber === -1) return null;
     const cell = row.getCell(colNumber);
-    const value = cell.value;
+    const value = extractCellValue(cell.value);
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return isNaN(num) ? null : num;
@@ -250,7 +338,165 @@ function parseRow(
 }
 
 /**
+ * Build a composite key for OptionPrice lookup.
+ */
+function buildPriceKey(
+  optionId: string,
+  officeId: string,
+  priceTypeId: string,
+): string {
+  return `${optionId}:${officeId}:${priceTypeId}`;
+}
+
+/**
+ * UUID v4 regex pattern for validation.
+ * Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars total)
+ */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate that a string is a valid UUID format.
+ */
+function isValidUuid(value: string): boolean {
+  return UUID_REGEX.test(value);
+}
+
+/**
+ * Batch validate all rows against database records.
+ * Uses bulk loading to minimize queries.
+ */
+async function batchValidateRows(
+  em: EntityManager,
+  rows: ParsedRow[],
+  companyId: string,
+  officeCache: Map<string, Office>,
+  optionCache: Map<string, PriceGuideOption>,
+): Promise<PricingImportError[]> {
+  const errors: PricingImportError[] = [];
+
+  // Collect unique IDs from rows
+  const officeIds = new Set<string>();
+  const optionIds = new Set<string>();
+
+  // Track rows with invalid IDs to skip database lookup
+  const rowsWithInvalidIds = new Set<number>();
+
+  for (const row of rows) {
+    // Check required fields first
+    if (!row.officeId) {
+      errors.push({
+        row: row.rowNumber,
+        column: 'Office ID',
+        message: 'Office ID is required',
+      });
+      rowsWithInvalidIds.add(row.rowNumber);
+      continue;
+    }
+
+    if (!row.optionId) {
+      errors.push({
+        row: row.rowNumber,
+        column: 'Option ID',
+        message: 'Option ID is required for price updates',
+      });
+      rowsWithInvalidIds.add(row.rowNumber);
+      continue;
+    }
+
+    // Validate UUID format for Office ID
+    if (!isValidUuid(row.officeId)) {
+      errors.push({
+        row: row.rowNumber,
+        column: 'Office ID',
+        message: `Invalid Office ID format: '${row.officeId}' (must be a valid UUID)`,
+      });
+      rowsWithInvalidIds.add(row.rowNumber);
+      continue;
+    }
+
+    // Validate UUID format for Option ID
+    if (!isValidUuid(row.optionId)) {
+      errors.push({
+        row: row.rowNumber,
+        column: 'Option ID',
+        message: `Invalid Option ID format: '${row.optionId}' (must be a valid UUID)`,
+      });
+      rowsWithInvalidIds.add(row.rowNumber);
+      continue;
+    }
+
+    // Validate price values
+    for (const [, amount] of row.prices) {
+      if (amount < 0) {
+        errors.push({
+          row: row.rowNumber,
+          column: 'Price',
+          message: 'Price values must be non-negative',
+        });
+      }
+    }
+
+    // Collect IDs for batch lookup (only if not already cached)
+    if (!officeCache.has(row.officeId)) {
+      officeIds.add(row.officeId);
+    }
+    if (!optionCache.has(row.optionId)) {
+      optionIds.add(row.optionId);
+    }
+  }
+
+  // Batch load offices not in cache
+  if (officeIds.size > 0) {
+    const offices = await em.find(Office, {
+      id: { $in: Array.from(officeIds) },
+      company: companyId,
+    });
+    for (const office of offices) {
+      officeCache.set(office.id, office);
+    }
+  }
+
+  // Batch load options not in cache
+  if (optionIds.size > 0) {
+    const options = await em.find(PriceGuideOption, {
+      id: { $in: Array.from(optionIds) },
+      company: companyId,
+    });
+    for (const option of options) {
+      optionCache.set(option.id, option);
+    }
+  }
+
+  // Check for missing IDs (skip rows that already have validation errors)
+  for (const row of rows) {
+    if (rowsWithInvalidIds.has(row.rowNumber)) {
+      continue;
+    }
+
+    if (row.officeId && !officeCache.has(row.officeId)) {
+      errors.push({
+        row: row.rowNumber,
+        column: 'Office ID',
+        message: `Office '${row.officeId}' not found in company`,
+      });
+    }
+
+    if (row.optionId && !optionCache.has(row.optionId)) {
+      errors.push({
+        row: row.rowNumber,
+        column: 'Option ID',
+        message: `Option '${row.optionId}' not found in company`,
+      });
+    }
+  }
+
+  return errors;
+}
+
+/**
  * Validate a parsed row against database records.
+ * DEPRECATED: Use batchValidateRows for better performance.
  */
 async function validateRow(
   em: EntityManager,
@@ -339,6 +585,7 @@ async function validateRow(
 /**
  * Preview import without applying changes.
  * Validates all rows and returns summary + preview of changes.
+ * OPTIMIZED: Uses batch loading for validation and existing price lookup.
  */
 export async function previewImport(
   em: EntityManager,
@@ -395,61 +642,80 @@ export async function previewImport(
     return result;
   }
 
-  // Caches for validation
+  // Caches for validation - populated once via batch loading
   const officeCache = new Map<string, Office>();
   const optionCache = new Map<string, PriceGuideOption>();
 
-  // Process each row
-  let rowCount = 0;
+  // Parse all rows
   const rows: ParsedRow[] = [];
-
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return; // Skip header
-    rowCount++;
     rows.push(parseRow(row, rowNumber, config));
   });
 
-  result.summary.totalRows = rowCount;
+  result.summary.totalRows = rows.length;
 
-  // Validate all rows
-  for (const row of rows) {
-    const rowErrors = await validateRow(
-      em,
-      row,
-      companyId,
-      officeCache,
-      optionCache,
-    );
+  // Batch validate all rows (2 queries for offices + options)
+  const validationErrors = await batchValidateRows(
+    em,
+    rows,
+    companyId,
+    officeCache,
+    optionCache,
+  );
 
-    if (rowErrors.length > 0) {
-      result.summary.errors += rowErrors.length;
-      if (result.errors.length < MAX_ERRORS) {
-        result.errors.push(
-          ...rowErrors.slice(0, MAX_ERRORS - result.errors.length),
-        );
-      }
-      continue;
+  // Track which rows have errors
+  const rowsWithErrors = new Set(validationErrors.map(e => e.row));
+  result.summary.errors = validationErrors.length;
+  result.errors = validationErrors.slice(0, MAX_ERRORS);
+
+  // Filter to valid rows for preview
+  const validRows = rows.filter(
+    r => r.optionId && r.officeId && !rowsWithErrors.has(r.rowNumber),
+  );
+
+  // Batch load existing prices for valid rows (1 query)
+  if (validRows.length > 0) {
+    const uniqueOptionIds = [...new Set(validRows.map(r => r.optionId!))];
+    const uniqueOfficeIds = [...new Set(validRows.map(r => r.officeId!))];
+
+    const existingPrices = await em.find(OptionPrice, {
+      option: { $in: uniqueOptionIds },
+      office: { $in: uniqueOfficeIds },
+      effectiveDate: null, // Current prices only
+    });
+
+    // Build lookup map
+    const existingPriceMap = new Map<string, OptionPrice>();
+    for (const price of existingPrices) {
+      const key = buildPriceKey(
+        price.option.id,
+        price.office.id,
+        price.priceType.id,
+      );
+      existingPriceMap.set(key, price);
     }
 
-    // Determine action: create, update, or skip
-    if (row.optionId && row.officeId) {
-      // Check existing prices
-      const existingPrices = await em.find(OptionPrice, {
-        option: row.optionId,
-        office: row.officeId,
-      });
+    // Track which option+office combos have any existing prices
+    const hasExistingPricesSet = new Set<string>();
+    for (const price of existingPrices) {
+      hasExistingPricesSet.add(`${price.option.id}:${price.office.id}`);
+    }
 
-      const existingPriceMap = new Map<string, number>();
-      for (const ep of existingPrices) {
-        existingPriceMap.set(ep.priceType.id, Number(ep.amount));
-      }
+    // Determine action for each valid row
+    for (const row of validRows) {
+      if (!row.optionId || !row.officeId) continue;
 
-      // Determine if this is a create, update, or skip
       let hasChanges = false;
       const changes: Record<string, { from: number; to: number }> = {};
+      const comboKey = `${row.optionId}:${row.officeId}`;
+      const hasExisting = hasExistingPricesSet.has(comboKey);
 
       for (const [priceTypeId, newAmount] of row.prices) {
-        const existingAmount = existingPriceMap.get(priceTypeId) ?? 0;
+        const key = buildPriceKey(row.optionId, row.officeId, priceTypeId);
+        const existingPrice = existingPriceMap.get(key);
+        const existingAmount = existingPrice ? Number(existingPrice.amount) : 0;
+
         if (Math.abs(existingAmount - newAmount) > 0.001) {
           hasChanges = true;
           const priceType = priceTypes.find(pt => pt.id === priceTypeId);
@@ -460,10 +726,10 @@ export async function previewImport(
       }
 
       if (hasChanges) {
-        if (existingPrices.length === 0) {
-          result.summary.toCreate++;
-        } else {
+        if (hasExisting) {
           result.summary.toUpdate++;
+        } else {
+          result.summary.toCreate++;
         }
 
         // Add to preview (first 50 rows)
@@ -472,7 +738,7 @@ export async function previewImport(
           const office = officeCache.get(row.officeId);
           result.preview.push({
             row: row.rowNumber,
-            action: existingPrices.length === 0 ? 'create' : 'update',
+            action: hasExisting ? 'update' : 'create',
             optionName: option?.name ?? row.optionName ?? 'Unknown',
             officeName: office?.name ?? row.officeName ?? 'Unknown',
             changes,
@@ -501,6 +767,7 @@ export async function previewImport(
 
 /**
  * Process import synchronously (for small files < 1000 rows).
+ * OPTIMIZED: Uses batch validation and chunk-based processing.
  */
 export async function processImportSync(
   em: EntityManager,
@@ -524,7 +791,6 @@ export async function processImportSync(
 
   // Load workbook
   const workbook = new ExcelJS.Workbook();
-  // Use buffer.buffer to get the underlying ArrayBuffer
   await workbook.xlsx.load(buffer.buffer as ArrayBuffer);
   const worksheet = workbook.getWorksheet(1);
 
@@ -552,66 +818,176 @@ export async function processImportSync(
     return result;
   }
 
-  // Caches
-  const officeCache = new Map<string, Office>();
-  const optionCache = new Map<string, PriceGuideOption>();
-
-  // Collect rows for processing
-  const rows: Array<{ row: ExcelJS.Row; rowNumber: number }> = [];
+  // Parse all rows
+  const rows: ParsedRow[] = [];
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber > 1) {
-      rows.push({ row, rowNumber });
+      rows.push(parseRow(row, rowNumber, config));
     }
   });
 
-  // Process each row
-  for (const { row, rowNumber } of rows) {
-    const parsed = parseRow(row, rowNumber, config);
-    const rowErrors = await validateRow(
-      em,
-      parsed,
-      options.companyId,
-      officeCache,
-      optionCache,
-    );
+  // Caches populated via batch loading
+  const officeCache = new Map<string, Office>();
+  const optionCache = new Map<string, PriceGuideOption>();
 
-    if (rowErrors.length > 0) {
-      if (options.skipErrors) {
-        if (result.errors.length < MAX_ERRORS) {
-          result.errors.push(...rowErrors);
-        }
-        continue;
-      } else {
-        result.success = false;
-        result.errors.push(...rowErrors);
-        continue;
-      }
-    }
+  // Batch validate all rows upfront (2 queries)
+  const validationErrors = await batchValidateRows(
+    em,
+    rows,
+    options.companyId,
+    officeCache,
+    optionCache,
+  );
 
-    // Process valid row
-    if (parsed.optionId && parsed.officeId) {
-      const rowResult = await processRow(em, parsed, options.userId);
-      switch (rowResult) {
-        case 'created':
-          result.created++;
-          break;
-        case 'updated':
-          result.updated++;
-          break;
-        case 'skipped':
-          result.skipped++;
-          break;
-      }
+  // Track which rows have errors
+  const rowsWithErrors = new Set(validationErrors.map(e => e.row));
+
+  if (validationErrors.length > 0) {
+    if (options.skipErrors) {
+      result.errors = validationErrors.slice(0, MAX_ERRORS);
+    } else {
+      result.success = false;
+      result.errors = validationErrors.slice(0, MAX_ERRORS);
+      return result;
     }
   }
 
-  await em.flush();
+  // Filter to valid rows
+  const validRows = rows.filter(
+    r => r.optionId && r.officeId && !rowsWithErrors.has(r.rowNumber),
+  );
+
+  // Process in chunks for better memory management
+  const chunkResult = await processRowsInChunks(
+    em,
+    validRows,
+    options.userId,
+    CHUNK_SIZE,
+  );
+
+  result.created = chunkResult.created;
+  result.updated = chunkResult.updated;
+  result.skipped = chunkResult.skipped;
+
+  return result;
+}
+
+/**
+ * Process rows in chunks with batch operations.
+ * Minimizes queries by:
+ * 1. Batch loading existing prices per chunk
+ * 2. Using bulk upsert operations
+ */
+async function processRowsInChunks(
+  em: EntityManager,
+  validRows: ParsedRow[],
+  userId: string,
+  chunkSize: number,
+): Promise<{ created: number; updated: number; skipped: number }> {
+  const result = { created: 0, updated: 0, skipped: 0 };
+
+  // Track modified options to update lastModifiedBy
+  const modifiedOptionIds = new Set<string>();
+
+  for (let i = 0; i < validRows.length; i += chunkSize) {
+    const chunk = validRows.slice(i, i + chunkSize);
+
+    // Get unique IDs for this chunk
+    const chunkOptionIds = [
+      ...new Set(chunk.map(r => r.optionId).filter(Boolean) as string[]),
+    ];
+    const chunkOfficeIds = [
+      ...new Set(chunk.map(r => r.officeId).filter(Boolean) as string[]),
+    ];
+
+    // Batch load existing prices for this chunk (1 query per chunk)
+    const existingPrices = await em.find(OptionPrice, {
+      option: { $in: chunkOptionIds },
+      office: { $in: chunkOfficeIds },
+      effectiveDate: null,
+    });
+
+    // Build lookup map
+    const priceMap = new Map<string, OptionPrice>();
+    for (const price of existingPrices) {
+      const key = buildPriceKey(
+        price.option.id,
+        price.office.id,
+        price.priceType.id,
+      );
+      priceMap.set(key, price);
+    }
+
+    // Process chunk rows
+    for (const row of chunk) {
+      if (!row.optionId || !row.officeId) {
+        result.skipped++;
+        continue;
+      }
+
+      let rowHasChanges = false;
+      let rowIsNew = false;
+
+      for (const [priceTypeId, newAmount] of row.prices) {
+        const key = buildPriceKey(row.optionId, row.officeId, priceTypeId);
+        const existingPrice = priceMap.get(key);
+
+        if (existingPrice) {
+          // Update existing price if changed
+          if (Math.abs(Number(existingPrice.amount) - newAmount) > 0.001) {
+            existingPrice.amount = newAmount;
+            rowHasChanges = true;
+          }
+        } else {
+          // Create new price record
+          const newPrice = new OptionPrice();
+          newPrice.option = em.getReference(PriceGuideOption, row.optionId);
+          newPrice.office = em.getReference(Office, row.officeId);
+          newPrice.priceType = em.getReference(PriceObjectType, priceTypeId);
+          newPrice.amount = newAmount;
+          em.persist(newPrice);
+
+          // Add to map to prevent duplicate creates in same chunk
+          priceMap.set(key, newPrice);
+
+          rowHasChanges = true;
+          rowIsNew = true;
+        }
+      }
+
+      if (rowHasChanges) {
+        modifiedOptionIds.add(row.optionId);
+        if (rowIsNew) {
+          result.created++;
+        } else {
+          result.updated++;
+        }
+      } else {
+        result.skipped++;
+      }
+    }
+
+    // Flush after each chunk to persist changes
+    await em.flush();
+  }
+
+  // Batch update lastModifiedBy for all modified options (1 query)
+  if (modifiedOptionIds.size > 0) {
+    const userRef = em.getReference(User, userId);
+    await em
+      .createQueryBuilder(PriceGuideOption)
+      .update({ lastModifiedBy: userRef })
+      .where({ id: { $in: Array.from(modifiedOptionIds) } })
+      .execute();
+  }
 
   return result;
 }
 
 /**
  * Process a single row - upsert prices.
+ * DEPRECATED: Use processRowsInChunks for better performance.
+ * Kept for backward compatibility.
  */
 async function processRow(
   em: EntityManager,
@@ -674,6 +1050,14 @@ export async function processRowForJob(
   }
 }
 
-// Re-export types
+// Re-export types and functions for worker
 export type { ParsedRow, ColumnConfig };
-export { parseColumnConfig, parseRow, validateRow };
+export {
+  parseColumnConfig,
+  parseRow,
+  validateRow,
+  batchValidateRows,
+  processRowsInChunks,
+  buildPriceKey,
+  CHUNK_SIZE,
+};

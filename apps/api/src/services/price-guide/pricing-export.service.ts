@@ -8,13 +8,14 @@ import ExcelJS from 'exceljs';
 import {
   OptionPrice,
   PriceObjectType,
+  PriceGuideOption,
   MeasureSheetItemOption,
   ItemTag,
   TaggableEntityType,
+  Office,
 } from '../../entities';
 
 import type { EntityManager } from '@mikro-orm/postgresql';
-import type { Column } from 'exceljs';
 import type { Response } from 'express';
 
 /**
@@ -83,50 +84,11 @@ async function getCategoryIdsWithDescendants(
 }
 
 /**
- * Group prices by option+office combination.
- */
-function groupPricesByOptionAndOffice(
-  prices: OptionPrice[],
-  priceTypes: PriceObjectType[],
-): PriceRow[] {
-  const grouped = new Map<string, PriceRow>();
-
-  for (const price of prices) {
-    const key = `${price.option.id}-${price.office.id}`;
-
-    if (!grouped.has(key)) {
-      grouped.set(key, {
-        optionId: price.option.id,
-        optionName: price.option.name,
-        brand: price.option.brand ?? null,
-        itemCode: price.option.itemCode ?? null,
-        officeId: price.office.id,
-        officeName: price.office.name,
-        prices: {},
-        total: 0,
-      });
-
-      // Initialize all price types with 0
-      for (const pt of priceTypes) {
-        grouped.get(key)!.prices[pt.id] = 0;
-      }
-    }
-
-    const row = grouped.get(key)!;
-    row.prices[price.priceType.id] = Number(price.amount);
-  }
-
-  // Calculate totals
-  for (const row of grouped.values()) {
-    row.total = Object.values(row.prices).reduce((sum, val) => sum + val, 0);
-  }
-
-  return Array.from(grouped.values());
-}
-
-/**
  * Export option prices to Excel spreadsheet, streaming to HTTP response.
  * No files are stored on disk or S3.
+ *
+ * IMPORTANT: Exports ALL active options, not just those with prices.
+ * Options without prices will show $0 for all price types.
  *
  * @param em - Entity manager
  * @param res - Express response object (streaming target)
@@ -148,7 +110,40 @@ export async function exportOptionPricesToResponse(
     { orderBy: { sortOrder: 'ASC' } },
   );
 
-  // 2. Build option IDs filter from all sources
+  // 2. Get offices to export prices for
+  const officeWhere: { company: string; id?: { $in: string[] } } = {
+    company: options.companyId,
+  };
+  if (options.officeIds?.length) {
+    officeWhere.id = { $in: options.officeIds };
+  }
+  const offices = await em.find(Office, officeWhere, {
+    orderBy: { name: 'ASC' },
+  });
+
+  if (offices.length === 0) {
+    // No offices - return empty spreadsheet
+    const emptyWorkbook = new ExcelJS.Workbook();
+    const emptySheet = emptyWorkbook.addWorksheet('Option Prices');
+    emptySheet.columns = [{ header: 'No offices found', width: 30 }];
+
+    const buffer = await emptyWorkbook.xlsx.writeBuffer();
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="option-prices-${timestamp}.xlsx"`,
+    );
+    res.setHeader('Content-Length', buffer.byteLength);
+    res.send(Buffer.from(buffer));
+    return 0;
+  }
+
+  // 3. Build option IDs filter from all sources
   let filteredOptionIds: string[] | undefined = options.optionIds
     ? [...options.optionIds]
     : undefined;
@@ -211,23 +206,24 @@ export async function exportOptionPricesToResponse(
     }
   }
 
-  // 3. Query prices with filters
-  // Build where clause dynamically for MikroORM
+  // 4. Query ALL active options (not just those with prices)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const whereClause: any = {
-    option: { company: options.companyId, isActive: true },
+  const optionWhere: any = {
+    company: options.companyId,
+    isActive: true,
   };
 
-  if (options.officeIds?.length) {
-    whereClause.office = { id: { $in: options.officeIds } };
-  }
-
   if (filteredOptionIds?.length) {
-    whereClause.option.id = { $in: filteredOptionIds };
+    optionWhere.id = { $in: filteredOptionIds };
   } else if (filteredOptionIds?.length === 0) {
     // Filter resulted in empty set - return empty spreadsheet
-    // Set headers for empty file and return
+    const emptyWorkbook = new ExcelJS.Workbook();
+    const emptySheet = emptyWorkbook.addWorksheet('Option Prices');
+    emptySheet.columns = [{ header: 'No matching options found', width: 30 }];
+
+    const buffer = await emptyWorkbook.xlsx.writeBuffer();
     const timestamp = new Date().toISOString().split('T')[0];
+
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -236,29 +232,185 @@ export async function exportOptionPricesToResponse(
       'Content-Disposition',
       `attachment; filename="option-prices-${timestamp}.xlsx"`,
     );
-
-    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-      stream: res,
-      useStyles: true,
-    });
-
-    const worksheet = workbook.addWorksheet('Option Prices');
-    worksheet.columns = [{ header: 'No matching options found', width: 30 }];
-    await workbook.commit();
+    res.setHeader('Content-Length', buffer.byteLength);
+    res.send(Buffer.from(buffer));
     return 0;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-  const prices = await em.find(OptionPrice, whereClause, {
-    populate: ['option', 'office', 'priceType'],
-    orderBy: { option: { name: 'ASC' }, office: { name: 'ASC' } },
+  const allOptions = await em.find(PriceGuideOption, optionWhere, {
+    orderBy: { name: 'ASC' },
   });
 
-  // 4. Group prices by option+office
-  const grouped = groupPricesByOptionAndOffice(prices, priceTypes);
+  if (allOptions.length === 0) {
+    // No options - return empty spreadsheet
+    const emptyWorkbook = new ExcelJS.Workbook();
+    const emptySheet = emptyWorkbook.addWorksheet('Option Prices');
+    emptySheet.columns = [{ header: 'No matching options found', width: 30 }];
 
-  // 5. Set response headers
+    const buffer = await emptyWorkbook.xlsx.writeBuffer();
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="option-prices-${timestamp}.xlsx"`,
+    );
+    res.setHeader('Content-Length', buffer.byteLength);
+    res.send(Buffer.from(buffer));
+    return 0;
+  }
+
+  // 5. Query existing prices for these options
+  const optionIds = allOptions.map(o => o.id);
+  const officeIds = offices.map(o => o.id);
+
+  const prices = await em.find(
+    OptionPrice,
+    {
+      option: { id: { $in: optionIds } },
+      office: { id: { $in: officeIds } },
+    },
+    {
+      populate: ['option', 'office', 'priceType'],
+    },
+  );
+
+  // 6. Build a price lookup map: optionId-officeId-priceTypeId -> amount
+  const priceMap = new Map<string, number>();
+  for (const price of prices) {
+    const key = `${price.option.id}-${price.office.id}-${price.priceType.id}`;
+    priceMap.set(key, Number(price.amount));
+  }
+
+  // 7. Generate rows for ALL option+office combinations
+  const grouped: PriceRow[] = [];
+  for (const option of allOptions) {
+    for (const office of offices) {
+      const row: PriceRow = {
+        optionId: option.id,
+        optionName: option.name,
+        brand: option.brand ?? null,
+        itemCode: option.itemCode ?? null,
+        officeId: office.id,
+        officeName: office.name,
+        prices: {},
+        total: 0,
+      };
+
+      // Get price for each price type (0 if not set)
+      for (const pt of priceTypes) {
+        const key = `${option.id}-${office.id}-${pt.id}`;
+        row.prices[pt.id] = priceMap.get(key) ?? 0;
+      }
+
+      // Calculate total
+      row.total = Object.values(row.prices).reduce((sum, val) => sum + val, 0);
+
+      grouped.push(row);
+    }
+  }
+
+  // 8. Create workbook and worksheet
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Option Prices');
+
+  // 9. Define column structure
+  const headers = [
+    'Option Name',
+    'Brand',
+    'Item Code',
+    'Office Name',
+    ...priceTypes.map(pt => pt.name),
+    'Total',
+    'Option ID',
+    'Office ID',
+  ];
+
+  const columnWidths = [
+    25, // Option Name
+    15, // Brand
+    15, // Item Code
+    20, // Office Name
+    ...priceTypes.map(() => 12), // Price type columns
+    12, // Total
+    36, // Option ID
+    36, // Office ID
+  ];
+
+  // 10. Build table rows with pre-calculated totals
+  const tableRows: (string | number)[][] = [];
+  for (const row of grouped) {
+    const rowValues: (string | number)[] = [
+      row.optionName,
+      row.brand ?? '',
+      row.itemCode ?? '',
+      row.officeName,
+    ];
+
+    // Add price for each price type
+    for (const pt of priceTypes) {
+      rowValues.push(row.prices[pt.id] ?? 0);
+    }
+
+    // Add pre-calculated total, then IDs
+    rowValues.push(row.total);
+    rowValues.push(row.optionId);
+    rowValues.push(row.officeId);
+
+    tableRows.push(rowValues);
+  }
+
+  // 11. Create Excel Table with data
+  worksheet.addTable({
+    name: 'OptionPrices',
+    ref: 'A1',
+    headerRow: true,
+    totalsRow: false,
+    style: {
+      theme: 'TableStyleMedium2',
+      showRowStripes: true,
+    },
+    columns: headers.map(name => ({ name, filterButton: true })),
+    rows: tableRows,
+  });
+
+  // 12. Apply column widths (must be done after table creation)
+  columnWidths.forEach((width, idx) => {
+    worksheet.getColumn(idx + 1).width = width;
+  });
+
+  // 13. Replace Total values with formulas
+  const priceStartColLetter = 'E';
+  const priceEndColIndex = 4 + priceTypes.length;
+  const priceEndColLetter = String.fromCharCode(64 + priceEndColIndex);
+  const totalColIndex = 5 + priceTypes.length;
+
+  for (let rowIndex = 0; rowIndex < grouped.length; rowIndex++) {
+    const excelRowNum = rowIndex + 2; // +1 for 1-indexed, +1 for header
+    const totalCell = worksheet.getCell(excelRowNum, totalColIndex);
+    totalCell.value = {
+      formula: `SUM(${priceStartColLetter}${excelRowNum}:${priceEndColLetter}${excelRowNum})`,
+    };
+  }
+
+  // 14. Apply formatting
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+  // Format price columns as currency (column E onwards through Total)
+  const priceStartCol = 5; // Column E
+  for (let colNum = priceStartCol; colNum <= totalColIndex; colNum++) {
+    const col = worksheet.getColumn(colNum);
+    col.numFmt = '$#,##0.00';
+  }
+
+  // 15. Write workbook to buffer and send response
+  const buffer = await workbook.xlsx.writeBuffer();
   const timestamp = new Date().toISOString().split('T')[0];
+
   res.setHeader(
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -267,93 +419,16 @@ export async function exportOptionPricesToResponse(
     'Content-Disposition',
     `attachment; filename="option-prices-${timestamp}.xlsx"`,
   );
-
-  // 6. Create streaming workbook that writes directly to response
-  const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-    stream: res,
-    useStyles: true,
-  });
-
-  const worksheet = workbook.addWorksheet('Option Prices');
-
-  // 7. Define columns
-  const columns: Partial<Column>[] = [
-    { header: 'Option Name', key: 'optionName', width: 25 },
-    { header: 'Brand', key: 'brand', width: 15 },
-    { header: 'Item Code', key: 'itemCode', width: 15 },
-    { header: 'Office Name', key: 'officeName', width: 20 },
-    ...priceTypes.map(pt => ({
-      header: pt.name,
-      key: pt.id,
-      width: 12,
-    })),
-    { header: 'Total', key: 'total', width: 12 },
-    {
-      header: 'Option ID',
-      key: 'optionId',
-      width: 12,
-      outlineLevel: 1,
-    },
-    {
-      header: 'Office ID',
-      key: 'officeId',
-      width: 12,
-      outlineLevel: 1,
-    },
-  ];
-  worksheet.columns = columns;
-
-  // 8. Style header row
-  const headerRow = worksheet.getRow(1);
-  headerRow.font = { bold: true };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFE5E5E5' },
-  };
-  headerRow.commit();
-
-  // 9. Write data rows
-  for (const row of grouped) {
-    const rowData: Record<string, unknown> = {
-      optionName: row.optionName,
-      brand: row.brand ?? '',
-      itemCode: row.itemCode ?? '',
-      officeName: row.officeName,
-      total: row.total,
-      optionId: row.optionId,
-      officeId: row.officeId,
-    };
-
-    // Add price for each price type
-    for (const pt of priceTypes) {
-      rowData[pt.id] = row.prices[pt.id] ?? 0;
-    }
-
-    worksheet.addRow(rowData).commit();
-  }
-
-  // 10. Apply formatting
-  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
-
-  // Format price columns as currency
-  const priceStartCol = 5; // After Office Name
-  for (let i = priceStartCol; i <= priceStartCol + priceTypes.length; i++) {
-    const col = worksheet.getColumn(i);
-    col.numFmt = '$#,##0.00';
-  }
-
-  // Collapse ID columns (grouped)
-  worksheet.properties.outlineLevelCol = 1;
-
-  // 11. Finalize and close stream
-  await workbook.commit();
+  res.setHeader('Content-Length', buffer.byteLength);
+  res.send(Buffer.from(buffer));
 
   return grouped.length;
 }
 
 /**
  * Get estimated row count for export preview (without actually exporting).
+ *
+ * IMPORTANT: Returns count of ALL option+office combinations, not just those with prices.
  *
  * @param em - Entity manager
  * @param options - Export filter options
@@ -363,7 +438,20 @@ export async function getExportRowCount(
   em: EntityManager,
   options: ExportOptions,
 ): Promise<number> {
-  // Build the same filters as export but just count
+  // 1. Get office count
+  const officeWhere: { company: string; id?: { $in: string[] } } = {
+    company: options.companyId,
+  };
+  if (options.officeIds?.length) {
+    officeWhere.id = { $in: options.officeIds };
+  }
+  const officeCount = await em.count(Office, officeWhere);
+
+  if (officeCount === 0) {
+    return 0;
+  }
+
+  // 2. Build option filters
   let filteredOptionIds: string[] | undefined = options.optionIds
     ? [...options.optionIds]
     : undefined;
@@ -423,38 +511,22 @@ export async function getExportRowCount(
     }
   }
 
+  // 3. Count options
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const whereClause: any = {
-    option: { company: options.companyId, isActive: true },
+  const optionWhere: any = {
+    company: options.companyId,
+    isActive: true,
   };
 
-  if (options.officeIds?.length) {
-    whereClause.office = { id: { $in: options.officeIds } };
-  }
-
   if (filteredOptionIds?.length) {
-    whereClause.option.id = { $in: filteredOptionIds };
+    optionWhere.id = { $in: filteredOptionIds };
   } else if (filteredOptionIds?.length === 0) {
     return 0;
   }
 
-  // Count unique option+office combinations
-  const result = await em.getConnection().execute<{ count: string }[]>(
-    `
-    SELECT COUNT(DISTINCT (op.option_id, op.office_id)) as count
-    FROM option_price op
-    JOIN price_guide_option pgo ON op.option_id = pgo.id
-    WHERE pgo.company_id = $1 
-      AND pgo.is_active = true
-      ${options.officeIds?.length ? `AND op.office_id = ANY($2::uuid[])` : ''}
-      ${filteredOptionIds?.length ? `AND op.option_id = ANY($3::uuid[])` : ''}
-  `,
-    [
-      options.companyId,
-      options.officeIds?.length ? options.officeIds : null,
-      filteredOptionIds?.length ? filteredOptionIds : null,
-    ].filter(Boolean),
-  );
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  const optionCount = await em.count(PriceGuideOption, optionWhere);
 
-  return parseInt(result[0]?.count ?? '0', 10);
+  // Return total combinations: options × offices
+  return optionCount * officeCount;
 }
