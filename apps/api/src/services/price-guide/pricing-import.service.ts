@@ -679,11 +679,15 @@ export async function previewImport(
     const uniqueOptionIds = [...new Set(validRows.map(r => r.optionId!))];
     const uniqueOfficeIds = [...new Set(validRows.map(r => r.officeId!))];
 
-    const existingPrices = await em.find(OptionPrice, {
-      option: { $in: uniqueOptionIds },
-      office: { $in: uniqueOfficeIds },
-      effectiveDate: null, // Current prices only
-    });
+    const existingPrices = await em.find(
+      OptionPrice,
+      {
+        option: { $in: uniqueOptionIds },
+        office: { $in: uniqueOfficeIds },
+        effectiveDate: null, // Current prices only
+      },
+      { populate: ['option', 'office', 'priceType'] },
+    );
 
     // Build lookup map
     const existingPriceMap = new Map<string, OptionPrice>();
@@ -901,11 +905,15 @@ async function processRowsInChunks(
     ];
 
     // Batch load existing prices for this chunk (1 query per chunk)
-    const existingPrices = await em.find(OptionPrice, {
-      option: { $in: chunkOptionIds },
-      office: { $in: chunkOfficeIds },
-      effectiveDate: null,
-    });
+    const existingPrices = await em.find(
+      OptionPrice,
+      {
+        option: { $in: chunkOptionIds },
+        office: { $in: chunkOfficeIds },
+        effectiveDate: null,
+      },
+      { populate: ['option', 'office', 'priceType'] },
+    );
 
     // Build lookup map
     const priceMap = new Map<string, OptionPrice>();
@@ -939,12 +947,13 @@ async function processRowsInChunks(
             rowHasChanges = true;
           }
         } else {
-          // Create new price record
+          // Create new price record (effectiveDate = null means current price)
           const newPrice = new OptionPrice();
           newPrice.option = em.getReference(PriceGuideOption, row.optionId);
           newPrice.office = em.getReference(Office, row.officeId);
           newPrice.priceType = em.getReference(PriceObjectType, priceTypeId);
           newPrice.amount = newAmount;
+          newPrice.effectiveDate = null;
           em.persist(newPrice);
 
           // Add to map to prevent duplicate creates in same chunk
@@ -1017,6 +1026,7 @@ async function processRow(
       priceRecord.office = em.getReference(Office, row.officeId);
       priceRecord.priceType = em.getReference(PriceObjectType, priceTypeId);
       priceRecord.amount = newAmount;
+      priceRecord.effectiveDate = null;
       em.persist(priceRecord);
       hasChanges = true;
       isNew = true;

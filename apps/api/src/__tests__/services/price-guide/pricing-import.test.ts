@@ -1,27 +1,33 @@
 /**
- * Integration tests for pricing import service.
+ * Unit tests for pricing import service.
  * Tests parsing, validation, and edge cases for Excel file imports.
  */
 import ExcelJS from 'exceljs';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
-import { getORM } from '../../lib/db';
+import { getORM } from '../../../lib/db';
 import {
   previewImport,
   processImportSync,
   BACKGROUND_PROCESSING_THRESHOLD,
   MAX_FILE_SIZE_BYTES,
-} from '../../services/price-guide/pricing-import.service';
+} from '../../../services/price-guide/pricing-import.service';
 import {
   createTestOption,
   createDefaultPriceTypesWithOffice,
   createTestOptionPrice,
-} from '../factories/price-guide';
+} from '../../factories/price-guide';
+import {
+  createCompanySetup,
+  createTestOffice,
+} from '../../integration/auth-test-helpers';
 
-import { createCompanySetup, createTestOffice } from './auth-test-helpers';
-
-import type { CompanySetup } from './auth-test-helpers';
-import type { Office, PriceGuideOption, PriceObjectType } from '../../entities';
+import type {
+  Office,
+  PriceGuideOption,
+  PriceObjectType,
+} from '../../../entities';
+import type { CompanySetup } from '../../integration/auth-test-helpers';
 import type { EntityManager } from '@mikro-orm/postgresql';
 
 describe('Pricing Import Service', () => {
@@ -105,13 +111,8 @@ describe('Pricing Import Service', () => {
 
     // Add data rows
     for (const row of rows) {
-      // Use null for unprovided prices so they won't be updated
-      const priceValues = priceTypes.map(pt =>
-        pt.id in row.prices ? row.prices[pt.id] : null,
-      );
-      const total = priceValues
-        .filter((v): v is number => v !== null)
-        .reduce((sum, val) => sum + val, 0);
+      const priceValues = priceTypes.map(pt => row.prices[pt.id] ?? 0);
+      const total = priceValues.reduce((sum, val) => sum + val, 0);
 
       worksheet.addRow([
         row.optionName ?? 'Test Option',

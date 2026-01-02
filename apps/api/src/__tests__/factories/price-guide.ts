@@ -343,7 +343,8 @@ export async function createTestOptionPrice(
     office,
     priceType,
     amount: options.amount ?? 0,
-    effectiveDate: options.effectiveDate,
+    // Explicitly use null (not undefined) for effectiveDate to match query filters
+    effectiveDate: options.effectiveDate ?? null,
   });
   em.persist(price);
   await em.flush();

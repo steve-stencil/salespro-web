@@ -56,14 +56,17 @@ async function getCategoryIdsWithDescendants(
 ): Promise<string[]> {
   if (categoryIds.length === 0) return [];
 
+  // Build placeholders for the IN clause (?, ?, ?, ...)
+  const placeholders = categoryIds.map(() => '?').join(', ');
+
   const result = await em.getConnection().execute<{ id: string }[]>(
     `
     WITH RECURSIVE category_tree AS (
       -- Base case: selected categories
       SELECT id 
       FROM price_guide_category 
-      WHERE id = ANY($1::uuid[]) 
-        AND company_id = $2 
+      WHERE id IN (${placeholders})
+        AND company_id = ? 
         AND is_active = true
       
       UNION ALL
@@ -72,12 +75,12 @@ async function getCategoryIdsWithDescendants(
       SELECT c.id 
       FROM price_guide_category c
       INNER JOIN category_tree ct ON c.parent_id = ct.id
-      WHERE c.company_id = $2 
+      WHERE c.company_id = ? 
         AND c.is_active = true
     )
     SELECT DISTINCT id FROM category_tree
   `,
-    [categoryIds, companyId],
+    [...categoryIds, companyId, companyId],
   );
 
   return result.map(r => r.id);

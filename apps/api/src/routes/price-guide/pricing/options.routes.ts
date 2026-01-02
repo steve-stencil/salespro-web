@@ -95,10 +95,10 @@ router.get(
         return;
       }
 
-      // Get all prices for this option
+      // Get all current prices for this option (effectiveDate is null)
       const prices = await em.find(
         OptionPrice,
-        { option: optionId },
+        { option: optionId, effectiveDate: null },
         {
           populate: ['office', 'priceType'],
           orderBy: { office: { name: 'ASC' }, priceType: { sortOrder: 'ASC' } },
@@ -270,6 +270,7 @@ router.put(
             priceData.priceTypeId,
           );
           priceRecord.amount = priceData.amount;
+          priceRecord.effectiveDate = null;
           em.persist(priceRecord);
         }
       }
@@ -393,6 +394,7 @@ router.put(
               priceData.priceTypeId,
             );
             priceRecord.amount = priceData.amount;
+            priceRecord.effectiveDate = null;
             em.persist(priceRecord);
           }
           updatedCount++;

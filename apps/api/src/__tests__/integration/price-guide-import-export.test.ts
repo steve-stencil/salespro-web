@@ -147,8 +147,13 @@ describe('Price Guide Import/Export Routes', () => {
     worksheet.addRow(headers);
 
     for (const row of rows) {
-      const priceValues = priceTypes.map(pt => row.prices[pt.id] ?? 0);
-      const total = priceValues.reduce((sum, val) => sum + val, 0);
+      // Use null for unprovided prices so they won't be updated
+      const priceValues = priceTypes.map(pt =>
+        pt.id in row.prices ? row.prices[pt.id] : null,
+      );
+      const total = priceValues
+        .filter((v): v is number => v !== null)
+        .reduce((sum, val) => sum + val, 0);
 
       worksheet.addRow([
         row.optionName ?? 'Test Option',
@@ -261,7 +266,7 @@ describe('Price Guide Import/Export Routes', () => {
     it('should allow export with price_guide:import_export permission', async () => {
       const exportUser = await createUserWithPermissions(em, setup.company, [
         PERMISSIONS.PRICE_GUIDE_IMPORT_EXPORT,
-      ]);
+      ] as string[]);
 
       const response = await makeRequest()
         .get('/api/price-guide/pricing/options/export')
@@ -559,13 +564,13 @@ describe('Price Guide Import/Export Routes', () => {
     });
 
     it('should update existing prices when values change', async () => {
-      // First, check current price
+      // First, check current price - use byOffice to look up by office ID
       const getResponse1 = await makeRequest()
         .get(`/api/price-guide/pricing/options/${testOptions[0]!.id}`)
         .set('Cookie', setup.adminCookie);
 
       const originalPrice =
-        getResponse1.body.pricing[0]?.prices[priceTypes[0]!.id];
+        getResponse1.body.byOffice[office.id]?.prices[priceTypes[0]!.id];
 
       // Import with new price
       const buffer = await createValidExcelBuffer([
@@ -583,12 +588,13 @@ describe('Price Guide Import/Export Routes', () => {
 
       expect(importResponse.status).toBe(200);
 
-      // Verify price was updated
+      // Verify price was updated - use byOffice to look up by office ID
       const getResponse2 = await makeRequest()
         .get(`/api/price-guide/pricing/options/${testOptions[0]!.id}`)
         .set('Cookie', setup.adminCookie);
 
-      const newPrice = getResponse2.body.pricing[0]?.prices[priceTypes[0]!.id];
+      const newPrice =
+        getResponse2.body.byOffice[office.id]?.prices[priceTypes[0]!.id];
       expect(newPrice).toBe(12345);
       expect(newPrice).not.toBe(originalPrice);
     });
