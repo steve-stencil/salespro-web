@@ -1545,7 +1545,7 @@ describe('Price Guide Library Routes', () => {
         });
 
         // Link first time
-        await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
+        await linkAdditionalDetailToMeasureSheetItem(em, msi, field);
 
         // Try to link again
         const response = await makeRequest()
@@ -1662,7 +1662,7 @@ describe('Price Guide Library Routes', () => {
           title: 'To Remove',
         });
 
-        await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
+        await linkAdditionalDetailToMeasureSheetItem(em, msi, field);
 
         const response = await makeRequest()
           .delete(
@@ -1720,7 +1720,7 @@ describe('Price Guide Library Routes', () => {
           category,
         );
         const field = await createTestAdditionalDetailField(em, setup.company);
-        await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
+        await linkAdditionalDetailToMeasureSheetItem(em, msi, field);
 
         const response = await makeRequest()
           .delete(
@@ -2012,7 +2012,7 @@ describe('Price Guide Library Routes', () => {
           category,
           { name: 'Test Window' },
         );
-        await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
+        await linkAdditionalDetailToMeasureSheetItem(em, msi, field);
 
         // Link to an upcharge
         const upCharge = await createTestUpCharge(em, setup.company, {
@@ -2134,7 +2134,7 @@ describe('Price Guide Library Routes', () => {
           setup.company,
           category,
         );
-        await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
+        await linkAdditionalDetailToMeasureSheetItem(em, msi, field);
 
         // Manually update the usage count to simulate trigger behavior
         const knex = (em as SqlEntityManager).getKnex();
@@ -2163,7 +2163,7 @@ describe('Price Guide Library Routes', () => {
           setup.company,
           category,
         );
-        await linkAdditionalDetailToMeasureSheetItem(em, msi, field, 0);
+        await linkAdditionalDetailToMeasureSheetItem(em, msi, field);
 
         // Manually update the usage count to simulate trigger behavior
         const knex = (em as SqlEntityManager).getKnex();

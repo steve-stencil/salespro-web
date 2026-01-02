@@ -126,6 +126,11 @@ export class AdditionalDetailField {
   @Index()
   sourceId?: string;
 
+  /** Migration session that created this entity (for rollback support) */
+  @Property({ type: 'uuid', nullable: true })
+  @Index()
+  migrationSessionId?: string;
+
   /** Soft delete flag - false means item is deleted (90-day retention) */
   @Property({ type: 'boolean' })
   isActive: Opt<boolean> = true;

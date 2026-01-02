@@ -1,5 +1,5 @@
-import { raw } from '@mikro-orm/postgresql';
 import { Router } from 'express';
+import { generateKeyBetween } from 'fractional-indexing';
 import { z } from 'zod';
 
 import {
@@ -51,7 +51,8 @@ const updateCategorySchema = z.object({
 
 const moveCategorySchema = z.object({
   newParentId: z.string().uuid().optional().nullable(),
-  sortOrder: z.number().int(),
+  /** Fractional index string for positioning */
+  sortOrder: z.string(),
 });
 
 // ============================================================================
@@ -77,7 +78,7 @@ type CategoryNode = {
   id: string;
   name: string;
   depth: number;
-  sortOrder: number;
+  sortOrder: string;
   parentId: string | null;
   /** Category display type - only applies to root categories (depth=0) */
   categoryType: string;
@@ -126,9 +127,9 @@ function buildCategoryTree(
     }
   }
 
-  // Sort children by sortOrder
+  // Sort children by sortOrder (fractional index strings)
   const sortChildren = (nodes: CategoryNode[]): void => {
-    nodes.sort((a, b) => a.sortOrder - b.sortOrder);
+    nodes.sort((a, b) => a.sortOrder.localeCompare(b.sortOrder));
     for (const node of nodes) {
       sortChildren(node.children);
     }
@@ -371,13 +372,15 @@ router.post(
 
       // Calculate depth and get next sort order
       const depth = await calculateDepth(em, parentId);
-      const maxSortOrder = await em
-        .createQueryBuilder(PriceGuideCategory, 'c')
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- raw() returns RawQueryFragment which isn't assignable to Field<T>
-        .select(raw('max(c.sort_order) as max'))
-        .where({ company: company.id, parent: parentId ?? null })
-        .execute<{ max: number | null }[]>();
-      const sortOrder = (maxSortOrder[0]?.max ?? -1) + 1;
+      const lastCategory = await em.findOne(
+        PriceGuideCategory,
+        { company: company.id, parent: parentId ?? null },
+        { orderBy: { sortOrder: 'DESC' } },
+      );
+      const sortOrder = generateKeyBetween(
+        lastCategory?.sortOrder ?? null,
+        null,
+      );
 
       const category = new PriceGuideCategory();
       category.name = name;

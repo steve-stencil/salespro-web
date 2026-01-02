@@ -73,6 +73,7 @@ export {
   PricingImportJobStatus,
   TaggableEntityType,
   PriceGuideCategoryType,
+  QuantityMode,
   PARENT_PRICE_TYPE_CODES,
   PARENT_PRICE_TYPE_LABELS,
   PARENT_PRICE_TYPE_DESCRIPTIONS,

@@ -309,28 +309,28 @@ describe('Price Guide Core Routes', () => {
         // Create categories in specific order
         await createTestCategory(em, setup.company, {
           name: 'Category A',
-          sortOrder: 0,
+          sortOrder: 'a0',
         });
         await createTestCategory(em, setup.company, {
           name: 'Category B',
-          sortOrder: 1,
+          sortOrder: 'a1',
         });
         const cat3 = await createTestCategory(em, setup.company, {
           name: 'Category C',
-          sortOrder: 2,
+          sortOrder: 'a2',
         });
 
-        // Move cat3 to be first (before cat1)
+        // Move cat3 to be first (before cat1 at 'a0')
         const response = await makeRequest()
           .put(`/api/price-guide/categories/${cat3.id}/move`)
           .set('Cookie', setup.adminCookie)
           .send({
             newParentId: null,
-            sortOrder: -1, // Before cat1's sortOrder of 0
+            sortOrder: 'Zz', // Before cat1's sortOrder of 'a0' (Z < a in ASCII)
           });
 
         expect(response.status).toBe(200);
-        expect(response.body.category.sortOrder).toBe(-1);
+        expect(response.body.category.sortOrder).toBe('Zz');
 
         // Verify order in tree response
         const treeResponse = await makeRequest()

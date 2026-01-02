@@ -1,6 +1,7 @@
 /**
  * Test data factories for price-guide entities
  */
+import { generateKeyBetween } from 'fractional-indexing';
 import { v4 as uuid } from 'uuid';
 
 import {
@@ -46,7 +47,7 @@ export type CreateCategoryOptions = {
   name?: string;
   parent?: PriceGuideCategory;
   depth?: number;
-  sortOrder?: number;
+  sortOrder?: string;
   isActive?: boolean;
 };
 
@@ -61,7 +62,7 @@ export async function createTestCategory(
     name: options.name ?? `Test Category ${Date.now()}`,
     parent: options.parent,
     depth: options.depth ?? (options.parent ? options.parent.depth + 1 : 0),
-    sortOrder: options.sortOrder ?? 0,
+    sortOrder: options.sortOrder ?? generateKeyBetween(null, null),
     isActive: options.isActive ?? true,
   });
   em.persist(category);
@@ -146,7 +147,7 @@ export type CreateMeasureSheetItemOptions = {
   name?: string;
   note?: string;
   measurementType?: string;
-  sortOrder?: number;
+  sortOrder?: string;
   isActive?: boolean;
   lastModifiedBy?: User;
 };
@@ -165,7 +166,7 @@ export async function createTestMeasureSheetItem(
     name,
     note: options.note,
     measurementType: options.measurementType ?? 'each',
-    sortOrder: options.sortOrder ?? 0,
+    sortOrder: options.sortOrder ?? generateKeyBetween(null, null),
     searchVector: name,
     isActive: options.isActive ?? true,
     lastModifiedBy: options.lastModifiedBy,
@@ -708,13 +709,13 @@ export async function linkAdditionalDetailToMeasureSheetItem(
   em: EntityManager,
   msi: MeasureSheetItem,
   additionalDetailField: AdditionalDetailField,
-  sortOrder: number = 0,
+  sortOrder?: string,
 ): Promise<MeasureSheetItemAdditionalDetailField> {
   const link = em.create(MeasureSheetItemAdditionalDetailField, {
     id: uuid(),
     measureSheetItem: msi,
     additionalDetailField,
-    sortOrder,
+    sortOrder: sortOrder ?? generateKeyBetween(null, null),
   });
   em.persist(link);
   await em.flush();
