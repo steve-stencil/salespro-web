@@ -227,6 +227,10 @@ export function useHasAnyPermission(
  * These match the backend PERMISSIONS constant.
  */
 export const PERMISSIONS = {
+  // App Access
+  APP_DASHBOARD: 'app:dashboard',
+  APP_SALESPRO: 'app:salespro',
+
   // Customers
   CUSTOMER_READ: 'customer:read',
   CUSTOMER_CREATE: 'customer:create',

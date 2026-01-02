@@ -73,7 +73,7 @@ const DEFAULT_ROLES: RoleConfig[] = [
     description: 'Full system access. Can do everything.',
     type: RoleType.SYSTEM,
     isDefault: false,
-    permissions: ['*'], // All permissions
+    permissions: ['*'], // All permissions (includes app:dashboard, app:salespro)
   },
   {
     name: 'admin',
@@ -83,6 +83,10 @@ const DEFAULT_ROLES: RoleConfig[] = [
     type: RoleType.SYSTEM,
     isDefault: false,
     permissions: [
+      // App access - admins get both apps
+      PERMISSIONS.APP_DASHBOARD,
+      PERMISSIONS.APP_SALESPRO,
+      // Other permissions
       'customer:*',
       'user:*',
       'office:*',
@@ -100,6 +104,9 @@ const DEFAULT_ROLES: RoleConfig[] = [
     type: RoleType.SYSTEM,
     isDefault: true, // Auto-assign to new users
     permissions: [
+      // App access - sales reps get SalesPro only
+      PERMISSIONS.APP_SALESPRO,
+      // Other permissions
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.CUSTOMER_CREATE,
       PERMISSIONS.CUSTOMER_UPDATE,
@@ -115,6 +122,9 @@ const DEFAULT_ROLES: RoleConfig[] = [
     type: RoleType.SYSTEM,
     isDefault: false,
     permissions: [
+      // App access - viewers get Dashboard for read-only access
+      PERMISSIONS.APP_DASHBOARD,
+      // Other permissions
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.OFFICE_READ,
       PERMISSIONS.REPORT_READ,
@@ -142,7 +152,7 @@ const PLATFORM_ROLES: RoleConfig[] = [
       PERMISSIONS.PLATFORM_VIEW_AUDIT_LOGS,
       PERMISSIONS.PLATFORM_MANAGE_INTERNAL_USERS,
     ],
-    companyPermissions: ['*'], // Full access in any company
+    companyPermissions: ['*'], // Full access in any company (includes app:dashboard, app:salespro)
   },
   {
     name: 'platformSupport',
@@ -157,6 +167,9 @@ const PLATFORM_ROLES: RoleConfig[] = [
       PERMISSIONS.PLATFORM_VIEW_AUDIT_LOGS,
     ],
     companyPermissions: [
+      // App access - support gets both apps for support purposes
+      PERMISSIONS.APP_DASHBOARD,
+      PERMISSIONS.APP_SALESPRO,
       // All read permissions for read-only access
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.USER_READ,
@@ -179,6 +192,9 @@ const PLATFORM_ROLES: RoleConfig[] = [
       PERMISSIONS.PLATFORM_SWITCH_COMPANY,
     ],
     companyPermissions: [
+      // App access - developers get both apps for testing
+      PERMISSIONS.APP_DASHBOARD,
+      PERMISSIONS.APP_SALESPRO,
       // Custom company permissions (read-only)
       PERMISSIONS.CUSTOMER_READ,
       PERMISSIONS.USER_READ,
