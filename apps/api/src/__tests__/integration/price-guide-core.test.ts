@@ -246,7 +246,7 @@ describe('Price Guide Core Routes', () => {
           .set('Cookie', setup.adminCookie)
           .send({
             newParentId: parent2.id,
-            sortOrder: 0,
+            sortOrder: 'a0',
           });
 
         expect(response.status).toBe(200);
@@ -273,7 +273,7 @@ describe('Price Guide Core Routes', () => {
           .set('Cookie', setup.adminCookie)
           .send({
             newParentId: null,
-            sortOrder: 0,
+            sortOrder: 'a0',
           });
 
         expect(response.status).toBe(200);
@@ -307,7 +307,7 @@ describe('Price Guide Core Routes', () => {
 
       it('should reorder categories with sortOrder', async () => {
         // Create categories in specific order
-        await createTestCategory(em, setup.company, {
+        const cat1 = await createTestCategory(em, setup.company, {
           name: 'Category A',
           sortOrder: 'a0',
         });
@@ -315,22 +315,22 @@ describe('Price Guide Core Routes', () => {
           name: 'Category B',
           sortOrder: 'a1',
         });
-        const cat3 = await createTestCategory(em, setup.company, {
+        await createTestCategory(em, setup.company, {
           name: 'Category C',
           sortOrder: 'a2',
         });
 
-        // Move cat3 to be first (before cat1 at 'a0')
+        // Move cat1 to be last (after 'a2')
         const response = await makeRequest()
-          .put(`/api/price-guide/categories/${cat3.id}/move`)
+          .put(`/api/price-guide/categories/${cat1.id}/move`)
           .set('Cookie', setup.adminCookie)
           .send({
             newParentId: null,
-            sortOrder: 'Zz', // Before cat1's sortOrder of 'a0' (Z < a in ASCII)
+            sortOrder: 'a3', // After cat3's sortOrder of 'a2'
           });
 
         expect(response.status).toBe(200);
-        expect(response.body.category.sortOrder).toBe('Zz');
+        expect(response.body.category.sortOrder).toBe('a3');
 
         // Verify order in tree response
         const treeResponse = await makeRequest()
@@ -341,7 +341,7 @@ describe('Price Guide Core Routes', () => {
         const names = treeResponse.body.categories.map(
           (c: { name: string }) => c.name,
         );
-        expect(names).toEqual(['Category C', 'Category A', 'Category B']);
+        expect(names).toEqual(['Category B', 'Category C', 'Category A']);
       });
     });
 

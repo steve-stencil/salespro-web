@@ -36,7 +36,28 @@ export {
   queryOffices,
 } from './office.queries';
 
-// Future collection queries will be added here:
-// export * from './customer.queries';
-// export * from './contract.queries';
-// export * from './template.queries';
+// CustomConfig queries (for categories)
+export { countCategories, queryCategories } from './custom-config.queries';
+
+// MeasureSheetItem queries
+export {
+  countMSIs,
+  extractCategoryPaths,
+  queryAllMSIs,
+  queryMSIById,
+  queryMSIs,
+  queryMSIsByIds,
+} from './measure-sheet-item.queries';
+
+// PriceGuideItem queries (Options and UpCharges)
+export {
+  countOptions,
+  countPGIs,
+  countUpCharges,
+  queryAllPGIs,
+  queryOptions,
+  queryPGIById,
+  queryPGIs,
+  queryPGIsByIds,
+  queryUpCharges,
+} from './price-guide-item.queries';

@@ -5,6 +5,10 @@
  * for migrating data from a legacy MongoDB system.
  */
 
+// ============================================================================
+// OFFICE TYPES
+// ============================================================================
+
 /**
  * Raw source Office object structure from legacy MongoDB.
  */
@@ -137,3 +141,267 @@ export class EtlServiceError extends Error {
     this.name = 'EtlServiceError';
   }
 }
+
+// ============================================================================
+// PRICE GUIDE RAW SOURCE TYPES (from MongoDB)
+// ============================================================================
+
+/**
+ * Legacy additional detail object embedded in MSIs and PGIs.
+ * Maps to AdditionalDetailField entity in new schema.
+ */
+export type LegacyAdditionalDetailObject = {
+  objectId: string;
+  title: string;
+  inputType: string;
+  cellType?: string;
+  required?: boolean;
+  shouldCopy?: boolean;
+  placeholder?: string;
+  note?: string;
+  defaultValue?: string | string[];
+  notAddedReplacement?: string;
+  pickerValues?: string[];
+  dateDisplayFormat?: string;
+  minSizePickerWidth?: number;
+  maxSizePickerWidth?: number;
+  minSizePickerHeight?: number;
+  maxSizePickerHeight?: number;
+  minSizePickerDepth?: number;
+  maxSizePickerDepth?: number;
+  unitedInchSuffix?: string;
+  disableTemplatePhotoLinking?: boolean;
+};
+
+/**
+ * Legacy category configuration from CustomConfig.categories_.
+ * Defines root-level category organization and display types.
+ */
+export type LegacyCategoryConfig = {
+  name: string;
+  order: number;
+  type: 'default' | 'detail' | 'deep_drill_down';
+  objectId?: string;
+  isLocked?: boolean;
+};
+
+/**
+ * Legacy placeholder replacement configuration.
+ */
+export type LegacyPlaceholder = {
+  placeholder: string;
+  replacement: string;
+};
+
+/**
+ * Parse file reference from legacy MongoDB.
+ */
+export type LegacyFileReference = {
+  __type: 'File';
+  name: string;
+  url: string;
+};
+
+/**
+ * Raw source SSMeasureSheetItem from legacy MongoDB.
+ * Maps to MeasureSheetItem entity in new schema.
+ */
+export type RawSourceMSI = {
+  objectId: string;
+  itemName?: string;
+  itemNote?: string;
+  category?: string;
+  subCategory?: string;
+  subSubCategories?: string;
+  measurementType?: string;
+  orderNumber_?: number;
+  shouldShowSwitch?: boolean;
+  defaultQty?: number;
+  formulaID?: string;
+  qtyFormula?: string;
+  image?: LegacyFileReference;
+  /** Linked PGI objectIds (Options) */
+  items?: Array<{ objectId: string }>;
+  /** Linked PGI objectIds (UpCharges/Accessories) */
+  accessories?: Array<{ objectId: string }>;
+  /** Office objectIds that can see this item */
+  includedOffices?: Array<{ objectId: string }>;
+  /** Embedded additional detail fields */
+  additionalDetailObjects?: LegacyAdditionalDetailObject[];
+  /** Custom tag field configuration */
+  tagTitle?: string;
+  tagInputType?: string;
+  tagRequired?: boolean;
+  tagPickerOptions?: string[];
+  tagParams?: Record<string, unknown>;
+  /** Placeholder replacements */
+  placeholders?: LegacyPlaceholder[];
+  sourceCompanyId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/**
+ * Legacy item price entry (per office).
+ */
+export type LegacyItemPrice = {
+  officeId: string;
+  total: number;
+};
+
+/**
+ * Legacy accessory/upcharge price entry with option-specific totals.
+ */
+export type LegacyAccessoryPrice = {
+  priceGuideItemId: string;
+  itemTotals: LegacyItemPrice[];
+};
+
+/**
+ * Raw source SSPriceGuideItem from legacy MongoDB.
+ * Maps to either PriceGuideOption (isAccessory=false) or UpCharge (isAccessory=true).
+ */
+export type RawSourcePGI = {
+  objectId: string;
+  isAccessory: boolean;
+  // Option fields (isAccessory=false)
+  displayTitle?: string;
+  subCategory2?: string;
+  itemPrices?: LegacyItemPrice[];
+  itemCodes?: Record<string, string>;
+  // UpCharge fields (isAccessory=true)
+  name?: string;
+  info?: string;
+  identifier?: string;
+  accessoryPrices?: LegacyAccessoryPrice[];
+  percentagePrice?: boolean;
+  disabledParents?: string[];
+  additionalDetails?: LegacyAdditionalDetailObject[];
+  /** Placeholder replacements */
+  placeholders?: LegacyPlaceholder[];
+  sourceCompanyId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+// ============================================================================
+// PRICE GUIDE TRANSFORMED TYPES
+// ============================================================================
+
+/**
+ * Transformed category data ready for database insertion.
+ */
+export type TransformedCategoryData = {
+  name: string;
+  categoryType: 'default' | 'detail' | 'deep_drill_down';
+  sortOrder: string;
+  depth: number;
+  sourceId?: string;
+  parentSourceId?: string;
+};
+
+/**
+ * Transformed MSI data ready for database insertion.
+ */
+export type TransformedMsiData = {
+  sourceId: string;
+  name: string;
+  note?: string;
+  measurementType: string;
+  formulaId?: string;
+  qtyFormula?: string;
+  defaultQty: number;
+  showSwitch: boolean;
+  sortOrder: string;
+  categoryPath: string[];
+  linkedOptionSourceIds: string[];
+  linkedUpChargeSourceIds: string[];
+  linkedOfficeSourceIds: string[];
+  additionalDetails: LegacyAdditionalDetailObject[];
+  image?: LegacyFileReference;
+};
+
+/**
+ * Transformed Option data ready for database insertion.
+ */
+export type TransformedOptionData = {
+  sourceId: string;
+  name: string;
+  itemCode?: string;
+  prices: Array<{
+    officeSourceId: string;
+    amount: number;
+  }>;
+};
+
+/**
+ * Transformed UpCharge data ready for database insertion.
+ */
+export type TransformedUpChargeData = {
+  sourceId: string;
+  name: string;
+  note?: string;
+  identifier?: string;
+  isPercentage: boolean;
+  disabledOptionSourceIds: string[];
+  additionalDetails: LegacyAdditionalDetailObject[];
+  defaultPrices: Array<{
+    officeSourceId: string;
+    amount: number;
+  }>;
+  optionPrices: Array<{
+    optionSourceId: string;
+    prices: Array<{
+      officeSourceId: string;
+      amount: number;
+    }>;
+  }>;
+};
+
+// ============================================================================
+// PRICE GUIDE BATCH IMPORT TYPES
+// ============================================================================
+
+/**
+ * Price guide batch import options.
+ */
+export type PriceGuideBatchImportOptions = BatchImportOptions & {
+  /** Whether to include images in import */
+  includeImages?: boolean;
+  /** Whether to validate formulas */
+  validateFormulas?: boolean;
+};
+
+/**
+ * Price guide batch import result with detailed counts.
+ */
+export type PriceGuideBatchImportResult = BatchImportResult & {
+  /** Categories imported */
+  categoriesImported: number;
+  /** MSIs imported */
+  msisImported: number;
+  /** Options imported */
+  optionsImported: number;
+  /** UpCharges imported */
+  upChargesImported: number;
+  /** Additional detail fields imported */
+  additionalDetailsImported: number;
+  /** Formula warnings (unresolved references) */
+  formulaWarnings: Array<{
+    msiSourceId: string;
+    unresolvedRefs: string[];
+  }>;
+};
+
+/**
+ * Rollback statistics.
+ */
+export type RollbackStats = {
+  categoriesDeleted: number;
+  msisDeleted: number;
+  optionsDeleted: number;
+  upChargesDeleted: number;
+  additionalDetailsDeleted: number;
+  pricesDeleted: number;
+  junctionsDeleted: number;
+};
