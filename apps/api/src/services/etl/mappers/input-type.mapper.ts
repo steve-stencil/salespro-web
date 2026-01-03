@@ -31,11 +31,17 @@ export type InputTypeMapping = {
 /**
  * Mapping from legacy input type strings to new schema types.
  * Handles iOS naming conventions and variations.
+ *
+ * @see leap-one/Estimate Pro/Constants.h for kInputType* definitions
+ * @see leap-one/Estimate Pro/PriceGuide/ItemPrices/AdditionalDetailObject.m for kMeasureSheetAdditionalDetailObjectInputType* definitions
+ * @see leap-one/Estimate Pro/SSTextField.swift for TextFieldInputStyle enum
  */
 const INPUT_TYPE_MAP: Record<string, InputTypeMapping> = {
   // Text inputs
   default: { inputType: AdditionalDetailInputType.TEXT },
   text: { inputType: AdditionalDetailInputType.TEXT },
+  plain: { inputType: AdditionalDetailInputType.TEXT },
+  plainText: { inputType: AdditionalDetailInputType.TEXT },
   textView: { inputType: AdditionalDetailInputType.TEXTAREA },
   textarea: { inputType: AdditionalDetailInputType.TEXTAREA },
 
@@ -69,7 +75,12 @@ const INPUT_TYPE_MAP: Record<string, InputTypeMapping> = {
     allowDecimal: false,
   },
 
-  // 2D Size pickers
+  // 2D Size pickers - generic (defaults to INCH precision per iOS behavior)
+  sizePicker: {
+    inputType: AdditionalDetailInputType.SIZE_PICKER,
+    precision: SizePickerPrecision.INCH,
+  },
+  // 2D Size pickers - with explicit precision
   sizePickerInch: {
     inputType: AdditionalDetailInputType.SIZE_PICKER,
     precision: SizePickerPrecision.INCH,
@@ -87,7 +98,12 @@ const INPUT_TYPE_MAP: Record<string, InputTypeMapping> = {
     precision: SizePickerPrecision.SIXTEENTH_INCH,
   },
 
-  // 3D Size pickers
+  // 3D Size pickers - generic (defaults to INCH precision per iOS behavior)
+  '3DSizePicker': {
+    inputType: AdditionalDetailInputType.SIZE_PICKER_3D,
+    precision: SizePickerPrecision.INCH,
+  },
+  // 3D Size pickers - with explicit precision
   '3DSizePickerInch': {
     inputType: AdditionalDetailInputType.SIZE_PICKER_3D,
     precision: SizePickerPrecision.INCH,
@@ -139,6 +155,12 @@ export function mapInputType(legacyType: string): InputTypeMapping {
 /**
  * Map a legacy cell type string to new schema type.
  *
+ * Legacy cell types from AdditionalDetailObject.m:
+ * - kMeasureSheetAdditionalDetailObjectCellTypeWords = "textWords"
+ * - kMeasureSheetAdditionalDetailObjectCellTypeSentence = "textSentence"
+ * - kMeasureSheetAdditionalDetailObjectCellTypeParagraph = "textParagraph"
+ * - kMeasureSheetAdditionalDetailObjectCellTypePhotos = "photos"
+ *
  * @param legacyCellType - Legacy cell type string from MongoDB
  * @returns AdditionalDetailCellType or undefined
  */
@@ -153,6 +175,11 @@ export function mapCellType(
       return AdditionalDetailCellType.PHOTOS;
     case 'text':
     case 'default':
+    case 'textwords':
+    case 'textsentence':
+      return AdditionalDetailCellType.TEXT;
+    case 'textparagraph':
+      // textParagraph implies expanded text display, still TEXT type
       return AdditionalDetailCellType.TEXT;
     default:
       return undefined;
