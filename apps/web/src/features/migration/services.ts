@@ -10,6 +10,9 @@ import { apiClient } from '../../lib/api-client';
 import type {
   BatchImportResult,
   MigrationSession,
+  OfficeMapping,
+  PriceGuideBatchImportResult,
+  PriceGuideSourceCounts,
   SourceItem,
   SourceItemsResponse,
 } from './types';
@@ -17,7 +20,7 @@ import type {
 /**
  * Supported collection names for migration.
  */
-export type CollectionName = 'offices';
+export type CollectionName = 'offices' | 'price-guide';
 
 /**
  * Get count of source items in legacy database.
@@ -135,6 +138,71 @@ export const officeServices = {
     getImportedStatus('offices', sourceIds),
 };
 
-// Future collections can add their own convenience exports:
-// export const customerServices = { ... }
-// export const contractServices = { ... }
+// =============================================================================
+// Price Guide Migration Services
+// =============================================================================
+
+/**
+ * Get detailed counts for price guide entities.
+ */
+export async function getPriceGuideSourceCounts(): Promise<PriceGuideSourceCounts> {
+  const response = await apiClient.get<{ data: PriceGuideSourceCounts }>(
+    '/migration/price-guide/source-counts',
+  );
+  return response.data;
+}
+
+/**
+ * Get office mapping for price guide import.
+ */
+export async function getOfficeMappings(): Promise<OfficeMapping[]> {
+  const response = await apiClient.get<{ data: OfficeMapping[] }>(
+    '/migration/price-guide/office-mappings',
+  );
+  return response.data;
+}
+
+/**
+ * Import price guide batch with extended result.
+ */
+export async function importPriceGuideBatch(
+  sessionId: string,
+  skip: number,
+  limit: number,
+): Promise<PriceGuideBatchImportResult> {
+  const response = await apiClient.post<{ data: PriceGuideBatchImportResult }>(
+    `/migration/price-guide/sessions/${sessionId}/batch`,
+    { skip, limit },
+  );
+  return response.data;
+}
+
+/**
+ * Check connection to legacy source database.
+ */
+export async function checkSourceConnection(): Promise<{
+  connected: boolean;
+  message?: string;
+}> {
+  const response = await apiClient.get<{
+    data: { connected: boolean; message?: string };
+  }>('/migration/price-guide/connection-status');
+  return response.data;
+}
+
+/**
+ * Pre-configured service functions for price-guide collection.
+ */
+export const priceGuideServices = {
+  getSourceCount: () => getSourceCount('price-guide'),
+  getSourceCounts: getPriceGuideSourceCounts,
+  getSourceItems: (skip?: number, limit?: number) =>
+    getSourceItems('price-guide', skip, limit),
+  createSession: () => createSession('price-guide'),
+  getSession: (sessionId: string) => getSession('price-guide', sessionId),
+  importBatch: importPriceGuideBatch,
+  getOfficeMappings,
+  checkSourceConnection,
+  getImportedStatus: (sourceIds: string[]) =>
+    getImportedStatus('price-guide', sourceIds),
+};
