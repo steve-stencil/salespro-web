@@ -95,7 +95,7 @@ const defaultImportMock = {
     includeImages: true,
   } as PriceGuideImportConfig,
   progress: {
-    phase: 'idle',
+    phase: 'idle' as const,
     overallProgress: 0,
     categories: { done: 0, total: 0 },
     additionalDetails: { done: 0, total: 0 },
@@ -576,7 +576,7 @@ describe('PriceGuideMigrationWizard', () => {
         isImporting: true,
         progress: {
           ...defaultImportMock.progress,
-          phase: 'options',
+          phase: 'options' as const,
           overallProgress: 42,
           categories: { done: 24, total: 24 },
           options: { done: 1500, total: 3892 },
